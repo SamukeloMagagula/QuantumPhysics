@@ -33,3 +33,14 @@ def test_check_regex_uses_pattern_not_hash():
                         answer_type="regex", case_insensitive=True, trim=True)
     assert not check_answer(submitted="nope", stored=r"flag\{[a-z0-9]+\}",
                             answer_type="regex", case_insensitive=True, trim=True)
+
+
+def test_check_regex_case_insensitive_pattern():
+    # A mixed-case pattern still matches when case_insensitive is on.
+    assert check_answer(submitted="FLAG{ABC}", stored=r"flag\{[A-Z]+\}",
+                        answer_type="regex", case_insensitive=True, trim=True)
+
+
+def test_check_regex_malformed_pattern_returns_false():
+    assert not check_answer(submitted="anything", stored="[unclosed",
+                            answer_type="regex", case_insensitive=True, trim=True)

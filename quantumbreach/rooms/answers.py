@@ -25,10 +25,16 @@ def hash_answer(raw, *, case_insensitive=True, trim=True, numeric=False) -> str:
 
 
 def check_answer(*, submitted, stored, answer_type, case_insensitive, trim) -> bool:
+    """Return True if submitted matches the stored hash (exact/number/flag) or regex pattern."""
     if answer_type == "regex":
-        norm = normalize_answer(submitted, case_insensitive=case_insensitive, trim=trim)
+        # Regex answers store a plaintext pattern (not a hash). Do NOT lowercase
+        # the submission here; instead apply case-insensitivity symmetrically to
+        # BOTH pattern and submission via re.IGNORECASE, so an author may write
+        # the pattern in any case.
+        norm = normalize_answer(submitted, case_insensitive=False, trim=trim)
+        flags = re.IGNORECASE if case_insensitive else 0
         try:
-            return re.fullmatch(stored, norm) is not None
+            return re.fullmatch(stored, norm, flags) is not None
         except re.error:
             return False
     numeric = answer_type == "number"
