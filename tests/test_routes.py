@@ -33,3 +33,19 @@ def test_answer_unknown_question_404(content_client):
     r = content_client.post("/rooms/demo-room/answer",
                             json={"taskId": "intro", "questionId": "nope", "answer": "x"})
     assert r.status_code == 404
+
+
+def test_answer_rate_limited_after_12_attempts(content_client):
+    from quantumbreach.rooms import routes
+    routes._ATTEMPTS.clear()  # isolate from other tests' accumulated attempts
+    _signup(content_client, "rlimit")
+    codes = []
+    for _ in range(13):
+        r = content_client.post(
+            "/rooms/demo-room/answer",
+            json={"taskId": "intro", "questionId": "q1", "answer": "wrong"},
+        )
+        codes.append(r.status_code)
+    assert codes[:12] == [200] * 12  # first 12 attempts allowed
+    assert codes[12] == 429          # 13th attempt is rate-limited
+    assert "error" in r.get_json()
