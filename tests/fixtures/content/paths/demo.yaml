@@ -1,0 +1,5 @@
+id: demo
+title: Demo Path
+description: For tests.
+rooms:
+  - demo-room
