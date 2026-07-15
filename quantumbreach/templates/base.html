@@ -7,7 +7,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-  {% block nav %}{% endblock %}
+  {% set points = (user_points if user_points is defined else 0) %}
+  {% set rank = (user_rank if user_rank is defined else 'Script Kiddie') %}
+  {% include "_nav.html" %}
   <main class="container">
     {% with messages = get_flashed_messages() %}
       {% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}

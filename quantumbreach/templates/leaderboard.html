@@ -2,10 +2,14 @@
 {% block title %}Leaderboard — PhantomQ{% endblock %}
 {% block content %}
 <h1>Leaderboard</h1>
-<p>Placeholder leaderboard page (Task 10 will replace this).</p>
-<ol>
-  {% for entry in board %}
-  <li>{{ entry.username }} — {{ entry.points }} pts ({{ entry.rank }})</li>
-  {% endfor %}
-</ol>
+<table>
+  <thead><tr><th>#</th><th>Operative</th><th>Rank</th><th>XP</th></tr></thead>
+  <tbody>
+    {% for row in board %}
+    <tr><td>{{ loop.index }}</td><td>{{ row.username }}</td><td>{{ row.rank }}</td><td>{{ row.points }}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No scores yet. Be the first.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

@@ -21,6 +21,19 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .rooms.routes import bp as rooms_bp
     app.register_blueprint(rooms_bp)
 
+    from .auth.service import current_user
+    from .db import get_db
+    from .progress.service import get_points
+    from .progress.ranks import rank_for_points
+
+    @app.context_processor
+    def inject_user():
+        u = current_user()
+        if not u:
+            return {"user": None, "user_points": 0, "user_rank": "Script Kiddie"}
+        pts = get_points(get_db(), u["id"])
+        return {"user": u, "user_points": pts, "user_rank": rank_for_points(pts)}
+
     @app.route("/healthz")
     def healthz():
         return {"status": "ok", "app": "PhantomQ"}
