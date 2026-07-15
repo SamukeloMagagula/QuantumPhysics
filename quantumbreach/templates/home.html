@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}PhantomQ{% endblock %}
+{% block content %}
+<h1>PhantomQ</h1>
+<p>Placeholder home page (Task 10 will replace this).</p>
+<ul>
+  {% for card in path_cards %}
+  <li>
+    <a href="{{ url_for('rooms.path_view', path_id=card.path.id) }}">{{ card.path.title }}</a>
+    ({{ card.done }}/{{ card.total }})
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

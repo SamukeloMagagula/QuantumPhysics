@@ -15,6 +15,12 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .auth import bp as auth_bp
     app.register_blueprint(auth_bp)
 
+    from .main import bp as main_bp
+    app.register_blueprint(main_bp)
+
+    from .rooms.routes import bp as rooms_bp
+    app.register_blueprint(rooms_bp)
+
     @app.route("/healthz")
     def healthz():
         return {"status": "ok", "app": "PhantomQ"}

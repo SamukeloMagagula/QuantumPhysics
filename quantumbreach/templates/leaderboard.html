@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — PhantomQ{% endblock %}
+{% block content %}
+<h1>Leaderboard</h1>
+<p>Placeholder leaderboard page (Task 10 will replace this).</p>
+<ol>
+  {% for entry in board %}
+  <li>{{ entry.username }} — {{ entry.points }} pts ({{ entry.rank }})</li>
+  {% endfor %}
+</ol>
+{% endblock %}
