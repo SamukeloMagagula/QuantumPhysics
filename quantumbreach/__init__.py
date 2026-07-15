@@ -9,6 +9,9 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     if config_overrides:
         app.config.update(config_overrides)
 
+    from . import db
+    db.init_app(app)
+
     @app.route("/healthz")
     def healthz():
         return {"status": "ok", "app": "PhantomQ"}
