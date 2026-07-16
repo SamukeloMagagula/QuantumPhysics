@@ -24,7 +24,16 @@
     xor: function (p) { var key = p.args[0], text = p.args.slice(1).join(" "); if (!key || !text) return "usage: xor <keyhex> <text>"; var kb = C.hexToBytes(key); var db = C.strToBytes(text); return C.bytesToHex(C.xor(db, kb)); },
     brute: function (p) { var t = p.args.join(" "); return C.brute(t).map(function (r) { return String(r.key).padStart(2, "0") + ": " + r.text; }).join("\n"); },
     freq: function (p) { var f = C.freq(p.args.join(" ")); var top = Object.keys(f).sort(function (a, b) { return f[b] - f[a]; }).slice(0, 5); return top.map(function (k) { return k + ": " + (f[k] * 100).toFixed(1) + "%"; }).join("  ") || "(no letters)"; },
-    b64: function (p) { var t = p.args.join(" "); try { return p.flags.d ? C.b64decode(t) : C.b64encode(t); } catch (e) { return "bad input"; } }
+    b64: function (p) { var t = p.args.join(" "); try { return p.flags.d ? C.b64decode(t) : C.b64encode(t); } catch (e) { return "bad input"; } },
+    lab: function (p) {
+      var L = window.PhantomLabs, sub = p.args[0];
+      if (sub === "list") { var a = L.list(); return a.length ? a.map(function (l) { return "  " + l.id + "  " + l.title + " [" + l.type + "]"; }).join("\n") : "(no labs yet — run: lab create)"; }
+      if (sub === "delete") { L.remove(p.args[1]); return "deleted " + p.args[1]; }
+      if (sub === "export") { return L.exportYaml(p.args[1]); }
+      if (sub === "play") { var l = L.get(p.args[1]); if (!l) return "no such lab"; return "wizardPlay:" + l.id; }
+      if (sub === "create") { return "wizardCreate"; }
+      return "usage: lab create | lab list | lab play <id> | lab export <id> | lab delete <id>";
+    }
   };
   window.__PQ_registry = registry;
 
@@ -42,14 +51,34 @@
     var root = document.getElementById("shell"); if (!root) return;
     var out = document.getElementById("shell-out"), input = document.getElementById("shell-in");
     var history = [], hi = 0;
+    var wizard = null;
     function print(text) { var d = document.createElement("div"); d.className = "sh-line"; d.textContent = text; out.appendChild(d); out.scrollTop = out.scrollHeight; }
     print("PhantomShell v2 // Ghost Protocol — type 'help'");
+    function startCreate() {
+      wizard = { step: 0, data: { type: "freeform" }, kind: "create",
+        prompts: ["title? ", "prompt/description? ", "type (caesar|xor|freeform)? ", "answer? ", "hint (optional)? "] };
+      print(wizard.prompts[0]);
+    }
+    function startPlay(id) { var l = window.PhantomLabs.get(id); wizard = { step: 0, kind: "play", id: id }; print(l.prompt); print("your answer? "); }
+    function feedWizard(line) {
+      if (wizard.kind === "create") {
+        var keys = ["title", "prompt", "type", "answer", "hint"];
+        wizard.data[keys[wizard.step]] = line; wizard.step++;
+        if (wizard.step < wizard.prompts.length) { print(wizard.prompts[wizard.step]); }
+        else { var lab = window.PhantomLabs.create(wizard.data); print("created " + lab.id + " — run: lab play " + lab.id); wizard = null; }
+      } else if (wizard.kind === "play") {
+        var ok = window.PhantomLabs.check(wizard.id, line); print(ok ? "CORRECT — flag captured." : "wrong, try again (lab play " + wizard.id + ")"); wizard = null;
+      }
+    }
     function submit() {
-      var line = input.value; input.value = ""; if (line.trim()) { history.push(line); hi = history.length; }
+      var line = input.value; input.value = "";
+      if (wizard) { print("$ " + line); feedWizard(line); return; }
+      if (line.trim()) { history.push(line); hi = history.length; }
       print("$ " + line);
       Promise.resolve(window.PhantomShell.run(line)).then(function (res) {
         if (res && res.clear) { out.innerHTML = ""; return; }
-        if (res && res.wizard) { return; }
+        if (res === "wizardCreate") { startCreate(); return; }
+        if (typeof res === "string" && res.indexOf("wizardPlay:") === 0) { startPlay(res.split(":")[1]); return; }
         if (res != null && res !== "") print(String(res));
       }).catch(function (e) { print("error: " + (e && e.message ? e.message : e)); });
     }
