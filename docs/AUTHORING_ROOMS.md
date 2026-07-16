@@ -32,6 +32,10 @@ tasks:
         trim: true              # optional (default true)
 ```
 
+> **Question ids must be unique within a room** (across all its tasks). Progress
+> and room-completion are tracked by `question_id` alone, so a duplicate id in
+> another task of the same room would let one answer mark both solved.
+
 ## Answers
 
 Answers are stored **hashed** so plaintext never lives in the repo or reaches
