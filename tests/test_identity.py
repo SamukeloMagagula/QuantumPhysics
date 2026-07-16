@@ -30,3 +30,15 @@ def test_no_login_gate_and_auth_routes_gone(client):
     assert client.get("/rooms/the-shift").status_code in (200, 404)  # reachable (no redirect to login)
     assert client.get("/auth/login").status_code == 404
     assert client.get("/auth/signup").status_code == 404
+
+
+def test_tampered_guest_cookie_is_rejected(app):
+    c = app.test_client()
+    # a forged unsigned cookie (raw id) must be rejected; a fresh signed guest is issued
+    resp = c.get("/", headers={"Cookie": "guest_id=1"})
+    assert "guest_id" in resp.headers.get("Set-Cookie", "")
+
+
+def test_rename_rejects_non_string(client):
+    client.get("/")
+    assert client.post("/api/rename", json={"name": 123}).status_code == 400

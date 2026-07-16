@@ -1,10 +1,16 @@
 import secrets
+import sqlite3
 
 from flask import current_app, g, request
+from itsdangerous import URLSafeSerializer, BadSignature, BadData
 
 from .db import get_db
 
 COOKIE = "guest_id"
+
+
+def _serializer():
+    return URLSafeSerializer(current_app.config["SECRET_KEY"], salt="phantomq-guest")
 
 
 def _new_handle():
@@ -19,7 +25,7 @@ def _create_guest(db):
                 "INSERT INTO users (username, password_hash, display_name, is_guest) "
                 "VALUES (?, '', ?, 1)", (handle, handle))
             break
-        except Exception:
+        except sqlite3.IntegrityError:
             continue
     else:
         raise RuntimeError("could not allocate guest handle")
@@ -39,18 +45,24 @@ def current_user():
     db = get_db()
     raw = request.cookies.get(COOKIE)
     row = None
-    if raw and raw.isdigit():
-        row = _get(db, int(raw))
+    if raw:
+        try:
+            uid = _serializer().loads(raw)
+            row = _get(db, int(uid))
+        except (BadSignature, BadData, ValueError, TypeError):
+            row = None
     if row is None:
         uid = _create_guest(db)
         row = _get(db, uid)
-        g.guest_cookie = str(uid)  # signal to set the cookie on the response
+        g.guest_cookie = _serializer().dumps(uid)  # signal to set the cookie on the response
     g.user = row
     return row
 
 
 def rename(db, user_id, new_name):
-    name = (new_name or "").strip()
+    if not isinstance(new_name, str):
+        return None
+    name = new_name.strip()
     if not name or len(name) > 40:
         return None
     db.execute("UPDATE users SET display_name=? WHERE id=?", (name, user_id))
