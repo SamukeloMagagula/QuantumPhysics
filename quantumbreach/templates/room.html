@@ -2,7 +2,7 @@
 {% block title %}{{ room.title }} — PhantomQ{% endblock %}
 {% block content %}
 <p class="muted"><a href="{{ url_for('main.home') }}">← All paths</a></p>
-<h1>{{ room.title }}</h1>
+<h1 data-typewriter>{{ room.title }}</h1>
 <p class="muted">{{ room.difficulty }} · {{ room.estimated_minutes }} min · {{ room.total_points }} XP</p>
 <p>{{ room.summary }}</p>
 
