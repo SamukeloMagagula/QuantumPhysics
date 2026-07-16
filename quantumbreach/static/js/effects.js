@@ -2,11 +2,12 @@
   var KEY = "phantomq.fx";
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var off = localStorage.getItem(KEY) === "off" || reduced;
+  var rafId = null;
 
   function apply() { document.body.classList.toggle("fx-off", off); }
 
   function matrix() {
-    if (off) return;
+    if (off || rafId) return;
     var c = document.getElementById("fx-bg");
     if (!c) return;
     var ctx = c.getContext("2d");
@@ -17,7 +18,8 @@
     var drops = new Array(Math.ceil(cols)).fill(1);
     var last = 0;
     function frame(t) {
-      requestAnimationFrame(frame);
+      if (off) { rafId = null; return; }
+      rafId = requestAnimationFrame(frame);
       if (t - last < 60) return; last = t;  // ~16fps cap
       ctx.fillStyle = "rgba(11,15,20,.20)"; ctx.fillRect(0, 0, c.width, c.height);
       ctx.fillStyle = "#2be0c5"; ctx.font = font + "px monospace";
@@ -29,7 +31,7 @@
         drops[i] = (drops[i] || 1) + 1;
       }
     }
-    requestAnimationFrame(frame);
+    rafId = requestAnimationFrame(frame);
   }
 
   function typewriter(el, text, opts) {
