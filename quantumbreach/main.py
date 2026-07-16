@@ -37,6 +37,11 @@ def terminal():
     return render_template("terminal.html", user=current_user())
 
 
+@bp.route("/qkd")
+def qkd():
+    return render_template("qkd.html", user=current_user())
+
+
 @bp.route("/api/rooms")
 def api_rooms():
     cd = current_app.config["CONTENT_DIR"]

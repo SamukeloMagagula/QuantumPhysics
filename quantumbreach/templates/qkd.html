@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Quantum Intercept — PhantomQ{% endblock %}
+{% block content %}
+<h1 data-typewriter>Quantum Intercept</h1>
+<p class="muted">BB84 key distribution. Alice sends polarized photons; Bob measures. If <strong>Eve</strong> listens, she disturbs them and the error rate (QBER) climbs past the 11% abort line. Your call: keep the key or abort.</p>
+<div id="qkd" class="qkd">
+  <div id="qkd-photons" class="qkd-photons"></div>
+  <div class="qber"><div id="qber-fill" class="qber-fill cool"></div></div>
+  <p id="qber-text" class="muted"></p>
+  <p id="qkd-info"></p>
+  <div class="row">
+    <button id="btn-keep" class="btn" type="button">KEEP KEY</button>
+    <button id="btn-abort" class="btn ghost" type="button">ABORT</button>
+    <span id="qkd-score" class="chip">Score: 0</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/qkd.js') }}"></script>
+{% endblock %}

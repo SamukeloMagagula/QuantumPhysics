@@ -125,4 +125,14 @@ body.fx-off *{ animation:none !important; }
 .sh-line{ padding:.05rem 0; }
 .shell-row{ display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
 .shell-prompt{ color:var(--accent); }
+
+/* Quantum Intercept (BB84 game) */
+.qkd{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:1.25rem; }
+.qkd-photons{ display:flex; gap:6px; height:40px; align-items:center; margin-bottom:1rem; overflow:hidden; }
+.photon{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:var(--glow); animation: fly 1.2s ease both; }
+@keyframes fly{ from{ transform:translateX(-40px); opacity:0;} to{ transform:none; opacity:1;} }
+.qber{ height:14px; background:#0e141d; border-radius:999px; overflow:hidden; border:1px solid var(--border); }
+.qber-fill{ height:100%; transition:width .6s ease; }
+.qber-fill.cool{ background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+.qber-fill.hot{ background:linear-gradient(90deg,#ffb347,var(--bad)); }
 .shell-in{ flex:1; background:transparent; border:0; outline:0; color:var(--text); font-family:var(--mono); font-size:.9rem; }
