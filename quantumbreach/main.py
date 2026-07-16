@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify, render_template
+from flask import Blueprint, current_app, jsonify, render_template, request
 
 from .identity import current_user
 from .db import get_db
@@ -29,7 +29,11 @@ def home():
 @bp.route("/leaderboard")
 def leaderboard():
     board = progress.leaderboard(get_db(), limit=10)
-    return render_template("leaderboard.html", board=board, user=current_user())
+    qkd = get_db().execute(
+        "SELECT COALESCE(u.display_name,u.username) AS name, MAX(s.score) AS score "
+        "FROM qkd_scores s JOIN users u ON u.id=s.user_id GROUP BY s.user_id "
+        "ORDER BY score DESC LIMIT 10").fetchall()
+    return render_template("leaderboard.html", board=board, qkd=[dict(r) for r in qkd], user=current_user())
 
 
 @bp.route("/terminal")
@@ -50,3 +54,32 @@ def api_rooms():
         for r in p.rooms(cd):
             rooms.append({"id": r.id, "title": r.title})
     return jsonify({"rooms": rooms})
+
+
+@bp.route("/api/qkd/score", methods=["POST"])
+def qkd_score():
+    u = current_user()
+    data = request.get_json(silent=True) or {}
+    try:
+        score = int(data.get("score"))
+    except (TypeError, ValueError):
+        score = -1
+    if score < 0 or score > 100000:
+        return jsonify({"error": "bad score"}), 400
+    db = get_db()
+    db.execute("INSERT INTO qkd_scores (user_id, score) VALUES (?,?)", (u["id"], score))
+    new_badge = False
+    if score >= 1:
+        new_badge = progress._award_badge(db, u["id"], "qkd-operative") is not None
+    db.commit()
+    best = db.execute("SELECT MAX(score) AS b FROM qkd_scores WHERE user_id=?", (u["id"],)).fetchone()["b"]
+    return jsonify({"best": best or 0, "newBadge": new_badge})
+
+
+@bp.route("/api/qkd/leaderboard")
+def qkd_leaderboard():
+    rows = get_db().execute(
+        "SELECT COALESCE(u.display_name,u.username) AS name, MAX(s.score) AS score "
+        "FROM qkd_scores s JOIN users u ON u.id=s.user_id "
+        "GROUP BY s.user_id ORDER BY score DESC LIMIT 10").fetchall()
+    return jsonify({"top": [dict(r) for r in rows]})

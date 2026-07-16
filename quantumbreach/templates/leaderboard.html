@@ -12,4 +12,16 @@
     {% endfor %}
   </tbody>
 </table>
+
+<h2 style="margin-top:2rem">Quantum Intercept</h2>
+<table>
+  <thead><tr><th>#</th><th>Operative</th><th>Best score</th></tr></thead>
+  <tbody>
+    {% for row in qkd %}
+    <tr><td>{{ loop.index }}</td><td>{{ row.name }}</td><td>{{ row.score }}</td></tr>
+    {% else %}
+    <tr><td colspan="3" class="muted">No QKD scores yet. Play Quantum Intercept.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}
