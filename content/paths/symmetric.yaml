@@ -1,0 +1,8 @@
+id: symmetric
+title: Symmetric Cryptography
+description: One shared secret key. Learn the classic ciphers, then break them — Caesar, brute force, frequency analysis, and XOR/one-time pads.
+rooms:
+  - the-shift
+  - brute-force
+  - frequency-analysis
+  - xor-otp

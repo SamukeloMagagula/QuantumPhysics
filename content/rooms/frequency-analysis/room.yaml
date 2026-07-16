@@ -1,0 +1,19 @@
+id: frequency-analysis
+title: Frequency Analysis
+summary: Substitution ciphers have too many keys to brute force — but letters betray them.
+difficulty: Medium
+estimated_minutes: 15
+tags: [substitution, frequency-analysis, symmetric]
+prerequisites: [brute-force]
+tasks:
+  - id: analyse
+    title: Break the substitution
+    body: task-1.md
+    widget: frequency
+    questions:
+      - id: password
+        prompt: The decrypted message ends by revealing a hidden password. What is it?
+        answer_type: exact
+        answer: 67671a2f53dd910a8b35840edb6a0a1e751ae5532178ca7f025b823eee317992
+        points: 30
+        hint: Map the most common cipher letter to 'e', then work outwards. The password is one word.
