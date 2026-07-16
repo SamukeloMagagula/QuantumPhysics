@@ -1,12 +1,18 @@
 import os
 
 from quantumbreach.db import get_db
-from quantumbreach.auth.service import create_user
 from quantumbreach.progress.ranks import rank_for_points
 from quantumbreach.progress import service
 from quantumbreach.rooms.loader import load_room
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures", "content")
+
+
+def _mk_user(db, name):
+    cur = db.execute("INSERT INTO users (username, password_hash, display_name) VALUES (?, '', ?)", (name, name))
+    db.execute("INSERT INTO user_stats (user_id, points) VALUES (?, 0)", (cur.lastrowid,))
+    db.commit()
+    return cur.lastrowid
 
 
 def test_rank_thresholds():
@@ -19,7 +25,7 @@ def test_rank_thresholds():
 def test_record_answer_awards_points_once_and_completes_room(app):
     with app.app_context():
         db = get_db()
-        uid = create_user(db, "eve", "pw")
+        uid = _mk_user(db, "eve")
         room = load_room("demo-room", FIXTURES)
         q = room.tasks[0].questions[0]
 
@@ -40,8 +46,8 @@ def test_record_answer_awards_points_once_and_completes_room(app):
 def test_leaderboard_orders_by_points(app):
     with app.app_context():
         db = get_db()
-        a = create_user(db, "a", "pw")
-        b = create_user(db, "b", "pw")
+        a = _mk_user(db, "a")
+        b = _mk_user(db, "b")
         db.execute("UPDATE user_stats SET points=30 WHERE user_id=?", (a,))
         db.execute("UPDATE user_stats SET points=90 WHERE user_id=?", (b,))
         db.commit()

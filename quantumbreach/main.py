@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, render_template
 
-from .auth.service import current_user
+from .identity import current_user
 from .db import get_db
 from .progress import service as progress
 from .rooms.loader import list_paths

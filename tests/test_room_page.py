@@ -1,5 +1,5 @@
 def _signup(client, name="rae"):
-    client.post("/auth/signup", data={"username": name, "password": "pw12"})
+    client.get("/")  # guest auto-provision; name unused
 
 
 def test_room_page_renders_tasks_and_widget(content_client):

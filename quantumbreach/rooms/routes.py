@@ -3,7 +3,7 @@ import time
 from flask import (Blueprint, abort, current_app, jsonify, render_template,
                    request)
 
-from ..auth.service import current_user, login_required
+from ..identity import current_user
 from ..db import get_db
 from ..progress import service as progress
 from ..widgets import is_widget, script_for
@@ -54,7 +54,6 @@ def path_view(path_id):
 
 
 @bp.route("/rooms/<room_id>")
-@login_required
 def room_view(room_id):
     room = _load_room_or_404(room_id)
     user = current_user()
@@ -64,7 +63,6 @@ def room_view(room_id):
 
 
 @bp.route("/rooms/<room_id>/answer", methods=["POST"])
-@login_required
 def submit_answer(room_id):
     room = _load_room_or_404(room_id)
     user = current_user()

@@ -1,9 +1,10 @@
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT NOT NULL DEFAULT '',
     display_name TEXT,
     is_admin INTEGER NOT NULL DEFAULT 0,
+    is_guest INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -47,4 +48,12 @@ CREATE TABLE IF NOT EXISTS user_badges (
     PRIMARY KEY (user_id, badge_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (badge_id) REFERENCES badges(id)
+);
+
+CREATE TABLE IF NOT EXISTS qkd_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    score INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );

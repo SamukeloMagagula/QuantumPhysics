@@ -1,15 +1,14 @@
 def _signup(client, name="zoe"):
-    return client.post("/auth/signup", data={"username": name, "password": "pw12"},
-                       follow_redirects=False)
+    return client.get("/")  # guest auto-provision; name unused
 
 
 def test_home_renders(content_client):
     assert content_client.get("/").status_code == 200
 
 
-def test_room_requires_login(content_client):
+def test_room_accessible_without_login(content_client):
     r = content_client.get("/rooms/demo-room", follow_redirects=False)
-    assert r.status_code == 302  # redirect to login
+    assert r.status_code == 200  # rooms are open to guests; no login gate
 
 
 def test_answer_wrong_then_right(content_client):

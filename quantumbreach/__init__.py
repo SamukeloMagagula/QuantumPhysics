@@ -12,8 +12,8 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from . import db
     db.init_app(app)
 
-    from .auth import bp as auth_bp
-    app.register_blueprint(auth_bp)
+    from . import identity
+    identity.init_app(app)
 
     from .main import bp as main_bp
     app.register_blueprint(main_bp)
@@ -21,7 +21,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .rooms.routes import bp as rooms_bp
     app.register_blueprint(rooms_bp)
 
-    from .auth.service import current_user
+    from .identity import current_user
     from .db import get_db
     from .progress.service import get_points
     from .progress.ranks import rank_for_points
@@ -29,10 +29,9 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     @app.context_processor
     def inject_user():
         u = current_user()
-        if not u:
-            return {"user": None, "user_points": 0, "user_rank": "Script Kiddie"}
-        pts = get_points(get_db(), u["id"])
-        return {"user": u, "user_points": pts, "user_rank": rank_for_points(pts)}
+        pts = get_points(get_db(), u["id"]) if u else 0
+        return {"user": u, "user_points": pts,
+                "user_rank": rank_for_points(pts) if u else "Script Kiddie"}
 
     @app.route("/healthz")
     def healthz():

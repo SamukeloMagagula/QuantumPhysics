@@ -5,11 +5,5 @@
   <span class="spacer"></span>
   {% if user %}
     <span class="chip" id="nav-points" data-points="{{ points }}">{{ rank }} · {{ points }} XP</span>
-    <form method="post" action="{{ url_for('auth.logout') }}">
-      <button class="btn ghost" type="submit">Log out</button>
-    </form>
-  {% else %}
-    <a class="btn ghost" href="{{ url_for('auth.login') }}">Log in</a>
-    <a class="btn" href="{{ url_for('auth.signup') }}">Sign up</a>
   {% endif %}
 </nav>

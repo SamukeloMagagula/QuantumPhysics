@@ -23,8 +23,9 @@ def test_full_happy_path(real_client):
     assert real_client.get("/").status_code == 200
     assert real_client.get("/paths/symmetric").status_code == 200
 
-    # Sign up, open a room, solve it, become non-empty on the leaderboard.
-    real_client.post("/auth/signup", data={"username": "neo", "password": "pw12"})
+    # Guest auto-provision, open a room, solve it, become non-empty on the leaderboard.
+    real_client.get("/")
+    real_client.post("/api/rename", json={"name": "neo"})
     assert real_client.get("/rooms/the-shift").status_code == 200
 
     r = real_client.post("/rooms/the-shift/answer",
@@ -44,6 +45,6 @@ def test_full_happy_path(real_client):
 
 
 def test_all_symmetric_rooms_render(real_client):
-    real_client.post("/auth/signup", data={"username": "trin", "password": "pw12"})
+    real_client.get("/")
     for rid in ["the-shift", "brute-force", "frequency-analysis", "xor-otp"]:
         assert real_client.get(f"/rooms/{rid}").status_code == 200

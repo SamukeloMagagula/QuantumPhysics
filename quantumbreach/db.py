@@ -6,6 +6,7 @@ from flask import current_app, g
 BADGE_SEED = [
     ("first-clear", "First Blood", "Complete your first room.", "🩸"),
     ("symmetric-path", "Symmetric Specialist", "Complete every room in the Symmetric path.", "🔑"),
+    ("qkd-operative", "Quantum Operative", "Win a round of Quantum Intercept.", "🛰️"),
 ]
 
 
@@ -30,6 +31,11 @@ def init_db(app):
     with app.app_context():
         db = sqlite3.connect(app.config["DB_PATH"])
         db.executescript(schema)
+        for stmt in ("ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0",):
+            try:
+                db.execute(stmt)
+            except sqlite3.OperationalError:
+                pass
         db.executemany(
             "INSERT OR IGNORE INTO badges (id, name, description, icon) VALUES (?,?,?,?)",
             BADGE_SEED,

@@ -101,7 +101,7 @@ def record_answer(db, user_id, room, task_id, question, correct) -> dict:
 
 def leaderboard(db, limit=10) -> list:
     rows = db.execute(
-        "SELECT u.username AS username, s.points AS points "
+        "SELECT COALESCE(u.display_name, u.username) AS username, s.points AS points "
         "FROM user_stats s JOIN users u ON u.id = s.user_id "
         "WHERE s.points > 0 ORDER BY s.points DESC, u.username LIMIT ?",
         (limit,)).fetchall()
