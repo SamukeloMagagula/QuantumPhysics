@@ -19,8 +19,8 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-  {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+  {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/effects.js') }}"></script>
   <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
   <script src="{{ url_for('static', filename='js/chatbot-kb.js') }}"></script>
