@@ -10,7 +10,7 @@ app = create_app()
 def main():
     port = Config.PORT
     print("=" * 56)
-    print("  PhantomQ — running")
+    print("  PhantomQ - running")
     print("=" * 56)
     print(f"  Open:  http://localhost:{port}")
     print("  Press Ctrl+C to stop.")
