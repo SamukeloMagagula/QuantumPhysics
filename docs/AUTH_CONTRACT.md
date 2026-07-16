@@ -1,5 +1,10 @@
 # PhantomQ Auth Contract
 
+> **v2 update:** PhantomQ now auto-provisions a **guest identity** (no login required).
+> The login/signup pages have been removed; a real login is optional future work that
+> would layer on top of the guest `users` row. The rest of this contract (the `users`
+> table shape, session-by-user-id) still holds for anyone adding real auth later.
+
 PhantomQ owns the user model, sessions, and auth endpoints. A teammate may
 replace the login/signup **UI**. This document is the integration contract.
 

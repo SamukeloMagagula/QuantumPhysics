@@ -11,8 +11,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open http://localhost:8000, sign up, and start the **Symmetric
-Cryptography** path.
+Then open http://localhost:8000 — a guest identity is auto-provisioned, no
+sign up needed — and start the **Symmetric Cryptography** path.
 
 ## What's here
 
@@ -22,8 +22,22 @@ Cryptography** path.
   One-Time Pad.
 - **Gamification** — points, ranks (Script Kiddie → Quantum Operative), badges,
   leaderboard.
-- **Auth** — dev login included; the real login page integrates via
-  `docs/AUTH_CONTRACT.md`.
+- **Auth** — no login required; see `docs/AUTH_CONTRACT.md` for the guest
+  identity model and how a real login could layer on top later.
+
+## v2
+
+- **Guest identity** — visiting the site auto-provisions a guest handle
+  (rename anytime); no login or signup.
+- **Ghost Protocol theme** — a redesigned terminal/hacker aesthetic with an
+  effects toggle for reduced-motion / low-fx preferences.
+- **GHOST chatbot** — an in-page assistant that answers questions about the
+  content and points you toward what to try next.
+- **PhantomShell terminal** (`/terminal`) — a command-line crypto sandbox
+  (`caesar`, `xor`, etc.) with `lab` authoring for saving and exporting
+  custom exercises.
+- **Quantum Intercept** (`/qkd`) — a BB84 quantum-key-distribution
+  mini-game with its own score and leaderboard.
 
 ## Develop
 

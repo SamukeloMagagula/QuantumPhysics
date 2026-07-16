@@ -4,8 +4,10 @@
 This is the repo's verified launch-and-drive recipe. It:
   1. starts the app with `python app.py` (Waitress) on an isolated port + temp DB,
   2. waits for the /healthz endpoint,
-  3. drives it in system Chrome via Playwright: home -> sign up -> open a room ->
-     use the interactive Caesar widget -> submit an answer,
+  3. drives it in system Chrome via Playwright: home -> observe the auto-
+     provisioned guest identity -> open a room -> use the interactive Caesar
+     widget -> submit an answer -> tour the v2 pages (PhantomShell terminal,
+     Quantum Intercept QKD game, GHOST chatbot),
   4. screenshots each step and prints what it observed,
   5. tears the server down and cleans up the temp DB.
 
@@ -54,13 +56,8 @@ def drive(base, out):
         pg.screenshot(path=os.path.join(out, "1-home.png"), full_page=True)
         print("[home] title:", pg.title())
 
-        pg.goto(base + "/auth/signup", wait_until="networkidle")
-        pg.fill("input[name=username]", "demo_player")
-        pg.fill("input[name=password]", "pw12")
-        pg.click("button[type=submit]")
-        pg.wait_for_load_state("networkidle")
-        print("[signup] landed on:", pg.url)
-        pg.screenshot(path=os.path.join(out, "2-home-loggedin.png"), full_page=True)
+        print("[guest] auto handle:", pg.text_content("#nav-name"))
+        pg.screenshot(path=os.path.join(out, "2-guest.png"), full_page=True)
 
         pg.goto(base + "/paths/symmetric", wait_until="networkidle")
         pg.screenshot(path=os.path.join(out, "3-path.png"), full_page=True)
@@ -84,6 +81,22 @@ def drive(base, out):
         print("[answer] result:", pg.text_content(f"{q} .result"))
         print("[answer] nav chip:", pg.text_content("#nav-points"))
         pg.screenshot(path=os.path.join(out, "5-answered.png"), full_page=True)
+
+        # v2 tour
+        pg.goto(base + "/terminal", wait_until="networkidle")
+        pg.fill("#shell-in", "caesar -d 3 Khoor"); pg.press("#shell-in", "Enter"); pg.wait_for_timeout(150)
+        pg.screenshot(path=os.path.join(out, "6-terminal.png"), full_page=True)
+        print("[terminal] ran caesar -d 3 Khoor")
+
+        pg.goto(base + "/qkd", wait_until="networkidle"); pg.wait_for_timeout(400)
+        pg.click("#btn-abort"); pg.wait_for_timeout(300)
+        pg.screenshot(path=os.path.join(out, "7-qkd.png"), full_page=True)
+        print("[qkd] played a round")
+
+        pg.goto(base + "/", wait_until="networkidle")
+        pg.click(".ghost-launch"); pg.fill(".ghost-input", "how do I start"); pg.press(".ghost-input", "Enter"); pg.wait_for_timeout(300)
+        pg.screenshot(path=os.path.join(out, "8-chatbot.png"), full_page=True)
+        print("[chatbot] asked GHOST")
 
         browser.close()
     print("Screenshots written to:", os.path.abspath(out))
