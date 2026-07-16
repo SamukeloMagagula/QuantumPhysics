@@ -21,4 +21,6 @@ def test_terminal_parses_and_runs():
         pg.fill("#shell-in", "banner"); pg.press("#shell-in", "Enter")
         pg.wait_for_timeout(150)
         assert "PhantomShell" in pg.inner_text("#shell-out")
+        bad = pg.evaluate("(async () => await PhantomShell.run('xor a hello'))()")
+        assert isinstance(bad, str)  # bad input must resolve to a string, not throw
         pg.screenshot(path="/tmp/phantomq-terminal.png", full_page=True)

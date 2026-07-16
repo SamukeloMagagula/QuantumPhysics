@@ -32,7 +32,8 @@
     var p = parse(line); if (!p.cmd) return Promise.resolve("");
     var fn = registry[p.cmd];
     if (!fn) return Promise.resolve("phantomshell: command not found: " + p.cmd);
-    return Promise.resolve(fn(p));
+    try { return Promise.resolve(fn(p)); }
+    catch (e) { return Promise.resolve("error: " + (e && e.message ? e.message : e)); }
   }
   window.PhantomShell = { parse: parse, run: run, registry: registry };
 
@@ -50,7 +51,7 @@
         if (res && res.clear) { out.innerHTML = ""; return; }
         if (res && res.wizard) { return; }
         if (res != null && res !== "") print(String(res));
-      });
+      }).catch(function (e) { print("error: " + (e && e.message ? e.message : e)); });
     }
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") submit();
