@@ -9,6 +9,9 @@
 <body>
   {% set points = (user_points if user_points is defined else 0) %}
   {% set rank = (user_rank if user_rank is defined else 'Script Kiddie') %}
+  <canvas id="fx-bg"></canvas>
+  <div id="fx-scan"></div>
+  <div id="boot"><div class="line"></div></div>
   {% include "_nav.html" %}
   <main class="container">
     {% with messages = get_flashed_messages() %}
@@ -17,5 +20,6 @@
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/effects.js') }}"></script>
 </body>
 </html>

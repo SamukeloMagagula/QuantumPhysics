@@ -66,3 +66,40 @@ th{color:var(--muted);font-weight:600;font-size:.85rem}
   border-radius:10px;padding:.8rem 1rem;font-family:var(--mono);max-width:320px}
 .bar-freq{display:flex;align-items:flex-end;gap:2px;height:120px;margin-top:.5rem}
 .bar-freq .b{flex:1;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:3px 3px 0 0}
+
+/* ===== Ghost Protocol ===== */
+:root{ --glow: 0 0 8px rgba(63,224,197,.55); --scan: rgba(0,0,0,.18); }
+body{ position:relative; }
+#fx-bg{ position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.35; }
+#fx-scan{ position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:repeating-linear-gradient(0deg, var(--scan) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay; opacity:.5; }
+.brand{ text-shadow: var(--glow); }
+h1,h2,.brand{ letter-spacing:.5px; }
+.btn{ transition:filter .15s, box-shadow .15s, transform .05s; }
+.btn:hover{ box-shadow: var(--glow); }
+.btn:active{ transform: translateY(1px); }
+a{ transition:color .12s, text-shadow .12s; }
+a:hover{ text-shadow: var(--glow); }
+.path-card,.task,.room-row{ animation: fx-rise .4s ease both; }
+@keyframes fx-rise{ from{ opacity:0; transform:translateY(8px);} to{opacity:1;transform:none;} }
+.chip{ box-shadow: inset 0 0 0 1px var(--border); }
+.result.ok{ animation: fx-flash .5s ease; }
+@keyframes fx-flash{ 0%{ text-shadow:0 0 0 transparent;} 40%{ text-shadow:var(--glow);} 100%{ text-shadow:none;} }
+/* glitch hover on nav brand */
+.brand:hover{ animation: fx-glitch .4s steps(2) 1; }
+@keyframes fx-glitch{ 0%{clip-path:inset(0 0 60% 0);} 50%{clip-path:inset(50% 0 0 0);} 100%{clip-path:inset(0);} }
+/* boot overlay */
+#boot{ position:fixed; inset:0; z-index:9999; background:#04070b; color:var(--accent);
+  font-family:var(--mono); display:flex; align-items:center; justify-content:center; }
+#boot .line{ white-space:pre; font-size:1rem; }
+#boot.hide{ opacity:0; transition:opacity .5s; pointer-events:none; }
+/* effects-off kill switch */
+body.fx-off #fx-bg, body.fx-off #fx-scan{ display:none; }
+body.fx-off *{ animation:none !important; }
+@media (prefers-reduced-motion: reduce){
+  #fx-bg,#fx-scan{ display:none; }
+  *{ animation:none !important; }
+}
+.fx-toggle{ cursor:pointer; font-family:var(--mono); font-size:.75rem; color:var(--muted);
+  border:1px solid var(--border); border-radius:999px; padding:.2rem .55rem; background:transparent; }
