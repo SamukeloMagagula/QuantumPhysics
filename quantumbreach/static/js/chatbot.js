@@ -19,7 +19,7 @@
   window.GhostBot = { normalize: normalize, match: match, reply: reply };
 
   // UI
-  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.textContent = html; return e; }
   document.addEventListener("DOMContentLoaded", function () {
     var launcher = el("button", "ghost-launch", "GHOST");
     var panel = el("div", "ghost-panel");
