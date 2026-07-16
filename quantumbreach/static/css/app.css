@@ -117,3 +117,12 @@ body.fx-off *{ animation:none !important; }
 .ghost-row{ border-top:1px solid var(--border); padding:.5rem; }
 .ghost-input{ width:100%; background:#0b1017; color:var(--text); border:1px solid var(--border);
   border-radius:8px; padding:.5rem; font-family:var(--mono); }
+
+/* PhantomShell terminal */
+.shell{ background:#04070b; border:1px solid var(--accent); border-radius:10px; padding:1rem;
+  font-family:var(--mono); min-height:420px; box-shadow: inset 0 0 40px rgba(43,224,197,.06); }
+.shell-out{ white-space:pre-wrap; word-break:break-word; font-size:.9rem; max-height:60vh; overflow-y:auto; }
+.sh-line{ padding:.05rem 0; }
+.shell-row{ display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
+.shell-prompt{ color:var(--accent); }
+.shell-in{ flex:1; background:transparent; border:0; outline:0; color:var(--text); font-family:var(--mono); font-size:.9rem; }

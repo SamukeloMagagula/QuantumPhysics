@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template
+from flask import Blueprint, current_app, jsonify, render_template
 
 from .identity import current_user
 from .db import get_db
@@ -30,3 +30,18 @@ def home():
 def leaderboard():
     board = progress.leaderboard(get_db(), limit=10)
     return render_template("leaderboard.html", board=board, user=current_user())
+
+
+@bp.route("/terminal")
+def terminal():
+    return render_template("terminal.html", user=current_user())
+
+
+@bp.route("/api/rooms")
+def api_rooms():
+    cd = current_app.config["CONTENT_DIR"]
+    rooms = []
+    for p in list_paths(cd):
+        for r in p.rooms(cd):
+            rooms.append({"id": r.id, "title": r.title})
+    return jsonify({"rooms": rooms})
