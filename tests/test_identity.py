@@ -32,11 +32,21 @@ def test_no_login_gate_and_auth_routes_gone(client):
     assert client.get("/auth/signup").status_code == 404
 
 
-def test_tampered_guest_cookie_is_rejected(app):
+def test_tampered_guest_cookie_cannot_hijack(app):
+    # Seed a victim guest with a known id + name.
+    with app.app_context():
+        db = get_db()
+        db.execute("INSERT INTO users (id, username, password_hash, display_name, is_guest) "
+                   "VALUES (1, 'operative_victim', '', 'VICTIM', 1)")
+        db.execute("INSERT INTO user_stats (user_id, points) VALUES (1, 0)")
+        db.commit()
+    # A forged raw cookie for the victim's id must NOT resolve as the victim:
+    # the attacker gets a fresh guest, and the victim is left untouched.
     c = app.test_client()
-    # a forged unsigned cookie (raw id) must be rejected; a fresh signed guest is issued
-    resp = c.get("/", headers={"Cookie": "guest_id=1"})
-    assert "guest_id" in resp.headers.get("Set-Cookie", "")
+    c.post("/api/rename", json={"name": "PWNED"}, headers={"Cookie": "guest_id=1"})
+    with app.app_context():
+        name = get_db().execute("SELECT display_name FROM users WHERE id=1").fetchone()["display_name"]
+    assert name == "VICTIM"  # unsigned/forged cookie rejected; victim unchanged
 
 
 def test_rename_rejects_non_string(client):
