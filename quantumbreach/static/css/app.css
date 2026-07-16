@@ -36,10 +36,6 @@ h1{font-size:1.9rem;margin:.2rem 0 1rem}
   border:1px solid var(--border);color:var(--muted)}
 .room-row .status{margin-left:auto;font-family:var(--mono);font-size:.8rem}
 .status.done{color:var(--good)} .status.todo{color:var(--muted)}
-.auth-form{display:grid;gap:.8rem;max-width:340px}
-.auth-form label{display:grid;gap:.3rem;font-size:.9rem}
-.auth-form input{background:#0e141d;border:1px solid var(--border);color:var(--text);
-  padding:.55rem .7rem;border-radius:8px;font-family:var(--mono)}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:.6rem .5rem;border-bottom:1px solid var(--border)}
 th{color:var(--muted);font-weight:600;font-size:.85rem}
@@ -136,3 +132,4 @@ body.fx-off *{ animation:none !important; }
 .qber-fill.cool{ background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
 .qber-fill.hot{ background:linear-gradient(90deg,#ffb347,var(--bad)); }
 .shell-in{ flex:1; background:transparent; border:0; outline:0; color:var(--text); font-family:var(--mono); font-size:.9rem; }
+.qkd .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}

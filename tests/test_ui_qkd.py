@@ -21,3 +21,28 @@ def test_qkd_game_logic_and_ui():
         pg.click("#btn-abort"); pg.wait_for_timeout(200)
         assert "Score:" in pg.inner_text("#qkd-score")
         pg.screenshot(path="/tmp/phantomq-qkd.png", full_page=True)
+
+
+@requires_browser
+def test_qkd_score_posts_to_leaderboard():
+    with live_server() as base, browser_page() as pg:
+        posts = []
+        pg.on("request", lambda r: posts.append(r) if (r.method == "POST" and "/api/qkd/score" in r.url) else None)
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        # Click ABORT across rounds; a correct call (Eve present) yields a positive
+        # peak that posts. Stop as soon as a post is observed (usually 1-4 rounds).
+        for _ in range(20):
+            if posts:
+                break
+            try:
+                pg.wait_for_function(
+                    "() => document.getElementById('qkd-info').textContent.indexOf('abort') !== -1",
+                    timeout=4000)
+            except Exception:
+                pass
+            pg.click("#btn-abort")
+            pg.wait_for_timeout(200)
+        assert posts, "expected at least one /api/qkd/score POST during play"
+        pg.wait_for_timeout(300)
+        top = pg.evaluate("(async () => (await (await fetch('/api/qkd/leaderboard')).json()).top)()")
+        assert any(r["score"] >= 1 for r in top)

@@ -17,7 +17,7 @@ def main():
     print("=" * 56)
     if not os.environ.get("PHANTOMQ_SECRET_KEY"):
         print("  [warn] PHANTOMQ_SECRET_KEY not set - using a random key for this run.")
-        print("         Logins reset on restart; set PHANTOMQ_SECRET_KEY to keep them.")
+        print("         Guest identities reset on restart; set PHANTOMQ_SECRET_KEY to keep them.")
         print()
     try:
         from waitress import serve

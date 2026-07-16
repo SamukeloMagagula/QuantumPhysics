@@ -26,7 +26,7 @@ python .claude/skills/run-phantomq/drive.py
 
 This boots `python app.py` on an isolated port (8130) with a throwaway DB, waits
 for `/healthz`, then in a headless browser: loads the home page (a guest
-identity is auto-provisioned — no sign up, no login), opens the **The Shift**
+identity is auto-provisioned — no accounts, no login), opens the **The Shift**
 room, checks the Caesar-wheel widget rendered its live output, submits
 `hello world` to the first question, and confirms the "Correct! +15 XP" result
 and the nav XP chip updating. It then tours the v2 surface: the PhantomShell

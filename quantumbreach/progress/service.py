@@ -109,6 +109,15 @@ def leaderboard(db, limit=10) -> list:
              "rank": rank_for_points(r["points"])} for r in rows]
 
 
+def qkd_leaderboard(db, limit=10) -> list:
+    rows = db.execute(
+        "SELECT COALESCE(u.display_name, u.username) AS name, MAX(s.score) AS score "
+        "FROM qkd_scores s JOIN users u ON u.id = s.user_id "
+        "GROUP BY s.user_id ORDER BY score DESC LIMIT ?",
+        (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def user_badges(db, user_id) -> list:
     rows = db.execute(
         "SELECT b.id, b.name, b.icon FROM user_badges ub "

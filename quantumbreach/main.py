@@ -29,11 +29,8 @@ def home():
 @bp.route("/leaderboard")
 def leaderboard():
     board = progress.leaderboard(get_db(), limit=10)
-    qkd = get_db().execute(
-        "SELECT COALESCE(u.display_name,u.username) AS name, MAX(s.score) AS score "
-        "FROM qkd_scores s JOIN users u ON u.id=s.user_id GROUP BY s.user_id "
-        "ORDER BY score DESC LIMIT 10").fetchall()
-    return render_template("leaderboard.html", board=board, qkd=[dict(r) for r in qkd], user=current_user())
+    qkd = progress.qkd_leaderboard(get_db(), limit=10)
+    return render_template("leaderboard.html", board=board, qkd=qkd, user=current_user())
 
 
 @bp.route("/terminal")
@@ -78,8 +75,5 @@ def qkd_score():
 
 @bp.route("/api/qkd/leaderboard")
 def qkd_leaderboard():
-    rows = get_db().execute(
-        "SELECT COALESCE(u.display_name,u.username) AS name, MAX(s.score) AS score "
-        "FROM qkd_scores s JOIN users u ON u.id=s.user_id "
-        "GROUP BY s.user_id ORDER BY score DESC LIMIT 10").fetchall()
-    return jsonify({"top": [dict(r) for r in rows]})
+    rows = progress.qkd_leaderboard(get_db(), limit=10)
+    return jsonify({"top": rows})

@@ -86,7 +86,7 @@
       if (e.key === "Enter") submit();
       else if (e.key === "ArrowUp") { if (hi > 0) input.value = history[--hi] || ""; e.preventDefault(); }
       else if (e.key === "ArrowDown") { if (hi < history.length) input.value = history[++hi] || ""; }
-      else if (e.key === "Tab") { e.preventDefault(); var cur = input.value.trim(); var names = Object.keys(window.PhantomShell.registry).concat(["lab"]); var hit = names.filter(function (n) { return n.indexOf(cur) === 0; }); if (hit.length === 1) input.value = hit[0] + " "; }
+      else if (e.key === "Tab") { e.preventDefault(); var cur = input.value.trim(); var names = Object.keys(window.PhantomShell.registry); var hit = names.filter(function (n) { return n.indexOf(cur) === 0; }); if (hit.length === 1) input.value = hit[0] + " "; }
     });
     root.addEventListener("click", function () { input.focus(); });
     input.focus();

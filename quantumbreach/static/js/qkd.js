@@ -25,7 +25,7 @@
     var meter = document.getElementById("qber-fill"), qtext = document.getElementById("qber-text");
     var info = document.getElementById("qkd-info"), scoreEl = document.getElementById("qkd-score");
     var photons = document.getElementById("qkd-photons");
-    var score = 0, round = null, roundNo = 0;
+    var score = 0, round = null, roundNo = 0, peak = 0;
     function render(r) {
       photons.innerHTML = "";
       for (var i = 0; i < Math.min(r.n, 40); i++) { var d = document.createElement("span"); d.className = "photon"; d.style.animationDelay = (i * 25) + "ms"; photons.appendChild(d); }
@@ -39,12 +39,13 @@
     function decide(dec) {
       if (!round) return; var res = window.QuantumIntercept.judge(round, dec);
       score += res.delta; scoreEl.textContent = "Score: " + score;
+      if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }
       info.textContent = (res.correct ? "Correct! " : "Wrong. ") + (round.eve ? "Eve WAS listening." : "Channel was clean.") + " (" + (res.delta >= 0 ? "+" : "") + res.delta + ")";
       round = null;
-      if (score < -40) { info.textContent += " — GAME OVER."; postScore(score); score = 0; setTimeout(function () { scoreEl.textContent = "Score: 0"; roundNo = 0; next(); }, 1500); }
+      if (score < -40) { info.textContent += " — GAME OVER."; score = 0; peak = 0; setTimeout(function () { scoreEl.textContent = "Score: 0"; roundNo = 0; next(); }, 1500); }
       else setTimeout(next, 1400);
     }
-    function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s + 40) }) }).catch(function () {}); }
+    function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
     document.getElementById("btn-keep").addEventListener("click", function () { decide("keep"); });
     document.getElementById("btn-abort").addEventListener("click", function () { decide("abort"); });
     next();

@@ -28,7 +28,11 @@ Every new user must also get a `user_stats(user_id, points)` row (points = 0).
 A logged-in user is identified solely by `session["user_id"] = users.id`
 (Flask server-side signed cookie). Clearing the session logs out.
 
-## Endpoints (current dev implementation)
+## Endpoints (legacy / reference for future real-auth work)
+
+> These routes/templates/functions were removed in v2 (guest identities replaced
+> them). They're retained below only as a reference for anyone adding real auth
+> later.
 
 - `GET/POST /auth/signup` — form fields `username`, `password`.
 - `GET/POST /auth/login` — form fields `username`, `password`.
