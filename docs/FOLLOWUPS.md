@@ -18,6 +18,7 @@ the current single-path (Symmetric) release.
 - SQLite `PRAGMA busy_timeout` / WAL given `threads=8`.
 - Document the trusted-author assumption for Markdown (`body_html | safe` is not
   sanitized); sanitize if content ever becomes user-submitted.
+- **QKD multiplayer table growth:** `qkd_games` / `qkd_game_seats` are never pruned, so they grow unbounded. The design specified an opportunistic prune (mark stale games `ended` and delete old rows on `create_game`); not implemented. Non-blocking at classroom scale — add a cleanup pass if this ever runs long-lived.
 
 ## Minor / cosmetic
 - `check_answer` doesn't validate `answer_type` (unknown type falls through to hash).

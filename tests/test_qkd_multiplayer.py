@@ -1,4 +1,7 @@
+import json
+
 from quantumbreach.db import get_db
+from quantumbreach.qkd import service
 
 
 def _guest(app):
@@ -111,3 +114,47 @@ def test_game_end_writes_qkd_score_iff_positive(app):
     with app.app_context():
         rows = get_db().execute("SELECT COUNT(*) AS n FROM qkd_scores").fetchone()["n"]
     assert (rows >= 1) == (bob_score > 0)  # written iff the human actually scored
+
+
+def test_double_resolve_applies_scoring_once(app):
+    # A losing thread replaying a stale bob_decision snapshot must not double-apply scoring.
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] == "bob_decision"
+    with app.app_context():
+        db = get_db()
+        snap = service._game(db, code)                     # phase == bob_decision
+        cfg = json.loads(snap["config"] or "{}")
+        service._resolve_scoring(db, snap, cfg, "keep")     # the winner
+        first = {s["role"]: s["score"] for s in service._seats(db, snap["id"])}
+        service._resolve_scoring(db, snap, cfg, "keep")     # stale replay -> guarded no-op
+        second = {s["role"]: s["score"] for s in service._seats(db, snap["id"])}
+    assert first == second   # scoring applied exactly once, not doubled
+
+
+def test_double_next_at_final_round_writes_score_once(app):
+    # A losing thread replaying a stale final-round resolve must not insert a 2nd qkd_scores row.
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(30):
+        st = c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "resolve" and st["round"] >= service.ROUNDS:
+            break
+        if st["phase"] == "bob_decision":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+        elif st["phase"] == "ended":
+            break
+    with app.app_context():
+        db = get_db()
+        snap = service._game(db, code)
+        assert snap["phase"] == "resolve" and snap["round"] >= service.ROUNDS
+        service._next_round(db, snap)   # ends the game, posts scores once
+        service._next_round(db, snap)   # stale replay -> guarded no-op
+        rows = db.execute("SELECT COUNT(*) AS n FROM qkd_scores").fetchone()["n"]
+        bob = next(s for s in service._seats(db, snap["id"]) if s["role"] == "bob")
+    assert rows <= 1                       # never a duplicate row
+    assert (rows == 1) == (bob["score"] > 0)

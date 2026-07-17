@@ -1,3 +1,6 @@
+import sqlite3
+from functools import wraps
+
 from flask import Blueprint, jsonify, request
 
 from ..db import get_db
@@ -7,48 +10,46 @@ from . import service
 bp = Blueprint("qkd", __name__)
 
 
-def _err(e):
-    return jsonify({"error": e.message}), e.status
+def _api(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return jsonify(fn(*args, **kwargs))
+        except service.GameError as e:
+            return jsonify({"error": e.message}), e.status
+        except sqlite3.Error:
+            return jsonify({"error": "database is busy, please retry"}), 503
+    return wrapper
 
 
 @bp.route("/api/qkd/game", methods=["POST"])
+@_api
 def create():
     data = request.get_json(silent=True) or {}
-    try:
-        return jsonify(service.create_game(get_db(), current_user(), data.get("role")))
-    except service.GameError as e:
-        return _err(e)
+    return service.create_game(get_db(), current_user(), data.get("role"))
 
 
 @bp.route("/api/qkd/game/<code>/join", methods=["POST"])
+@_api
 def join(code):
     data = request.get_json(silent=True) or {}
-    try:
-        return jsonify(service.join_game(get_db(), code, current_user(), data.get("role")))
-    except service.GameError as e:
-        return _err(e)
+    return service.join_game(get_db(), code, current_user(), data.get("role"))
 
 
 @bp.route("/api/qkd/game/<code>/start", methods=["POST"])
+@_api
 def start(code):
-    try:
-        return jsonify(service.start_game(get_db(), code))
-    except service.GameError as e:
-        return _err(e)
+    return service.start_game(get_db(), code)
 
 
 @bp.route("/api/qkd/game/<code>", methods=["GET"])
+@_api
 def state(code):
-    try:
-        return jsonify(service.game_state(get_db(), code, current_user()))
-    except service.GameError as e:
-        return _err(e)
+    return service.game_state(get_db(), code, current_user())
 
 
 @bp.route("/api/qkd/game/<code>/act", methods=["POST"])
+@_api
 def act(code):
     data = request.get_json(silent=True) or {}
-    try:
-        return jsonify(service.submit_action(get_db(), code, current_user(), data.get("action") or {}))
-    except service.GameError as e:
-        return _err(e)
+    return service.submit_action(get_db(), code, current_user(), data.get("action") or {})

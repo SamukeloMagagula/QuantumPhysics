@@ -1,5 +1,5 @@
 (function () {
-  var code = null, role = null, timer = null, lastPhase = null;
+  var code = null, role = null, timer = null, lastPhase = null, mounted = false;
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {},
@@ -8,6 +8,8 @@
   function $(id) { return document.getElementById(id); }
 
   function mount(container) {
+    if (mounted) return;
+    mounted = true;
     container.querySelectorAll("[data-create]").forEach(function (b) {
       b.addEventListener("click", function () {
         api("/api/qkd/game", { role: b.getAttribute("data-create") }).then(function (d) {

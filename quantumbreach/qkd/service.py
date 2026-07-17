@@ -76,10 +76,15 @@ def join_game(db, code, user, role):
 def start_game(db, code):
     g = _game(db, code)
     if g["phase"] == "lobby":
-        db.execute("UPDATE qkd_games SET phase='alice_setup', round=1, updated_at=CURRENT_TIMESTAMP WHERE id=?", (g["id"],))
-        db.execute("UPDATE qkd_game_seats SET action=NULL WHERE game_id=?", (g["id"],))
-        db.commit()
-        advance(db, _game(db, code))  # no-op placeholder in Task 4; the real machine lands in Task 5
+        cur = db.execute(
+            "UPDATE qkd_games SET phase='alice_setup', round=1, updated_at=CURRENT_TIMESTAMP "
+            "WHERE id=? AND phase='lobby'", (g["id"],))
+        if cur.rowcount == 1:
+            db.execute("UPDATE qkd_game_seats SET action=NULL WHERE game_id=?", (g["id"],))
+            db.commit()
+            advance(db, _game(db, code))
+        else:
+            db.commit()
     return game_state(db, code, None)
 
 
@@ -127,17 +132,16 @@ def _set_config(db, game_id, cfg):
                (json.dumps(cfg), game_id))
 
 
-def _set_phase(db, game_id, phase):
-    db.execute("UPDATE qkd_games SET phase=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (phase, game_id))
-
-
 def _seat(db, game_id, role):
     return db.execute("SELECT * FROM qkd_game_seats WHERE game_id=? AND role=?", (game_id, role)).fetchone()
 
 
-def _set_action(db, game_id, role, action):
-    db.execute("UPDATE qkd_game_seats SET action=? WHERE game_id=? AND role=?",
-               (json.dumps(action), game_id, role))
+def _claim_action(db, game_id, role, action):
+    """Atomically set a seat's action only if still unset. Returns rows changed (1=claimed, 0=already set)."""
+    cur = db.execute(
+        "UPDATE qkd_game_seats SET action=? WHERE game_id=? AND role=? AND action IS NULL",
+        (json.dumps(action), game_id, role))
+    return cur.rowcount
 
 
 def _clean_action(role, action):
@@ -173,7 +177,7 @@ def submit_action(db, code, user, action):
     if seat["action"] is not None:
         return game_state(db, code, user)  # idempotent: already submitted
     action = _clean_action(expected, action)
-    _set_action(db, g["id"], role, action)
+    _claim_action(db, g["id"], role, action)  # atomic; a concurrent double-submit is a no-op for the loser
     db.commit()
     advance(db, _game(db, code))
     return game_state(db, code, user)
@@ -186,7 +190,12 @@ def _computer_public(cfg, phase):
 
 
 def advance(db, game):
-    """Drive the phase machine as far as computer seats allow, resolving when Alice+Eve are in."""
+    """Drive the phase machine as far as computer seats allow, resolving when Alice+Eve are in.
+
+    Every phase transition is a guarded UPDATE (WHERE phase=<current>) so that under
+    Waitress's thread pool at most one request performs each non-idempotent step; a
+    loser re-reads the advanced state and moves on.
+    """
     gid = game["id"]
     for _ in range(6):  # bounded: at most a few transitions per call
         g = _game(db, game["code"])
@@ -198,20 +207,30 @@ def advance(db, game):
         seat = _seat(db, gid, expected)
         if seat["action"] is None:
             if seat["kind"] == "computer":
-                _set_action(db, gid, expected, computer_strategy(expected, _computer_public(cfg, phase), random.random))
-                db.commit()
+                _claim_action(db, gid, expected,
+                              computer_strategy(expected, _computer_public(cfg, phase), random.random))
+                db.commit()  # winner or loser, the committed action is read back below
             else:
                 return  # waiting on a human
-        # the expected action is present -> fold it in and move on
         act = json.loads(_seat(db, gid, expected)["action"])
         if phase == "alice_setup":
             cfg["alice"] = {"n": int(act.get("n", 24)), "s": int(act.get("s", 6))}
-            _set_config(db, gid, cfg); _set_phase(db, gid, "eve_move"); db.commit()
+            cur = db.execute(
+                "UPDATE qkd_games SET config=?, phase='eve_move', updated_at=CURRENT_TIMESTAMP "
+                "WHERE id=? AND phase='alice_setup'", (json.dumps(cfg), gid))
+            db.commit()
+            if cur.rowcount == 0:
+                continue  # another request already advanced this phase
         elif phase == "eve_move":
             cfg["eve"] = {"p": float(act.get("p", 0) or 0)}
             result = resolve_round({"n": cfg["alice"]["n"], "s": cfg["alice"]["s"], "p": cfg["eve"]["p"]}, random.random)
             cfg["result"] = result
-            _set_config(db, gid, cfg); _set_phase(db, gid, "bob_decision"); db.commit()
+            cur = db.execute(
+                "UPDATE qkd_games SET config=?, phase='bob_decision', updated_at=CURRENT_TIMESTAMP "
+                "WHERE id=? AND phase='eve_move'", (json.dumps(cfg), gid))
+            db.commit()
+            if cur.rowcount == 0:
+                continue  # lost the race; our locally-computed result is discarded
         elif phase == "bob_decision":
             decision = "abort" if act.get("decision") == "abort" else "keep"
             _resolve_scoring(db, g, cfg, decision)
@@ -220,6 +239,13 @@ def advance(db, game):
 
 def _resolve_scoring(db, g, cfg, decision):
     gid = g["id"]
+    # Atomic claim: only the request that flips bob_decision -> resolve applies scoring.
+    cur = db.execute(
+        "UPDATE qkd_games SET phase='resolve', updated_at=CURRENT_TIMESTAMP "
+        "WHERE id=? AND phase='bob_decision'", (gid,))
+    if cur.rowcount == 0:
+        db.commit()
+        return  # another request already resolved this round
     result = cfg["result"]
     per_role = {}
     for role in ROLES:
@@ -231,17 +257,27 @@ def _resolve_scoring(db, g, cfg, decision):
         "stolen": result["stolen"], "sifted": result["sifted"], "bobDecision": decision,
         "aliceConfig": cfg["alice"], "eveConfig": cfg["eve"], "perRole": per_role, "round": g["round"],
     }
-    _set_config(db, gid, cfg); _set_phase(db, gid, "resolve"); db.commit()
+    _set_config(db, gid, cfg)
+    db.commit()
 
 
 def _next_round(db, g):
     gid = g["id"]
-    if g["round"] >= ROUNDS:
-        _end_game(db, g)
+    fresh = _game(db, g["code"])
+    if fresh["phase"] != "resolve":
+        return  # already advanced by another request
+    if fresh["round"] >= ROUNDS:
+        _end_game(db, fresh)
         return
-    db.execute("UPDATE qkd_games SET round=round+1, phase='alice_setup', updated_at=CURRENT_TIMESTAMP WHERE id=?", (gid,))
+    # Atomic claim: only one request advances resolve -> next round.
+    cur = db.execute(
+        "UPDATE qkd_games SET round=round+1, phase='alice_setup', updated_at=CURRENT_TIMESTAMP "
+        "WHERE id=? AND phase='resolve'", (gid,))
+    if cur.rowcount == 0:
+        db.commit()
+        return  # lost the race
     db.execute("UPDATE qkd_game_seats SET action=NULL WHERE game_id=?", (gid,))
-    cfg = json.loads(g["config"] or "{}")
+    cfg = json.loads(fresh["config"] or "{}")
     for k in ("alice", "eve", "result"):
         cfg.pop(k, None)
     _set_config(db, gid, cfg)
@@ -250,7 +286,13 @@ def _next_round(db, g):
 
 
 def _end_game(db, g):
-    _set_phase(db, g["id"], "ended")
+    # Atomic claim: only one request transitions resolve -> ended, so scores post exactly once.
+    cur = db.execute(
+        "UPDATE qkd_games SET phase='ended', updated_at=CURRENT_TIMESTAMP "
+        "WHERE id=? AND phase='resolve'", (g["id"],))
+    if cur.rowcount == 0:
+        db.commit()
+        return  # another request already ended the game
     for s in _seats(db, g["id"]):
         if s["kind"] == "human" and s["user_id"] is not None and s["score"] > 0:
             db.execute("INSERT INTO qkd_scores (user_id, score) VALUES (?,?)", (s["user_id"], s["score"]))
@@ -269,6 +311,8 @@ def _maybe_timeout(db, g):
         seat = _seat(db, g["id"], expected)
         if seat["kind"] == "human" and seat["action"] is None:
             cfg = json.loads(g["config"] or "{}")
-            _set_action(db, g["id"], expected, computer_strategy(expected, _computer_public(cfg, g["phase"]), random.random))
+            claimed = _claim_action(db, g["id"], expected,
+                                    computer_strategy(expected, _computer_public(cfg, g["phase"]), random.random))
             db.commit()
-            advance(db, _game(db, g["code"]))
+            if claimed:  # only the request that actually took over drives the machine
+                advance(db, _game(db, g["code"]))
