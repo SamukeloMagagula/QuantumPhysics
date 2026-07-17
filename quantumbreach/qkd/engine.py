@@ -18,14 +18,19 @@ def _basis(d):
     return "+" if d < 0.5 else "x"
 
 
+def _draw(rng):
+    v = rng()
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and 0.0 <= v < 1.0 else 0.0
+
+
 def resolve_round(config, rng=None):
     rng = rng or random.random
-    n = max(1, int(config["n"]))
+    n = max(1, int(config.get("n", 0) or 0))
     p = min(1.0, max(0.0, float(config.get("p", 0) or 0)))
     s = max(0, int(config.get("s", 0) or 0))
     a_bits, a_bases, b_bases, b_bits, intercepted, e_bases = [], [], [], [], [], []
     for _ in range(n):
-        d0, d1, d2, d3, d4, d5, d6 = (rng(), rng(), rng(), rng(), rng(), rng(), rng())
+        d0, d1, d2, d3, d4, d5, d6 = (_draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng))
         a_bit, a_basis = _bit(d0), _basis(d1)
         interc = d2 < p
         if interc:

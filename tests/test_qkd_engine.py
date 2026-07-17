@@ -37,6 +37,8 @@ def test_scoring_and_strategy():
     assert engine.score_round("bob", {"eveHit": True, "stolen": 3, "finalKey": 5}, "abort") == {"delta": 25, "youWon": True}
     assert engine.score_round("eve", {"eveHit": True, "stolen": 3, "finalKey": 5}, "keep") == {"delta": 3, "youWon": True}
     assert engine.score_round("alice", {"eveHit": False, "stolen": 0, "finalKey": 5}, "keep") == {"delta": 5, "youWon": True}
+    assert engine.score_round("bob", {"eveHit": False, "stolen": 0, "finalKey": 5}, "abort") == {"delta": 0, "youWon": False}
+    assert engine.score_round("alice", {"eveHit": True, "stolen": 3, "finalKey": 5}, "keep") == {"delta": 0, "youWon": False}
     assert engine.computer_strategy("bob", {"sampleQBER": 0.30}) == {"decision": "abort"}
     assert engine.computer_strategy("bob", {"sampleQBER": 0.02}) == {"decision": "keep"}
     a = engine.computer_strategy("alice", {}, lambda: 0.0)
