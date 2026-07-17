@@ -140,11 +140,27 @@ def _set_action(db, game_id, role, action):
                (json.dumps(action), game_id, role))
 
 
+def _clean_action(role, action):
+    """Validate + coerce a human seat's action for its phase; GameError(400) on bad shape."""
+    try:
+        if role == "alice":
+            n = max(8, min(64, int(action.get("n", 24))))
+            s = max(0, min(n, int(action.get("s", 6))))
+            return {"n": n, "s": s}
+        if role == "eve":
+            return {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0)))}
+        return {"decision": "abort" if action.get("decision") == "abort" else "keep"}
+    except (TypeError, ValueError):
+        raise GameError("bad action", 400)
+
+
 def submit_action(db, code, user, action):
     g = _game(db, code)
     seat = _seat_for_user(db, g["id"], user["id"])
     if not seat:
         raise GameError("not seated in this game", 403)
+    if not isinstance(action, dict):
+        raise GameError("bad action", 400)
     role = seat["role"]
     phase = g["phase"]
     if phase == "resolve":
@@ -156,6 +172,7 @@ def submit_action(db, code, user, action):
         raise GameError("not your turn", 409)
     if seat["action"] is not None:
         return game_state(db, code, user)  # idempotent: already submitted
+    action = _clean_action(expected, action)
     _set_action(db, g["id"], role, action)
     db.commit()
     advance(db, _game(db, code))

@@ -79,6 +79,17 @@ def test_bob_qber_hidden_from_eve(app):
     assert "sampleQBER" in body  # present inside lastResult at reveal is fine
 
 
+def test_bad_action_is_rejected_not_bricking(app):
+    c, code = _solo_game(app, "bob")   # computer Alice+Eve auto-play -> phase bob_decision
+    # A bare string instead of {"decision": ...} must be a clean 400, not a 500, and must not brick the round.
+    r = c.post(f"/api/qkd/game/{code}/act", json={"action": "abort"})
+    assert r.status_code == 400
+    assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] == "bob_decision"  # still Bob's turn
+    # A proper decision still advances the round.
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+    assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] in ("resolve", "ended")
+
+
 def test_game_end_writes_qkd_score_iff_positive(app):
     # Play a full game as Bob, ABORTing every round (correct whenever computer-Eve intercepted).
     # Assert the exact persistence invariant regardless of the server's randomness:
