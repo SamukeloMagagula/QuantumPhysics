@@ -133,3 +133,11 @@ body.fx-off *{ animation:none !important; }
 .qber-fill.hot{ background:linear-gradient(90deg,#ffb347,var(--bad)); }
 .shell-in{ flex:1; background:transparent; border:0; outline:0; color:var(--text); font-family:var(--mono); font-size:.9rem; }
 .qkd .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+
+.qkd-modes{ display:flex; gap:.5rem; flex-wrap:wrap; margin:1rem 0; }
+.qkd-roles{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+.chip.role.on, .chip.ev.on{ background:var(--accent); color:#04120f; }
+.qkd .row{ display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.qkd-panel{ display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin:.75rem 0; }
+.qkd-panel label{ display:flex; gap:.4rem; align-items:center; font-size:.9rem; }
+.qkd-reveal{ min-height:1.5rem; margin:.5rem 0; color:var(--accent); font-family:var(--mono); }

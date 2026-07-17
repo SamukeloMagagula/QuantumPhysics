@@ -54,4 +54,83 @@
   }
 
   window.QuantumIntercept = { ABORT: ABORT, resolveRound: resolveRound, scoreRound: scoreRound, computerStrategy: computerStrategy };
+
+  // ---- Solo interactive game (only on /qkd) ----
+  document.addEventListener("DOMContentLoaded", function () {
+    var solo = document.getElementById("qkd-solo"); if (!solo) return;
+    var modeSolo = document.getElementById("mode-solo"), modeMulti = document.getElementById("mode-multi");
+    var multi = document.getElementById("qkd-multi");
+    var photons = document.getElementById("qkd-photons"), meter = document.getElementById("qber-fill");
+    var qtext = document.getElementById("qber-text"), info = document.getElementById("qkd-info");
+    var reveal = document.getElementById("qkd-reveal"), scoreEl = document.getElementById("qkd-score");
+    var panels = { alice: document.getElementById("panel-alice"), bob: document.getElementById("panel-bob"), eve: document.getElementById("panel-eve") };
+    var myRole = null, score = 0, peak = 0, pending = null; // pending: {n,s,p} gathered so far
+
+    modeSolo.addEventListener("click", function () { multi.hidden = true; solo.hidden = false; });
+    modeMulti.addEventListener("click", function () { solo.hidden = true; multi.hidden = false;
+      if (window.QKDMulti) window.QKDMulti.mount(multi); });
+
+    function showPanels() { for (var r in panels) panels[r].hidden = (r !== myRole); }
+    solo.querySelectorAll(".role").forEach(function (b) {
+      b.addEventListener("click", function () {
+        solo.querySelectorAll(".role").forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on"); myRole = b.getAttribute("data-role"); showPanels(); startRound();
+      });
+    });
+
+    function animate(result) {
+      photons.innerHTML = "";
+      for (var i = 0; i < Math.min(result.n, 40); i++) { var d = document.createElement("span"); d.className = "photon"; d.style.animationDelay = (i * 25) + "ms"; photons.appendChild(d); }
+      var pct = Math.round(result.sampleQBER * 100);
+      meter.style.width = Math.min(100, pct * 3) + "%";
+      meter.className = "qber-fill " + (result.sampleQBER > window.QuantumIntercept.ABORT ? "hot" : "cool");
+      qtext.textContent = "QBER: " + pct + "% (abort line 11%)";
+    }
+    function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
+    function finish(result, decision) {
+      var sc = window.QuantumIntercept.scoreRound(myRole, result, decision);
+      score += sc.delta; scoreEl.textContent = "Score: " + score;
+      if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }
+      reveal.textContent = (sc.youWon ? "You win this round (+" + sc.delta + "). " : "You lose this round. ")
+        + (result.eveHit ? "Eve was intercepting" : "Channel was clean")
+        + " — QBER " + Math.round(result.sampleQBER * 100) + "%, key " + result.finalKey + " bits"
+        + (decision === "abort" ? ", ABORTED." : ", KEPT.");
+      info.textContent = "Pick your role above to play another round.";
+    }
+
+    function startRound() {
+      reveal.textContent = ""; pending = {};
+      if (myRole === "alice") { info.textContent = "Set your key length and check sample, then Send key."; }
+      else { var a = window.QuantumIntercept.computerStrategy("alice", {}, Math.random); pending.n = a.n; pending.s = a.s;
+             if (myRole === "eve") info.textContent = "Choose how aggressively to intercept.";
+             else { pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p; resolveAndAwaitBob(); } }
+    }
+    function resolveAndAwaitBob() {
+      pending.result = window.QuantumIntercept.resolveRound(pending, Math.random);
+      animate(pending.result);
+      if (myRole === "bob") { info.textContent = "Inspect the QBER, then KEEP or ABORT."; }
+      else { var dec = window.QuantumIntercept.computerStrategy("bob", { sampleQBER: pending.result.sampleQBER }, Math.random).decision; finish(pending.result, dec); }
+    }
+
+    // Alice controls
+    var alN = document.getElementById("al-n"), alS = document.getElementById("al-s");
+    if (alN) { alN.addEventListener("input", function () { document.getElementById("al-n-val").textContent = alN.value; }); }
+    if (alS) { alS.addEventListener("input", function () { document.getElementById("al-s-val").textContent = alS.value; }); }
+    var alSend = document.getElementById("al-send");
+    if (alSend) alSend.addEventListener("click", function () {
+      pending.n = parseInt(alN.value, 10); pending.s = parseInt(alS.value, 10);
+      pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p; resolveAndAwaitBob();
+    });
+    // Eve controls
+    solo.querySelectorAll(".ev").forEach(function (b) { b.addEventListener("click", function () {
+      pending.p = parseFloat(b.getAttribute("data-p")); resolveAndAwaitBob(); }); });
+    // Bob controls
+    var keep = document.getElementById("btn-keep"), abort = document.getElementById("btn-abort");
+    if (keep) keep.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "keep"); });
+    if (abort) abort.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "abort"); });
+
+    // default: show solo, no role chosen yet
+    solo.hidden = false;
+    window.addEventListener("pagehide", function () { if (peak >= 1) postScore(peak); });
+  });
 })();
