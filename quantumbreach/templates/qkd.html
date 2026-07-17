@@ -44,9 +44,37 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
   <div class="row"><span id="qkd-score" class="chip">Score: 0</span></div>
 </div>
 
-<div id="qkd-multi" hidden><!-- populated in Phase 3 --></div>
+<div id="qkd-multi" class="qkd" hidden>
+  <div id="qm-join">
+    <div class="qkd-roles">
+      <span class="muted">Create a game as:</span>
+      <button class="chip" data-create="alice" type="button">Alice</button>
+      <button class="chip" data-create="bob" type="button">Bob</button>
+      <button class="chip" data-create="eve" type="button">Eve</button>
+    </div>
+    <div class="qkd-panel">
+      <label>Join a code: <input id="qm-code" maxlength="4" placeholder="ABCD" autocomplete="off"></label>
+      <button class="chip" data-join="alice" type="button">as Alice</button>
+      <button class="chip" data-join="bob" type="button">as Bob</button>
+      <button class="chip" data-join="eve" type="button">as Eve</button>
+    </div>
+    <p id="qm-hint" class="muted"></p>
+  </div>
+  <div id="qm-play" hidden>
+    <p><strong>Code: <span id="qm-mycode"></span></strong> — share it with players on the same Wi‑Fi.</p>
+    <div id="qm-seats" class="qkd-roles"></div>
+    <button class="btn" id="qm-start" type="button" hidden>Start game</button>
+    <div id="qm-photons" class="qkd-photons"></div>
+    <div class="qber"><div id="qm-qber" class="qber-fill cool"></div></div>
+    <p id="qm-status" class="muted"></p>
+    <div id="qm-controls" class="qkd-panel"></div>
+    <div id="qm-reveal" class="qkd-reveal"></div>
+    <div id="qm-scores" class="row"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+  <script src="{{ url_for('static', filename='js/qkd-multi.js') }}"></script>
   <script src="{{ url_for('static', filename='js/qkd.js') }}"></script>
 {% endblock %}

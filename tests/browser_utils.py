@@ -79,3 +79,17 @@ def browser_page():
             yield page
         finally:
             b.close()
+
+
+@contextlib.contextmanager
+def two_player_pages():
+    """Two isolated browser contexts in one browser — two distinct guest identities
+    (separate cookie jars), for multiplayer tests. Avoids nesting two sync_playwright()."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel="chrome", headless=True)
+        vp = {"width": 1280, "height": 900}
+        try:
+            yield b.new_context(viewport=vp).new_page(), b.new_context(viewport=vp).new_page()
+        finally:
+            b.close()
