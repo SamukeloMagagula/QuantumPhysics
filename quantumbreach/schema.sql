@@ -57,3 +57,25 @@ CREATE TABLE IF NOT EXISTS qkd_scores (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS qkd_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    phase TEXT NOT NULL DEFAULT 'lobby',
+    round INTEGER NOT NULL DEFAULT 0,
+    config TEXT NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS qkd_game_seats (
+    game_id INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'computer',
+    user_id INTEGER,
+    display_name TEXT,
+    action TEXT,
+    score INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (game_id, role),
+    FOREIGN KEY (game_id) REFERENCES qkd_games(id)
+);

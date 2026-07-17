@@ -21,6 +21,9 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .rooms.routes import bp as rooms_bp
     app.register_blueprint(rooms_bp)
 
+    from .qkd.routes import bp as qkd_bp
+    app.register_blueprint(qkd_bp)
+
     from .identity import current_user
     from .db import get_db
     from .progress.service import get_points
