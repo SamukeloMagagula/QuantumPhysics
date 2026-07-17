@@ -88,10 +88,17 @@ def drive(base, out):
         pg.screenshot(path=os.path.join(out, "6-terminal.png"), full_page=True)
         print("[terminal] ran caesar -d 3 Khoor")
 
-        pg.goto(base + "/qkd", wait_until="networkidle"); pg.wait_for_timeout(400)
-        pg.click("#btn-abort"); pg.wait_for_timeout(300)
+        # v2.1 tour: QKD role-based Solo round (pick Solo mode, play Bob, then ABORT)
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.click('.role[data-role="bob"]'); pg.wait_for_timeout(300)
+        try:
+            pg.click("#btn-abort")
+        except Exception:
+            pass
+        pg.wait_for_timeout(300)
         pg.screenshot(path=os.path.join(out, "7-qkd.png"), full_page=True)
-        print("[qkd] played a round")
+        print("[qkd] played a Solo round as Bob")
 
         pg.goto(base + "/", wait_until="networkidle")
         pg.click(".ghost-launch"); pg.fill(".ghost-input", "how do I start"); pg.press(".ghost-input", "Enter"); pg.wait_for_timeout(300)

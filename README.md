@@ -37,7 +37,10 @@ sign up needed — and start the **Symmetric Cryptography** path.
   (`caesar`, `xor`, etc.) with `lab` authoring for saving and exporting
   custom exercises.
 - **Quantum Intercept** (`/qkd`) — a BB84 quantum-key-distribution
-  mini-game with its own score and leaderboard.
+  mini-game with its own score and leaderboard. Quantum Intercept now
+  supports **role-based play** (be Alice, Bob, or Eve) in **Solo** (vs
+  computer) and **same-network Multiplayer** (up to 3 students via a game
+  code). See `docs/QKD_MULTIPLAYER.md`.
 
 ## Develop
 

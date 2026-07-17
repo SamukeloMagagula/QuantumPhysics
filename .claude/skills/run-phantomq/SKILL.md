@@ -31,17 +31,23 @@ room, checks the Caesar-wheel widget rendered its live output, submits
 `hello world` to the first question, and confirms the "Correct! +15 XP" result
 and the nav XP chip updating. It then tours the v2 surface: the PhantomShell
 terminal (`/terminal`, runs `caesar -d 3 Khoor`), the Quantum Intercept QKD
-game (`/qkd`, plays a round via the ABORT control), and the GHOST chatbot
-(launched from its floating button, asks "how do I start"). It writes 8
-screenshots (`1-home.png` … `8-chatbot.png`) to a temp dir and prints their
-path, then tears the server down.
+game (`/qkd`, picks **Solo** mode, plays the **Bob** role, then ABORTs), and
+the GHOST chatbot (launched from its floating button, asks "how do I
+start"). It writes 8 screenshots (`1-home.png` … `8-chatbot.png`) to a temp
+dir and prints their path, then tears the server down.
+
+`/qkd` offers two modes: **Solo (vs computer)** and same-network
+**Multiplayer** (up to 3 students via a game code — see
+`docs/QKD_MULTIPLAYER.md`). The driver's role-based Solo round is captured
+in `7-qkd.png`.
 
 Options: `--port <N>` and `--out <dir>`.
 
 **Look at the screenshots** — `4-room.png` (the interactive Caesar wheel + question
 forms) and `5-answered.png` (the green "Correct! +15 XP" result) are the proof the
-core stack works; `6-terminal.png`, `7-qkd.png`, and `8-chatbot.png` cover the v2
-pages (terminal, QKD game, GHOST chatbot). A blank frame means the launch failed.
+core stack works; `6-terminal.png`, `7-qkd.png` (Solo mode, playing Bob), and
+`8-chatbot.png` cover the v2 pages (terminal, QKD game, GHOST chatbot). A blank
+frame means the launch failed.
 
 ## Just launch it (no browser)
 
