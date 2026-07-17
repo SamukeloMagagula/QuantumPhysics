@@ -1,53 +1,57 @@
 (function () {
-  var ABORT = 0.11;
-  function newRound(opts) {
-    opts = opts || {}; var n = opts.n || 80; var eve = opts.eve != null ? opts.eve : Math.random() < 0.5;
-    var C = window.PhantomCrypto.bb84;
-    var alice = C.prepare(n);
-    var channelBits = alice.bits, channelBases = alice.bases;
-    if (eve) { var e = C.eveIntercept(alice.bits, alice.bases); channelBits = e.bits; channelBases = e.bases; }
-    var bBases = []; for (var i = 0; i < n; i++) bBases.push(Math.random() < 0.5 ? "+" : "x");
-    var meas = channelBits.map(function (bit, i) { return C.measure(bit, channelBases[i], bBases[i]); });
-    var s = C.sift(alice.bases, bBases, alice.bits, meas);
-    var qber = C.qber(s.aKey, s.bKey);
-    return { eve: eve, qber: qber, keyBits: s.aKey.length, n: n };
-  }
-  function judge(round, decision) {
-    var shouldAbort = round.qber > ABORT;
-    var correct = (decision === "abort") === shouldAbort;
-    var delta = correct ? (decision === "keep" ? round.keyBits : 25) : -20;
-    return { correct: correct, delta: delta };
-  }
-  window.QuantumIntercept = { ABORT: ABORT, newRound: newRound, judge: judge };
+  var ABORT = 0.11, DETECT = 25;
+  var C = window.PhantomCrypto;
 
-  document.addEventListener("DOMContentLoaded", function () {
-    var root = document.getElementById("qkd"); if (!root) return;
-    var meter = document.getElementById("qber-fill"), qtext = document.getElementById("qber-text");
-    var info = document.getElementById("qkd-info"), scoreEl = document.getElementById("qkd-score");
-    var photons = document.getElementById("qkd-photons");
-    var score = 0, round = null, roundNo = 0, peak = 0;
-    function render(r) {
-      photons.innerHTML = "";
-      for (var i = 0; i < Math.min(r.n, 40); i++) { var d = document.createElement("span"); d.className = "photon"; d.style.animationDelay = (i * 25) + "ms"; photons.appendChild(d); }
-      var pct = Math.round(r.qber * 100);
-      meter.style.width = Math.min(100, pct * 3) + "%";
-      meter.className = "qber-fill " + (r.qber > window.QuantumIntercept.ABORT ? "hot" : "cool");
-      qtext.textContent = "QBER: " + pct + "%  (abort line 11%)";
-      info.textContent = "Round " + roundNo + " — sifted key: " + r.keyBits + " bits. Keep the key or abort?";
+  function draw(rng) { var v = rng(); return (typeof v === "number" && v >= 0 && v < 1) ? v : 0; }
+  function bit(d) { return d < 0.5 ? 0 : 1; }
+  function basis(d) { return d < 0.5 ? "+" : "x"; }
+
+  // BB84 round. rng() -> [0,1); 7 draws per photon in the plan's fixed order.
+  function resolveRound(config, rng) {
+    rng = rng || Math.random;
+    var n = Math.max(1, config.n | 0);
+    var p = Math.min(1, Math.max(0, +config.p || 0));
+    var s = Math.max(0, config.s | 0);
+    var aBits = [], aBases = [], bBases = [], bBits = [], intercepted = [], eBases = [];
+    for (var i = 0; i < n; i++) {
+      var d0 = draw(rng), d1 = draw(rng), d2 = draw(rng), d3 = draw(rng), d4 = draw(rng), d5 = draw(rng), d6 = draw(rng);
+      var aBit = bit(d0), aBasis = basis(d1);
+      var interc = d2 < p, chBit, chBasis, eBasis = "";
+      if (interc) { eBasis = basis(d3); var eBit = (eBasis === aBasis) ? aBit : bit(d4); chBit = eBit; chBasis = eBasis; }
+      else { chBit = aBit; chBasis = aBasis; }
+      var bBasis = basis(d5);
+      var bBit = (bBasis === chBasis) ? chBit : bit(d6);
+      aBits.push(aBit); aBases.push(aBasis); bBases.push(bBasis); bBits.push(bBit);
+      intercepted.push(interc); eBases.push(eBasis);
     }
-    function next() { roundNo++; round = window.QuantumIntercept.newRound({}); render(round); }
-    function decide(dec) {
-      if (!round) return; var res = window.QuantumIntercept.judge(round, dec);
-      score += res.delta; scoreEl.textContent = "Score: " + score;
-      if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }
-      info.textContent = (res.correct ? "Correct! " : "Wrong. ") + (round.eve ? "Eve WAS listening." : "Channel was clean.") + " (" + (res.delta >= 0 ? "+" : "") + res.delta + ")";
-      round = null;
-      if (score < -40) { info.textContent += " — GAME OVER."; score = 0; peak = 0; setTimeout(function () { scoreEl.textContent = "Score: 0"; roundNo = 0; next(); }, 1500); }
-      else setTimeout(next, 1400);
-    }
-    function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
-    document.getElementById("btn-keep").addEventListener("click", function () { decide("keep"); });
-    document.getElementById("btn-abort").addEventListener("click", function () { decide("abort"); });
-    next();
-  });
+    var sifted = C.bb84.sift(aBases, bBases, aBits, bBits);
+    var m = sifted.positions.length;
+    var sampleSize = Math.min(s, m);
+    var sampleQBER = C.bb84.qber(sifted.aKey.slice(0, sampleSize), sifted.bKey.slice(0, sampleSize));
+    var finalKey = m - sampleSize;
+    var eveHit = false;
+    for (var k = 0; k < n; k++) { if (intercepted[k]) { eveHit = true; break; } }
+    var stolen = 0;
+    for (var j = sampleSize; j < m; j++) { var pos = sifted.positions[j]; if (intercepted[pos] && eBases[pos] === aBases[pos]) stolen++; }
+    return { n: n, p: p, sifted: m, sampleSize: sampleSize, sampleQBER: sampleQBER, finalKey: finalKey,
+             stolen: stolen, eveHit: eveHit, intercepted: intercepted, aBases: aBases, bBases: bBases };
+  }
+
+  function scoreRound(role, result, decision) {
+    var eve = !!result.eveHit, defender = 0, eveDelta = 0;
+    if (decision === "abort") { if (eve) defender = DETECT; }
+    else { if (eve) eveDelta = result.stolen || 0; else defender = result.finalKey || 0; }
+    var delta = (role === "eve") ? eveDelta : defender;
+    return { delta: delta, youWon: delta > 0 };
+  }
+
+  function computerStrategy(role, publicInfo, rng) {
+    rng = rng || Math.random;
+    if (role === "alice") { var n = 16 + Math.floor(rng() * 17); return { n: n, s: Math.max(2, Math.floor(n / 6)) }; }
+    if (role === "eve") { var r = rng(); return { p: r < 0.35 ? 0 : r < 0.6 ? 0.25 : r < 0.85 ? 0.5 : 1.0 }; }
+    var q = (publicInfo && publicInfo.sampleQBER) || 0;
+    return { decision: q > ABORT ? "abort" : "keep" };
+  }
+
+  window.QuantumIntercept = { ABORT: ABORT, resolveRound: resolveRound, scoreRound: scoreRound, computerStrategy: computerStrategy };
 })();
