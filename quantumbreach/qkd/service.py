@@ -1,6 +1,5 @@
 import json
 import secrets
-import string
 
 ROLES = ("alice", "bob", "eve")
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous chars
@@ -60,11 +59,12 @@ def join_game(db, code, user, role):
         raise GameError("game already started", 409)
     if _seat_for_user(db, g["id"], user["id"]):
         raise GameError("already seated in this game", 409)
-    seat = db.execute("SELECT * FROM qkd_game_seats WHERE game_id=? AND role=?", (g["id"], role)).fetchone()
-    if seat["kind"] == "human":
+    cur = db.execute(
+        "UPDATE qkd_game_seats SET kind='human', user_id=?, display_name=? "
+        "WHERE game_id=? AND role=? AND kind='computer'",
+        (user["id"], user["display_name"], g["id"], role))
+    if cur.rowcount == 0:
         raise GameError("role already taken", 409)
-    db.execute("UPDATE qkd_game_seats SET kind='human', user_id=?, display_name=? WHERE game_id=? AND role=?",
-               (user["id"], user["display_name"], g["id"], role))
     db.commit()
     return {"code": g["code"], "role": role}
 
