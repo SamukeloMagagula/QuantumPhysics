@@ -43,3 +43,12 @@ def state(code):
         return jsonify(service.game_state(get_db(), code, current_user()))
     except service.GameError as e:
         return _err(e)
+
+
+@bp.route("/api/qkd/game/<code>/act", methods=["POST"])
+def act(code):
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(service.submit_action(get_db(), code, current_user(), data.get("action") or {}))
+    except service.GameError as e:
+        return _err(e)

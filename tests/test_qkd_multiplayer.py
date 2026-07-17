@@ -7,6 +7,14 @@ def _guest(app):
     return c
 
 
+def _solo_game(app, role):
+    """A 1-human game: the human takes `role`, computer plays the other two."""
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": role}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    return c, code
+
+
 def test_create_join_start_and_lobby_state(app):
     host = _guest(app)
     r = host.post("/api/qkd/game", json={"role": "alice"})
@@ -37,3 +45,58 @@ def test_state_hides_secrets_in_lobby(app):
     code = host.post("/api/qkd/game", json={"role": "eve"}).get_json()["code"]
     body = host.get(f"/api/qkd/game/{code}").get_data(as_text=True)
     assert "aBits" not in body and "aBases" not in body   # never leak raw round data
+
+
+def test_full_round_as_bob_scores_and_reveals(app):
+    c, code = _solo_game(app, "bob")
+    # computer Alice + Eve auto-submit; we should now be at bob_decision with a QBER visible to Bob
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "bob_decision"
+    assert "sampleQBER" in st and st["youAreUpNow"] is True
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] in ("resolve", "ended")
+    assert "lastResult" in st and "bobDecision" in st["lastResult"]
+
+
+def test_act_is_idempotent(app):
+    c, code = _solo_game(app, "bob")
+    a = c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "keep"}}).get_json()
+    b = c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}}).get_json()  # ignored
+    assert a["phase"] == b["phase"]  # second submit for the same already-decided phase does not re-resolve
+
+
+def test_bob_qber_hidden_from_eve(app):
+    # Human Eve; computer Bob. Eve must never receive sampleQBER in any state view.
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "eve"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "eve_move" and "sampleQBER" not in st
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"p": 1.0}})
+    body = c.get(f"/api/qkd/game/{code}").get_data(as_text=True)
+    # After resolve Eve sees the reveal, but there is no separate Bob-only leak before it.
+    assert "sampleQBER" in body  # present inside lastResult at reveal is fine
+
+
+def test_game_end_writes_qkd_score_iff_positive(app):
+    # Play a full game as Bob, ABORTing every round (correct whenever computer-Eve intercepted).
+    # Assert the exact persistence invariant regardless of the server's randomness:
+    #   a qkd_scores row exists  <=>  the human seat finished with a positive score.
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(30):  # bounded; ROUNDS is small so this always reaches 'ended'
+        st = c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "ended":
+            break
+        if st["phase"] == "bob_decision":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+    final = c.get(f"/api/qkd/game/{code}").get_json()
+    assert final["phase"] == "ended"
+    bob_score = next(s["score"] for s in final["scores"] if s["role"] == "bob")
+    with app.app_context():
+        rows = get_db().execute("SELECT COUNT(*) AS n FROM qkd_scores").fetchone()["n"]
+    assert (rows >= 1) == (bob_score > 0)  # written iff the human actually scored
