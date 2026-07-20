@@ -1,9 +1,20 @@
 (function () {
+  // flags: single-dash tokens (-d, -e, -r ...) are always booleans (caesar/xor/b64 and
+  // others depend on this). Double-dash tokens (--len, --sample ...) capture the NEXT
+  // token as their value when it exists and isn't itself a flag (e.g. "--len 12" ->
+  // flags.len = "12"); with no following value they fall back to boolean true, same
+  // as single-dash.
   function parse(line) {
     var toks = [], re = /"([^"]*)"|'([^']*)'|(\S+)/g, m;
     while ((m = re.exec(line))) toks.push(m[1] != null ? m[1] : m[2] != null ? m[2] : m[3]);
     var cmd = toks.shift() || "", args = [], flags = {};
-    toks.forEach(function (t) { if (t[0] === "-") flags[t.replace(/^-+/, "")] = true; else args.push(t); });
+    for (var i = 0; i < toks.length; i++) {
+      var t = toks[i];
+      if (t[0] !== "-") { args.push(t); continue; }
+      var name = t.replace(/^-+/, "");
+      if (t.slice(0, 2) === "--" && toks[i + 1] != null && toks[i + 1][0] !== "-") { flags[name] = toks[++i]; }
+      else { flags[name] = true; }
+    }
     return { cmd: cmd, args: args, flags: flags };
   }
 

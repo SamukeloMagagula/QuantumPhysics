@@ -121,7 +121,11 @@
       qtext.textContent = "QBER: " + pct + "% (abort line 11%)";
     }
     function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
+    // Mirror this button-driven round into QkdActions so window.QkdActions.state() reflects
+    // the same values the buttons produced (shared state layer — see qkd-actions.js). The
+    // existing pending/finish render path below is untouched; this call is additive only.
     function finish(result, decision) {
+      if (window.QkdActions) window.QkdActions.bobDecide(decision);
       var sc = window.QuantumIntercept.scoreRound(myRole, result, decision);
       score += sc.delta; scoreEl.textContent = "Score: " + score;
       if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }
@@ -147,10 +151,14 @@
 
     function startRound() {
       reveal.textContent = ""; pending = {};
+      if (window.QkdActions) window.QkdActions.advance(); // reset the shared action-layer state for a fresh round
       if (myRole === "alice") { info.textContent = "Set your key length and check sample, then Send key."; }
       else { var a = window.QuantumIntercept.computerStrategy("alice", {}, Math.random); pending.n = a.n; pending.s = a.s;
+             if (window.QkdActions) window.QkdActions.aliceSet({ n: pending.n, s: pending.s }); // mirror computer-Alice's key
              if (myRole === "eve") info.textContent = "Choose how aggressively to intercept.";
-             else { pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p; resolveAndAwaitBob(); } }
+             else { pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
+                    if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
+                    resolveAndAwaitBob(); } }
     }
     function resolveAndAwaitBob() {
       pending.result = window.QuantumIntercept.resolveRound(pending, Math.random);
@@ -166,11 +174,16 @@
     var alSend = document.getElementById("al-send");
     if (alSend) alSend.addEventListener("click", function () {
       pending.n = parseInt(alN.value, 10); pending.s = parseInt(alS.value, 10);
-      pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p; resolveAndAwaitBob();
+      if (window.QkdActions) window.QkdActions.aliceSet({ n: pending.n, s: pending.s }); // mirror human-Alice's key
+      pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
+      if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
+      resolveAndAwaitBob();
     });
     // Eve controls
     solo.querySelectorAll(".ev").forEach(function (b) { b.addEventListener("click", function () {
-      pending.p = parseFloat(b.getAttribute("data-p")); resolveAndAwaitBob(); }); });
+      pending.p = parseFloat(b.getAttribute("data-p"));
+      if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror human-Eve's intercept
+      resolveAndAwaitBob(); }); });
     // Bob controls
     var keep = document.getElementById("btn-keep"), abort = document.getElementById("btn-abort");
     if (keep) keep.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "keep"); });
