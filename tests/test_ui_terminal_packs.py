@@ -26,3 +26,27 @@ def test_text_pack():
         assert run(pg, "sort f.txt").splitlines()[0].strip() == "apple"
         assert run(pg, "wc f.txt").strip().split()[0] == "2"  # 2 lines
         assert "apple" in run(pg, "grep apple f.txt")
+
+
+@requires_browser
+def test_redirect_is_quote_aware():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/terminal", wait_until="networkidle")
+
+        # A '>' inside a quoted argument must NOT trigger redirection — the
+        # whole quoted string (including '>') is a single argument to
+        # caesar, not an output path. Regression for a bug where the raw-line
+        # regex matched the quoted '>' before quote-aware tokenizing,
+        # truncating the command and silently writing garbage to a bogus
+        # "noon\"" file instead of printing the cipher.
+        assert run(pg, 'caesar -e 3 "attack > noon"') == "dwwdfn > qrrq"
+
+        # ...and no bogus quoted-filename file was created by it.
+        assert '"' not in run(pg, "ls")
+
+        # Real (unquoted) redirection must still work, including append.
+        run(pg, "mkdir demo2")
+        run(pg, "echo hello > demo2/a.txt")
+        assert run(pg, "cat demo2/a.txt").strip() == "hello"
+        run(pg, "echo world >> demo2/a.txt")
+        assert run(pg, "cat demo2/a.txt").strip() == "hello\nworld"

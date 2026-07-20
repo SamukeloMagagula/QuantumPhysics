@@ -38,8 +38,28 @@
   window.__PQ_registry = registry;
 
   function run(line) {
-    var redir = null, m = line.match(/\s(>>?)\s*(\S+)\s*$/);
-    if (m) { redir = { mode: m[1], path: m[2] }; line = line.slice(0, m.index); }
+    // quote-aware redirection detection: tokenize first (mirroring parse()'s
+    // tokenizer) and track which tokens came from a quoted segment, so a
+    // literal '>' inside quotes (e.g. caesar -e 3 "attack > noon") is never
+    // mistaken for the output-redirect operator.
+    var redir = null;
+    var toks = [], quoted = [], re = /"([^"]*)"|'([^']*)'|(\S+)/g, tm;
+    while ((tm = re.exec(line))) {
+      quoted.push(tm[1] != null || tm[2] != null);
+      toks.push(tm[1] != null ? tm[1] : tm[2] != null ? tm[2] : tm[3]);
+    }
+    for (var i = 0; i < toks.length; i++) {
+      if (quoted[i]) continue; // never redirect on a quoted token
+      var mm = /^(>>?)(.*)$/.exec(toks[i]);
+      if (!mm) continue;
+      var mode = mm[1], path = mm[2];
+      if (!path && i + 1 < toks.length) path = toks[i + 1]; // '> file' form
+      if (path) {
+        redir = { mode: mode, path: path };
+        line = toks.slice(0, i).map(function (t, idx) { return quoted[idx] ? '"' + t + '"' : t; }).join(" ");
+        break;
+      }
+    }
     var p = parse(line); if (!p.cmd) return Promise.resolve("");
     p.raw = line;
     var fn = registry[p.cmd];
