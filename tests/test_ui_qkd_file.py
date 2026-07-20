@@ -44,3 +44,41 @@ def test_solo_round_reveals_file():
         pg.click(".ev[data-p='0']")
         pg.wait_for_selector("#bob-file pre", timeout=5000)
         assert "CLASSIFIED" in pg.inner_text("#bob-file")
+
+
+@requires_browser
+def test_botnet_cracks_short_key_and_reveals_to_eve():
+    # A short key (n=8, s=0 -> final key <= 8 bits) with a 100-worker botnet deployed
+    # cracks within the round window, so Bob's decision marks the file as cracked and
+    # Eve's pane renders the plaintext instead of scrambled ciphertext.
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.evaluate("() => QkdActions.aliceSet({n: 8, s: 0, file: 'mission'})")
+        pg.evaluate("() => QkdActions.eveCrack({workers: 100})")
+        r = pg.evaluate("() => QkdActions.bobDecide('keep')")
+        assert pg.evaluate("() => QkdActions.state().lastResult.result.fileCracked") is True
+
+
+@requires_browser
+def test_killing_botnet_workers_reduces_live_crack_capacity():
+    # Deploy 100 workers against a 24-bit key (crackable within the round window at
+    # 100 workers: 2^24/5,000,000 ~= 3.4s) then kill all but 2 of them via the same
+    # PhantomBotnet.kill(pid) bridge the terminal's `kill` command uses. At 2 workers
+    # the same 24-bit key is NOT crackable within the window (2^24/100,000 ~= 168s),
+    # proving a terminal `kill <pid>` before Bob decides actually reduces live crack
+    # capacity and flips fileCracked, not just cosmetically shrinks the worker count.
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.evaluate("() => QkdActions.eveCrack({workers: 100})")
+        presolved = "{n:1, sifted:1, sampleSize:0, sampleQBER:0, finalKey:24, stolen:0, eveHit:false, aKeyFinal:[], bKeyFinal:[]}"
+        cracked_full = pg.evaluate("() => QkdActions.bobDecide('keep', " + presolved + ").result.fileCracked")
+        assert cracked_full is True
+        pg.evaluate("""() => {
+          var pids = PhantomBotnet.pids();
+          for (var i = 2; i < pids.length; i++) PhantomBotnet.kill(pids[i]);
+        }""")
+        assert pg.evaluate("() => PhantomBotnet.pids().length") == 2
+        cracked_reduced = pg.evaluate("() => QkdActions.bobDecide('keep', " + presolved + ").result.fileCracked")
+        assert cracked_reduced is False

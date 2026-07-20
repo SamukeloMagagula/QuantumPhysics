@@ -28,3 +28,9 @@ body.landing { }
 .lp-checks { list-style: none; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
 .lp-checks li::before { content: "▸ "; color: var(--accent, #0fa); }
 .lp-footer { display: flex; justify-content: space-between; padding: 2rem; border-top: 1px solid rgba(0,255,170,.15); margin-top: 3rem; }
+
+.worker-grid { display: flex; flex-wrap: wrap; gap: 3px; margin: .4rem 0; }
+.worker { width: 10px; height: 10px; background: var(--accent, #0fa); box-shadow: 0 0 4px var(--accent, #0fa);
+  animation: worker-pulse 1s infinite alternate; }
+@keyframes worker-pulse { from { opacity: .4; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .worker { animation: none; } }

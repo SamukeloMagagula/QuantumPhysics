@@ -42,6 +42,12 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
     <button class="chip ev" data-p="0.25" type="button">Light</button>
     <button class="chip ev" data-p="0.5" type="button">Heavy</button>
     <button class="chip ev" data-p="1" type="button">Full</button>
+    <div class="botnet">
+      <label>Workers: <span id="ev-w-val">0</span><input id="ev-w" type="range" min="0" max="100" value="0"></label>
+      <button class="btn" id="ev-crack" type="button">Deploy botnet</button>
+      <div id="ev-grid" class="worker-grid"></div>
+      <p class="muted"><span id="ev-rate">0</span> keys/s · ETA <span id="ev-eta">—</span> · detection +<span id="ev-detect">0</span>%</p>
+    </div>
   </div>
   <div id="panel-bob" class="qkd-panel" hidden>
     <button class="btn" id="btn-keep" type="button">KEEP KEY</button>

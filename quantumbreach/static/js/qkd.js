@@ -184,6 +184,30 @@
       pending.p = parseFloat(b.getAttribute("data-p"));
       if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror human-Eve's intercept
       resolveAndAwaitBob(); }); });
+    // Eve botnet panel: slider + deploy button drive QkdActions.eveCrack directly and
+    // render the worker grid / readouts inline (no subscribe — matches Task 12's Option B).
+    var evW = document.getElementById("ev-w"), evWVal = document.getElementById("ev-w-val"), evCrack = document.getElementById("ev-crack");
+    function renderBotnet() {
+      var PB = window.PhantomBotnet; if (!PB || !window.QkdActions) return;
+      var state = window.QkdActions.state();
+      var workers = state.eve.workers;
+      var grid = document.getElementById("ev-grid");
+      if (grid) { grid.innerHTML = ""; for (var i = 0; i < workers; i++) { var t = document.createElement("span"); t.className = "worker"; grid.appendChild(t); } }
+      var rate = document.getElementById("ev-rate"); if (rate) rate.textContent = PB.keysPerSec(workers).toLocaleString();
+      var det = document.getElementById("ev-detect"); if (det) det.textContent = PB.detectionDelta(state.eve.p);
+      var eta = document.getElementById("ev-eta");
+      if (eta) { var upperN = (pending && pending.n) || state.alice.n || 0; var e = PB.crackEta(upperN, workers); eta.textContent = (e === Infinity ? "∞ (heat death)" : e.toFixed(1) + "s"); }
+    }
+    if (evW) evW.addEventListener("input", function () {
+      if (evWVal) evWVal.textContent = evW.value;
+      if (window.QkdActions) window.QkdActions.eveCrack({ workers: parseInt(evW.value, 10) });
+      renderBotnet();
+    });
+    if (evCrack) evCrack.addEventListener("click", function () {
+      var n = evW ? parseInt(evW.value, 10) : 0;
+      if (window.QkdActions) window.QkdActions.eveCrack({ workers: n });
+      renderBotnet();
+    });
     // Bob controls
     var keep = document.getElementById("btn-keep"), abort = document.getElementById("btn-abort");
     if (keep) keep.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "keep"); });
