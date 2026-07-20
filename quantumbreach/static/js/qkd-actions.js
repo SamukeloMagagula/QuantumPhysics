@@ -19,9 +19,12 @@
   function eveIntercept(pct) { st.eve.p = Math.max(0, Math.min(100, pct | 0)) / 100; emit(); }
   function eveCrack(o) { st.eve.workers = (o && o.workers != null) ? (o.workers | 0) : st.eve.workers; emit(); }
   function eveStopCrack() { st.eve.workers = 0; emit(); }
-  function bobDecide(decision) {
-    var cfg = { n: st.alice.n, s: st.alice.s, p: st.eve.p };
-    var result = window.QuantumIntercept.resolveRound(cfg, Math.random);
+  function bobDecide(decision, presolved) {
+    var result = presolved;
+    if (!result) {
+      var cfg = { n: st.alice.n, s: st.alice.s, p: st.eve.p };
+      result = window.QuantumIntercept.resolveRound(cfg, Math.random);
+    }
     // botnet crack decision: file crackable if final key short enough for the worker count within window
     var keyBits = result.finalKey || 0;
     result.fileCracked = st.eve.workers > 0 && window.PhantomBotnet.crackableWithin(keyBits, st.eve.workers, window.PhantomBotnet.ROUND_WINDOW);

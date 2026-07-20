@@ -125,7 +125,7 @@
     // the same values the buttons produced (shared state layer — see qkd-actions.js). The
     // existing pending/finish render path below is untouched; this call is additive only.
     function finish(result, decision) {
-      if (window.QkdActions) window.QkdActions.bobDecide(decision);
+      if (window.QkdActions) window.QkdActions.bobDecide(decision, result);
       var sc = window.QuantumIntercept.scoreRound(myRole, result, decision);
       score += sc.delta; scoreEl.textContent = "Score: " + score;
       if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }

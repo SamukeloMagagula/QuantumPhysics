@@ -94,3 +94,21 @@ def test_qkd_terminal_commands_guard_without_qkd_actions():
         assert out == "qkd: open the QKD page first"
         out2 = pg.evaluate("(async () => await PhantomShell.run('qkd status'))()")
         assert out2 == "qkd: open the QKD page first"
+
+
+@requires_browser
+def test_bobdecide_uses_presolved_result_not_a_reroll():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        # A presolved result passed in must be stored verbatim (identity/values), not replaced by a fresh roll.
+        r = pg.evaluate("""() => {
+            var res = {n:8, sifted:5, sampleSize:0, sampleQBER:0.42, finalKey:5, stolen:0, eveHit:true, aKeyFinal:[1,0,1,1,0], bKeyFinal:[1,0,1,1,0]};
+            QkdActions.bobDecide('keep', res);
+            var lr = QkdActions.state().lastResult;
+            return lr && lr.decision === 'keep' && lr.result.finalKey === 5 && lr.result.eveHit === true && lr.result.sampleQBER === 0.42;
+        }""")
+        assert r is True
+        # Terminal-driven path (no presolved) still resolves internally without throwing.
+        ok = pg.evaluate("() => { QkdActions.aliceSet({n:8,s:0}); QkdActions.eveIntercept(0); var lr = QkdActions.bobDecide('keep'); return !!(lr && lr.result && typeof lr.result.finalKey === 'number'); }")
+        assert ok is True
