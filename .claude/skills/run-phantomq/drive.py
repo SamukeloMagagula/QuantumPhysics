@@ -4,10 +4,12 @@
 This is the repo's verified launch-and-drive recipe. It:
   1. starts the app with `python app.py` (Waitress) on an isolated port + temp DB,
   2. waits for the /healthz endpoint,
-  3. drives it in system Chrome via Playwright: home -> observe the auto-
-     provisioned guest identity -> open a room -> use the interactive Caesar
-     widget -> submit an answer -> tour the v2 pages (PhantomShell terminal,
-     Quantum Intercept QKD game, GHOST chatbot),
+  3. drives it in system Chrome via Playwright: the anonymous landing page (`/`,
+     no sidebar, no guest identity yet) -> click "Enter Platform" into the
+     sidebar app shell at `/dashboard` (this is where the guest identity is
+     auto-provisioned) -> open a room -> use the interactive Caesar widget ->
+     submit an answer -> tour the v2 pages (PhantomShell terminal, Quantum
+     Intercept QKD game, GHOST chatbot),
   4. screenshots each step and prints what it observed,
   5. tears the server down and cleans up the temp DB.
 
@@ -52,12 +54,30 @@ def drive(base, out):
         ctx = browser.new_context(viewport={"width": 1280, "height": 900})
         pg = ctx.new_page()
 
+        # 1. Anonymous landing page: no sidebar, no guest identity yet.
         pg.goto(base + "/", wait_until="networkidle")
-        pg.screenshot(path=os.path.join(out, "1-home.png"), full_page=True)
-        print("[home] title:", pg.title())
+        # let the one-time boot overlay (typewriter + fade-out) finish so the
+        # screenshot shows the actual hero, not the "INITIALIZING..." splash.
+        try:
+            pg.wait_for_selector("#boot", state="detached", timeout=5000)
+        except Exception:
+            pass
+        pg.screenshot(path=os.path.join(out, "1-landing.png"), full_page=True)
+        for_schools = pg.query_selector("#for-schools")
+        print("[landing] title:", pg.title(), "| #for-schools present:", for_schools is not None)
+        assert for_schools is not None, "landing page missing #for-schools section"
+        assert pg.query_selector(".sidebar") is None, "landing page should not have the sidebar"
 
-        print("[guest] auto handle:", pg.text_content("#nav-name"))
-        pg.screenshot(path=os.path.join(out, "2-guest.png"), full_page=True)
+        # 2. Click the landing CTA into the app shell. This is where a guest
+        #    identity gets auto-provisioned (not on the anonymous landing page).
+        with pg.expect_navigation(wait_until="networkidle"):
+            pg.click("header.lp-topbar a.btn")
+        assert pg.url.rstrip("/").endswith("/dashboard"), f"expected /dashboard, got {pg.url}"
+        sidebar = pg.query_selector(".sidebar")
+        print("[dashboard] url:", pg.url, "| sidebar present:", sidebar is not None,
+              "| guest handle:", pg.text_content("#nav-name"))
+        assert sidebar is not None, "dashboard missing the sidebar app shell"
+        pg.screenshot(path=os.path.join(out, "2-dashboard.png"), full_page=True)
 
         pg.goto(base + "/paths/symmetric", wait_until="networkidle")
         pg.screenshot(path=os.path.join(out, "3-path.png"), full_page=True)
@@ -82,11 +102,12 @@ def drive(base, out):
         print("[answer] nav chip:", pg.text_content("#nav-points"))
         pg.screenshot(path=os.path.join(out, "5-answered.png"), full_page=True)
 
-        # v2 tour
+        # v2 tour -- the sidebar shell persists across every app page.
         pg.goto(base + "/terminal", wait_until="networkidle")
         pg.fill("#shell-in", "caesar -d 3 Khoor"); pg.press("#shell-in", "Enter"); pg.wait_for_timeout(150)
+        print("[terminal] sidebar present:", pg.query_selector(".sidebar") is not None,
+              "| ran caesar -d 3 Khoor")
         pg.screenshot(path=os.path.join(out, "6-terminal.png"), full_page=True)
-        print("[terminal] ran caesar -d 3 Khoor")
 
         # v2.1 tour: QKD role-based Solo round (pick Solo mode, play Bob, then ABORT)
         pg.goto(base + "/qkd", wait_until="networkidle")
@@ -97,13 +118,16 @@ def drive(base, out):
         except Exception:
             pass
         pg.wait_for_timeout(300)
+        print("[qkd] sidebar present:", pg.query_selector(".sidebar") is not None,
+              "| played a Solo round as Bob")
         pg.screenshot(path=os.path.join(out, "7-qkd.png"), full_page=True)
-        print("[qkd] played a Solo round as Bob")
 
-        pg.goto(base + "/", wait_until="networkidle")
+        # GHOST chatbot: the launcher lives in the app shell, so open it from an
+        # app page (dashboard) rather than the anonymous landing page.
+        pg.goto(base + "/dashboard", wait_until="networkidle")
         pg.click(".ghost-launch"); pg.fill(".ghost-input", "how do I start"); pg.press(".ghost-input", "Enter"); pg.wait_for_timeout(300)
         pg.screenshot(path=os.path.join(out, "8-chatbot.png"), full_page=True)
-        print("[chatbot] asked GHOST")
+        print("[chatbot] asked GHOST from /dashboard")
 
         browser.close()
     print("Screenshots written to:", os.path.abspath(out))

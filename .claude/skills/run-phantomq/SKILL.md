@@ -1,6 +1,6 @@
 ---
 name: run-phantomq
-description: Launch the PhantomQ Flask app and drive it in a real browser (home + auto-provisioned guest identity, open a room, use the Caesar widget, submit an answer, then tour the v2 terminal, QKD game, and GHOST chatbot) with screenshots. Use when asked to run, start, or screenshot PhantomQ, or to confirm the UI works end-to-end.
+description: Launch the PhantomQ Flask app and drive it in a real browser (anonymous landing page -> Enter Platform into the sidebar app shell/dashboard, auto-provisioned guest identity, open a room, use the Caesar widget, submit an answer, then tour the v2 terminal, QKD game, and GHOST chatbot) with screenshots. Use when asked to run, start, or screenshot PhantomQ, or to confirm the UI works end-to-end.
 ---
 
 # Run PhantomQ
@@ -25,16 +25,20 @@ python .claude/skills/run-phantomq/drive.py
 ```
 
 This boots `python app.py` on an isolated port (8130) with a throwaway DB, waits
-for `/healthz`, then in a headless browser: loads the home page (a guest
-identity is auto-provisioned — no accounts, no login), opens the **The Shift**
-room, checks the Caesar-wheel widget rendered its live output, submits
-`hello world` to the first question, and confirms the "Correct! +15 XP" result
-and the nav XP chip updating. It then tours the v2 surface: the PhantomShell
-terminal (`/terminal`, runs `caesar -d 3 Khoor`), the Quantum Intercept QKD
-game (`/qkd`, picks **Solo** mode, plays the **Bob** role, then ABORTs), and
-the GHOST chatbot (launched from its floating button, asks "how do I
-start"). It writes 8 screenshots (`1-home.png` … `8-chatbot.png`) to a temp
-dir and prints their path, then tears the server down.
+for `/healthz`, then in a headless browser: loads the **anonymous landing page**
+(`/` — hero + "For Schools" pitch, no sidebar, no accounts, no guest identity
+yet), clicks **Enter Platform** into the sidebar app shell at `/dashboard`
+(this is where a guest identity is auto-provisioned — still no login), opens the
+**The Shift** room, checks the Caesar-wheel widget rendered its live output,
+submits `hello world` to the first question, and confirms the "Correct! +15 XP"
+result and the nav XP chip updating. It then tours the v2 surface, confirming
+the sidebar persists on every app page: the PhantomShell terminal (`/terminal`,
+runs `caesar -d 3 Khoor`), the Quantum Intercept QKD game (`/qkd`, picks
+**Solo** mode, plays the **Bob** role, then ABORTs), and the GHOST chatbot
+(opened from its floating `.ghost-launch` button on `/dashboard` — the
+launcher lives in the app shell, not the anonymous landing page — and asks
+"how do I start"). It writes 8 screenshots (`1-landing.png` … `8-chatbot.png`)
+to a temp dir and prints their path, then tears the server down.
 
 `/qkd` offers two modes: **Solo (vs computer)** and same-network
 **Multiplayer** (up to 3 students via a game code — see
@@ -43,10 +47,13 @@ in `7-qkd.png`.
 
 Options: `--port <N>` and `--out <dir>`.
 
-**Look at the screenshots** — `4-room.png` (the interactive Caesar wheel + question
-forms) and `5-answered.png` (the green "Correct! +15 XP" result) are the proof the
-core stack works; `6-terminal.png`, `7-qkd.png` (Solo mode, playing Bob), and
-`8-chatbot.png` cover the v2 pages (terminal, QKD game, GHOST chatbot). A blank
+**Look at the screenshots** — `1-landing.png` (anonymous hero + For Schools, no
+sidebar) and `2-dashboard.png` (sidebar app shell + path cards, guest handle in
+the nav) prove the landing→app split works; `4-room.png` (the interactive
+Caesar wheel + question forms) and `5-answered.png` (the green "Correct! +15
+XP" result) are the proof the core stack works; `6-terminal.png`, `7-qkd.png`
+(Solo mode, playing Bob), and `8-chatbot.png` cover the v2 pages (terminal,
+QKD game, GHOST chatbot) with the sidebar persisting throughout. A blank
 frame means the launch failed.
 
 ## Just launch it (no browser)
@@ -63,9 +70,10 @@ and `PHANTOMQ_DB` override the port and database file.
 
 ```bash
 curl -s localhost:8000/healthz            # {"app":"PhantomQ","status":"ok"}
-curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/          # 200 (home)
+curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/          # 200 (anonymous landing, no guest cookie set)
+curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/dashboard # 200 (app shell; provisions a guest)
 curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/paths/symmetric   # 200
-# Full flow needs a cookie jar (session): GET / to provision a guest, then POST an answer as JSON.
+# Full flow needs a cookie jar (session): GET /dashboard to provision a guest, then POST an answer as JSON.
 ```
 
 ## Notes / gotchas
