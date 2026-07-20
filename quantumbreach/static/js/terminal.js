@@ -9,7 +9,14 @@
 
   var C = window.PhantomCrypto;
   var registry = {
-    help: function () { return "Commands:\n  help, clear, banner, whoami, rename <name>\n  ls [rooms], open <room-id>, leaderboard\n  caesar -e|-d <key> <text>\n  xor <keyhex> <text>\n  brute <text>\n  freq <text>\n  b64 -e|-d <text>\n  lab create | lab list | lab play <id> | lab export <id> | lab delete <id>"; },
+    help: function () { return [
+      "FILES:  pwd cd ls cat mkdir touch rm cp mv echo head tail find tree",
+      "TEXT:   grep wc sort uniq diff strings xxd hexdump md5sum sha256sum",
+      "NET:    ifconfig ip ping nmap netstat ssh",
+      "SYSTEM: ps top kill uname date history man sudo neofetch banner",
+      "CRYPTO: caesar xor brute freq b64",
+      "GAME:   qkd alice eve bob   |   LABS: lab create|list|play|export|delete",
+      "Type 'man <cmd>' for usage."].join("\n"); },
     banner: function () { return "PhantomShell v2 // Ghost Protocol\nType 'help' to begin."; },
     clear: function () { return { clear: true }; },
     whoami: function () { return (window.__PQ_USER || "operative"); },
@@ -76,6 +83,17 @@
     }).catch(function (e) { return "error: " + (e && e.message ? e.message : e); });
   }
   window.PhantomShell = { parse: parse, run: run, registry: registry };
+  window.PhantomShell.man = {
+    ls: "ls [-l] [path] — list directory contents",
+    cd: "cd <path> — change directory",
+    cat: "cat <file> — print a file",
+    grep: "grep <pattern> <file> — filter lines",
+    nmap: "nmap <target> — scan the quantum channel",
+    qkd: "qkd host|join <code>|start|status — control a QKD game",
+    eve: "eve intercept <0-100> | eve crack [--workers N] [--stop]",
+    alice: "alice set --len N --sample S --file <path>",
+    bob: "bob keep|abort — decide on the received key"
+  };
 
   // --- environment + pack extension (v3) ---
   var env = { tree: (window.PhantomVFS ? PhantomVFS.load() : null), cwd: "/home/operative" };
@@ -123,7 +141,11 @@
       if (e.key === "Enter") submit();
       else if (e.key === "ArrowUp") { if (hi > 0) input.value = history[--hi] || ""; e.preventDefault(); }
       else if (e.key === "ArrowDown") { if (hi < history.length) input.value = history[++hi] || ""; }
-      else if (e.key === "Tab") { e.preventDefault(); var cur = input.value.trim(); var names = Object.keys(window.PhantomShell.registry); var hit = names.filter(function (n) { return n.indexOf(cur) === 0; }); if (hit.length === 1) input.value = hit[0] + " "; }
+      else if (e.key === "Tab") { e.preventDefault(); var val = input.value; var sp = val.indexOf(" ");
+        if (sp === -1) { var cur = val.trim(); var names = Object.keys(window.PhantomShell.registry); var hit = names.filter(function (n) { return n.indexOf(cur) === 0; }); if (hit.length === 1) input.value = hit[0] + " "; }
+        else if (window.PhantomVFS) { var lastSp = val.lastIndexOf(" "); var frag = val.slice(lastSp + 1);
+          try { var entries = PhantomVFS.list(env.tree, env.cwd); var phit = entries.filter(function (n) { return n.indexOf(frag) === 0; }); if (phit.length === 1) input.value = val.slice(0, lastSp + 1) + phit[0]; } catch (ex) {} }
+      }
     });
     root.addEventListener("click", function () { input.focus(); });
     input.focus();

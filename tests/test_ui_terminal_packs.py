@@ -50,3 +50,20 @@ def test_redirect_is_quote_aware():
         assert run(pg, "cat demo2/a.txt").strip() == "hello"
         run(pg, "echo world >> demo2/a.txt")
         assert run(pg, "cat demo2/a.txt").strip() == "hello\nworld"
+
+
+@requires_browser
+def test_net_pack():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/terminal", wait_until="networkidle")
+        out = run(pg, "nmap channel-q")
+        assert "alice" in out.lower() and "bob" in out.lower() and "eve" in out.lower()
+
+
+@requires_browser
+def test_sys_pack():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/terminal", wait_until="networkidle")
+        assert "PhantomOS" in run(pg, "uname -a")
+        assert "sudoers" in run(pg, "sudo rm -rf /")
+        assert "usage" in run(pg, "man ls").lower()
