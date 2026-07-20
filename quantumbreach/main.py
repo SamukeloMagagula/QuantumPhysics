@@ -9,7 +9,12 @@ bp = Blueprint("main", __name__)
 
 
 @bp.route("/")
-def home():
+def landing():
+    return render_template("landing.html")
+
+
+@bp.route("/dashboard")
+def dashboard():
     content_dir = current_app.config["CONTENT_DIR"]
     paths = list_paths(content_dir)
     user = current_user()
@@ -23,7 +28,7 @@ def home():
         rooms = p.rooms(content_dir)
         done = sum(1 for r in rooms if r.id in completed)
         path_cards.append({"path": p, "rooms": rooms, "done": done, "total": len(rooms)})
-    return render_template("home.html", path_cards=path_cards, user=user)
+    return render_template("dashboard.html", path_cards=path_cards, user=user)
 
 
 @bp.route("/leaderboard")

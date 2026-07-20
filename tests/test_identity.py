@@ -2,12 +2,12 @@ from quantumbreach.db import get_db
 
 
 def test_guest_autoprovisioned_and_stable(client):
-    r1 = client.get("/")
+    r1 = client.get("/dashboard")
     assert r1.status_code == 200
-    # A guest cookie is set on first visit
+    # A guest cookie is set on first visit to the app (landing itself stays anonymous)
     assert "guest_id" in r1.headers.get("Set-Cookie", "")
     # A second request (test client resends the cookie) resolves the same guest
-    client.get("/")
+    client.get("/dashboard")
     with client.application.app_context():
         n = get_db().execute("SELECT COUNT(*) AS c FROM users WHERE is_guest=1").fetchone()["c"]
     assert n == 1

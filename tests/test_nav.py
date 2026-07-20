@@ -1,5 +1,5 @@
 def test_nav_has_guest_chip_and_controls(client):
-    html = client.get("/").get_data(as_text=True)
+    html = client.get("/dashboard").get_data(as_text=True)
     assert 'id="fx-toggle"' in html
     assert 'id="nav-name"' in html
     assert 'id="nav-points"' in html

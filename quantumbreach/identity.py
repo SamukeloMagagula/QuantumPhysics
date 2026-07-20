@@ -59,6 +59,24 @@ def current_user():
     return row
 
 
+def peek_user():
+    """Like current_user(), but never provisions a guest. Returns the cached/cookie
+    user if one already exists, else None. Used by contexts (e.g. the global
+    template context processor) that run on every render — including anonymous
+    pages like landing — and must not silently create a guest + Set-Cookie."""
+    if "user" in g:
+        return g.user
+    raw = request.cookies.get(COOKIE)
+    if not raw:
+        return None
+    db = get_db()
+    try:
+        uid = _serializer().loads(raw)
+        return _get(db, int(uid))
+    except (BadSignature, BadData, ValueError, TypeError):
+        return None
+
+
 def rename(db, user_id, new_name):
     if not isinstance(new_name, str):
         return None
@@ -70,12 +88,17 @@ def rename(db, user_id, new_name):
     return name
 
 
+APP_PREFIXES = ("/dashboard", "/rooms", "/terminal", "/qkd", "/leaderboard", "/api")
+
+
 def init_app(app):
     @app.before_request
     def _ensure_guest():
-        if request.path.startswith("/static/"):
+        path = request.path
+        if path.startswith("/static/") or path == "/" or path == "/healthz":
             return
-        current_user()
+        if path.startswith(APP_PREFIXES):
+            current_user()
 
     @app.after_request
     def _persist_guest(resp):

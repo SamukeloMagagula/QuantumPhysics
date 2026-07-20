@@ -4,7 +4,7 @@ from tests.browser_utils import live_server, browser_page, requires_browser
 @requires_browser
 def test_crypto_module_functions():
     with live_server() as base, browser_page() as pg:
-        pg.goto(base + "/", wait_until="networkidle")
+        pg.goto(base + "/dashboard", wait_until="networkidle")
         assert pg.evaluate("PhantomCrypto.caesar('Hello, World!', 3)") == "Khoor, Zruog!"
         assert pg.evaluate("PhantomCrypto.caesarDecrypt('Khoor', 3)") == "Hello"
         assert pg.evaluate("PhantomCrypto.brute('Khoor').length") == 25

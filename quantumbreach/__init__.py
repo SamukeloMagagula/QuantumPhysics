@@ -24,14 +24,14 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .qkd.routes import bp as qkd_bp
     app.register_blueprint(qkd_bp)
 
-    from .identity import current_user
+    from .identity import peek_user
     from .db import get_db
     from .progress.service import get_points
     from .progress.ranks import rank_for_points
 
     @app.context_processor
     def inject_user():
-        u = current_user()
+        u = peek_user()
         pts = get_points(get_db(), u["id"]) if u else 0
         return {"user": u, "user_points": pts,
                 "user_rank": rank_for_points(pts) if u else "Script Kiddie"}

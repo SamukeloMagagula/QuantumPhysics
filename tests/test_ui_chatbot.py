@@ -4,7 +4,7 @@ from tests.browser_utils import live_server, browser_page, requires_browser
 @requires_browser
 def test_chatbot_matches_and_navigates():
     with live_server() as base, browser_page() as pg:
-        pg.goto(base + "/", wait_until="networkidle")
+        pg.goto(base + "/dashboard", wait_until="networkidle")
         # pure matcher
         assert pg.evaluate("window.GhostBot.reply('what is xor').answer").lower().find("xor") != -1
         assert pg.evaluate("window.GhostBot.reply('take me to the terminal').action.href") == "/terminal"
