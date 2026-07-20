@@ -38,13 +38,30 @@
   window.__PQ_registry = registry;
 
   function run(line) {
+    var redir = null, m = line.match(/\s(>>?)\s*(\S+)\s*$/);
+    if (m) { redir = { mode: m[1], path: m[2] }; line = line.slice(0, m.index); }
     var p = parse(line); if (!p.cmd) return Promise.resolve("");
+    p.raw = line;
     var fn = registry[p.cmd];
     if (!fn) return Promise.resolve("phantomshell: command not found: " + p.cmd);
-    try { return Promise.resolve(fn(p)); }
-    catch (e) { return Promise.resolve("error: " + (e && e.message ? e.message : e)); }
+    return Promise.resolve().then(function () { return fn(p); }).then(function (res) {
+      if (redir && typeof res === "string" && window.PhantomVFS && env.tree) {
+        var abs = PhantomVFS.resolve(env.tree, env.cwd, redir.path);
+        var prev = redir.mode === ">>" ? (function () { try { return PhantomVFS.readFile(env.tree, abs); } catch (e) { return ""; } })() : "";
+        PhantomVFS.writeFile(env.tree, abs, prev + res + (res.slice(-1) === "\n" ? "" : "\n"));
+        window.PhantomShell.persist();
+        return "";
+      }
+      return res;
+    }).catch(function (e) { return "error: " + (e && e.message ? e.message : e); });
   }
   window.PhantomShell = { parse: parse, run: run, registry: registry };
+
+  // --- environment + pack extension (v3) ---
+  var env = { tree: (window.PhantomVFS ? PhantomVFS.load() : null), cwd: "/home/operative" };
+  window.PhantomShell.env = env;
+  window.PhantomShell.extend = function (obj) { Object.keys(obj).forEach(function (k) { registry[k] = obj[k]; }); };
+  window.PhantomShell.persist = function () { if (window.PhantomVFS && env.tree) PhantomVFS.save(env.tree); };
 
   // Interactive shell (only on the terminal page)
   document.addEventListener("DOMContentLoaded", function () {
