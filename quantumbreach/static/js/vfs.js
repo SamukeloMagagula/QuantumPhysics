@@ -55,6 +55,8 @@
   function writeFile(tree, abs, content) {
     var pr = parent(tree, abs);
     if (!pr.dir || pr.dir.type !== "dir") throw new Error("no such directory");
+    var existing = pr.dir.children[pr.name];
+    if (existing && existing.type === "dir") throw new Error("is a directory");
     pr.dir.children[pr.name] = file(content);
     return true;
   }

@@ -58,3 +58,18 @@ def test_vfs_resolve_and_crud():
                     PhantomVFS.readFile(loaded, '/home/operative/missions/mission.txt')];
         })()""")
         assert val3 == [True, "patched"]
+
+        # writeFile must not clobber an existing directory (regression:
+        # writing onto '/home/operative/missions' used to silently replace
+        # the whole dir, including mission.txt, with a file)
+        guarded = pg.evaluate("""(() => {
+            var t = PhantomVFS.create();
+            var threw = false;
+            try {
+                PhantomVFS.writeFile(t, '/home/operative/missions', 'x');
+            } catch (e) {
+                threw = true;
+            }
+            return threw && PhantomVFS.node(t, '/home/operative/missions/mission.txt') !== null;
+        })()""")
+        assert guarded is True
