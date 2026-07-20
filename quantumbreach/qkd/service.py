@@ -150,9 +150,14 @@ def _clean_action(role, action):
         if role == "alice":
             n = max(8, min(64, int(action.get("n", 24))))
             s = max(0, min(n, int(action.get("s", 6))))
-            return {"n": n, "s": s}
+            out = {"n": n, "s": s}
+            fh = action.get("file")
+            if isinstance(fh, str) and (fh in ("mission", "codes", "photo") or (len(fh) <= 32 and fh.isalnum())):
+                out["file"] = fh
+            return out
         if role == "eve":
-            return {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0)))}
+            w = max(0, min(100, int(action.get("workers", 0) or 0)))
+            return {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0))), "workers": w}
         return {"decision": "abort" if action.get("decision") == "abort" else "keep"}
     except (TypeError, ValueError):
         raise GameError("bad action", 400)
@@ -215,6 +220,8 @@ def advance(db, game):
         act = json.loads(_seat(db, gid, expected)["action"])
         if phase == "alice_setup":
             cfg["alice"] = {"n": int(act.get("n", 24)), "s": int(act.get("s", 6))}
+            if act.get("file"):
+                cfg["alice"]["file"] = act["file"]
             cur = db.execute(
                 "UPDATE qkd_games SET config=?, phase='eve_move', updated_at=CURRENT_TIMESTAMP "
                 "WHERE id=? AND phase='alice_setup'", (json.dumps(cfg), gid))
@@ -222,7 +229,7 @@ def advance(db, game):
             if cur.rowcount == 0:
                 continue  # another request already advanced this phase
         elif phase == "eve_move":
-            cfg["eve"] = {"p": float(act.get("p", 0) or 0)}
+            cfg["eve"] = {"p": float(act.get("p", 0) or 0), "workers": int(act.get("workers", 0) or 0)}
             result = resolve_round({"n": cfg["alice"]["n"], "s": cfg["alice"]["s"], "p": cfg["eve"]["p"]}, random.random)
             cfg["result"] = result
             cur = db.execute(

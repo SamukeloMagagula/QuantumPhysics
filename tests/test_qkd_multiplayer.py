@@ -93,6 +93,28 @@ def test_bad_action_is_rejected_not_bricking(app):
     assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] in ("resolve", "ended")
 
 
+def test_seat_action_coerces_botnet_fields(app):
+    c, code = _solo_game(app, "eve")   # computer Alice auto-plays -> phase eve_move
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "eve_move"
+    # out-of-range workers (9999) and out-of-range p (5) must be clamped, not rejected;
+    # computer Bob then auto-decides in the same advance(), so the round proceeds cleanly.
+    r = c.post(f"/api/qkd/game/{code}/act", json={"action": {"p": 5, "workers": 9999}})
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["phase"] in ("resolve", "ended")  # advanced, not bricked
+
+
+def test_alice_file_field_validated_not_bricking(app):
+    from quantumbreach.qkd import service
+    # a known sample id is accepted and carried through
+    assert service._clean_action("alice", {"n": 16, "s": 2, "file": "mission"}) == {"n": 16, "s": 2, "file": "mission"}
+    # a path-traversal / junk handle is silently omitted (not raised) so the round is never bricked
+    out = service._clean_action("alice", {"n": 16, "s": 2, "file": "../etc/passwd"})
+    assert "file" not in out
+    assert out == {"n": 16, "s": 2}
+
+
 def test_game_end_writes_qkd_score_iff_positive(app):
     # Play a full game as Bob, ABORTing every round (correct whenever computer-Eve intercepted).
     # Assert the exact persistence invariant regardless of the server's randomness:

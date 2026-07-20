@@ -109,18 +109,55 @@ def drive(base, out):
               "| ran caesar -d 3 Khoor")
         pg.screenshot(path=os.path.join(out, "6-terminal.png"), full_page=True)
 
-        # v2.1 tour: QKD role-based Solo round (pick Solo mode, play Bob, then ABORT)
+        # v3 tour: PhantomShell VFS + command packs (missions dir, cat a file, nmap the
+        # QKD host). Screenshot shows the shell output pane populated by these runs.
+        pg.fill("#shell-in", "ls missions"); pg.press("#shell-in", "Enter"); pg.wait_for_timeout(150)
+        pg.fill("#shell-in", "cat missions/mission.txt"); pg.press("#shell-in", "Enter"); pg.wait_for_timeout(150)
+        pg.fill("#shell-in", "nmap channel-q"); pg.press("#shell-in", "Enter"); pg.wait_for_timeout(150)
+        shell_out = pg.text_content("#shell-out") or ""
+        print("[terminal] ran ls missions / cat missions/mission.txt / nmap channel-q |",
+              "mission.txt content visible:", "CLASSIFIED" in shell_out,
+              "| nmap output visible:", "channel-q" in shell_out)
+        assert "CLASSIFIED" in shell_out, "cat missions/mission.txt did not print the file body"
+        pg.screenshot(path=os.path.join(out, "6b-terminal-packs.png"), full_page=True)
+
+        # v3 tour: QKD file heist, round 1 -- button-driven flow ending in a VISIBLE
+        # decrypted file. Play as Eve, pick a botnet size (screenshot the worker grid),
+        # then a clean "None" intercept so computer-Bob KEEPs and Bob's pane decrypts
+        # the preloaded default sample (mission.txt) in the clear.
         pg.goto(base + "/qkd", wait_until="networkidle")
         pg.click("#mode-solo")
-        pg.click('.role[data-role="bob"]'); pg.wait_for_timeout(300)
-        try:
-            pg.click("#btn-abort")
-        except Exception:
-            pass
-        pg.wait_for_timeout(300)
-        print("[qkd] sidebar present:", pg.query_selector(".sidebar") is not None,
-              "| played a Solo round as Bob")
-        pg.screenshot(path=os.path.join(out, "7-qkd.png"), full_page=True)
+        pg.click('.role[data-role="eve"]'); pg.wait_for_timeout(300)
+        pg.evaluate(
+            "() => { var w = document.getElementById('ev-w'); w.value = 100; "
+            "w.dispatchEvent(new Event('input')); }")
+        pg.click("#ev-crack"); pg.wait_for_timeout(200)
+        grid_workers = pg.eval_on_selector_all("#ev-grid .worker", "els => els.length")
+        print("[qkd] deployed botnet | worker grid tiles:", grid_workers)
+        assert grid_workers and grid_workers > 0, "botnet worker grid did not render any tiles"
+        pg.screenshot(path=os.path.join(out, "7-qkd-botnet.png"), full_page=True)
+
+        pg.click('.ev[data-p="0"]')  # clean channel: no interception this round
+        pg.wait_for_selector("#bob-file pre", timeout=5000)
+        bob_file_text = pg.text_content("#bob-file pre") or ""
+        print("[qkd] played Eve/None -> computer Bob KEEPs on a clean channel | "
+              "#bob-file decrypted:", "CLASSIFIED" in bob_file_text)
+        assert "CLASSIFIED" in bob_file_text, "Bob's pane did not decrypt the clean-channel file"
+        pg.screenshot(path=os.path.join(out, "7b-qkd-file-reveal.png"), full_page=True)
+
+        # v3 parity check -- the SAME QkdActions intent functions the terminal's
+        # `shell-qkd` commands call (qkd/alice/eve/bob) drive this round too, confirming
+        # buttons and terminal share one state object (Task 12). QkdActions.bobDecide()
+        # does not touch the #bob-file/#eve-file DOM panes on its own (only qkd.js's
+        # button-driven finish() does, mirroring INTO QkdActions, not out of it), so this
+        # is a state/console parity check rather than a new screenshot -- the button-flow
+        # screenshot above (7b) is the reliable visible reveal.
+        pg.evaluate("() => QkdActions.aliceSet({n:16,s:2,file:'mission'})")
+        pg.evaluate("() => QkdActions.eveCrack({workers:100})")
+        result = pg.evaluate("() => QkdActions.bobDecide('keep')")
+        print("[qkd] QkdActions parity round (terminal-equivalent) | phase:",
+              pg.evaluate("() => QkdActions.state().phase"),
+              "| fileCracked:", result.get("result", {}).get("fileCracked") if isinstance(result, dict) else None)
 
         # GHOST chatbot: the launcher lives in the app shell, so open it from an
         # app page (dashboard) rather than the anonymous landing page.
