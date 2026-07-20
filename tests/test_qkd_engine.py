@@ -43,3 +43,11 @@ def test_scoring_and_strategy():
     assert engine.computer_strategy("bob", {"sampleQBER": 0.02}) == {"decision": "keep"}
     a = engine.computer_strategy("alice", {}, lambda: 0.0)
     assert a == {"n": 16, "s": 2}
+
+
+def test_eve_full_file_heist_bonus():
+    result = {"eveHit": True, "stolen": 3, "finalKey": 5, "fileCracked": True}
+    s = engine.score_round("eve", result, "keep")
+    assert s["delta"] == 3 + 20  # stolen bits + heist bonus
+    result2 = dict(result); result2["fileCracked"] = False
+    assert engine.score_round("eve", result2, "keep")["delta"] == 3

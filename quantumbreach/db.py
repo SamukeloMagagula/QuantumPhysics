@@ -7,6 +7,7 @@ BADGE_SEED = [
     ("first-clear", "First Blood", "Complete your first room.", "🩸"),
     ("symmetric-path", "Symmetric Specialist", "Complete every room in the Symmetric path.", "🔑"),
     ("qkd-operative", "Quantum Operative", "Win a round of Quantum Intercept.", "🛰️"),
+    ("file-heist", "Data Thief", "Crack an intercepted file in Quantum Intercept.", "🗄️"),
 ]
 
 

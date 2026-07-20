@@ -25,6 +25,15 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
   <div id="panel-alice" class="qkd-panel" hidden>
     <label>Key length: <span id="al-n-val">24</span><input id="al-n" type="range" min="8" max="64" value="24"></label>
     <label>Check sample: <span id="al-s-val">6</span><input id="al-s" type="range" min="0" max="24" value="6"></label>
+    <label>Payload:
+      <select id="al-file">
+        <option value="mission">sample: mission.txt</option>
+        <option value="codes">sample: codes.txt</option>
+        <option value="photo">sample: photo.png</option>
+        <option value="upload">upload a file…</option>
+      </select>
+    </label>
+    <input id="al-upload" type="file" hidden>
     <button class="btn" id="al-send" type="button">Send key</button>
   </div>
   <div id="panel-eve" class="qkd-panel" hidden>
@@ -41,6 +50,10 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
 
   <p id="qkd-info"></p>
   <div id="qkd-reveal" class="qkd-reveal"></div>
+  <div class="qkd-panes">
+    <div class="pane"><h4>Bob receives</h4><div id="bob-file" class="file-view"></div></div>
+    <div class="pane"><h4>Eve captured</h4><div id="eve-file" class="file-view"></div></div>
+  </div>
   <div class="row"><span id="qkd-score" class="chip">Score: 0</span></div>
 </div>
 

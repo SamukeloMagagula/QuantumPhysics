@@ -8,6 +8,7 @@ import random
 
 ABORT = 0.11
 DETECT = 25
+HEIST_BONUS = 20
 
 
 def _bit(d):
@@ -66,6 +67,8 @@ def score_round(role, result, decision):
     else:  # keep
         if eve:
             eve_delta = int(result.get("stolen") or 0)
+            if result.get("fileCracked"):
+                eve_delta += HEIST_BONUS
         else:
             defender = int(result.get("finalKey") or 0)
     delta = eve_delta if role == "eve" else defender

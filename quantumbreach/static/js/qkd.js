@@ -1,5 +1,5 @@
 (function () {
-  var ABORT = 0.11, DETECT = 25;
+  var ABORT = 0.11, DETECT = 25, HEIST_BONUS = 20;
   var C = window.PhantomCrypto;
 
   function draw(rng) { var v = rng(); return (typeof v === "number" && v >= 0 && v < 1) ? v : 0; }
@@ -34,13 +34,14 @@
     var stolen = 0;
     for (var j = sampleSize; j < m; j++) { var pos = sifted.positions[j]; if (intercepted[pos] && eBases[pos] === aBases[pos]) stolen++; }
     return { n: n, p: p, sifted: m, sampleSize: sampleSize, sampleQBER: sampleQBER, finalKey: finalKey,
-             stolen: stolen, eveHit: eveHit, intercepted: intercepted, aBases: aBases, bBases: bBases };
+             stolen: stolen, eveHit: eveHit, intercepted: intercepted, aBases: aBases, bBases: bBases,
+             aKeyFinal: sifted.aKey.slice(sampleSize), bKeyFinal: sifted.bKey.slice(sampleSize) };
   }
 
   function scoreRound(role, result, decision) {
     var eve = !!result.eveHit, defender = 0, eveDelta = 0;
     if (decision === "abort") { if (eve) defender = DETECT; }
-    else { if (eve) eveDelta = result.stolen || 0; else defender = result.finalKey || 0; }
+    else { if (eve) { eveDelta = result.stolen || 0; if (result.fileCracked) eveDelta += HEIST_BONUS; } else defender = result.finalKey || 0; }
     var delta = (role === "eve") ? eveDelta : defender;
     return { delta: delta, youWon: delta > 0 };
   }
@@ -65,6 +66,39 @@
     var reveal = document.getElementById("qkd-reveal"), scoreEl = document.getElementById("qkd-score");
     var panels = { alice: document.getElementById("panel-alice"), bob: document.getElementById("panel-bob"), eve: document.getElementById("panel-eve") };
     var myRole = null, score = 0, peak = 0, pending = null; // pending: {n,s,p} gathered so far
+    var currentPayload = null; // {mime, bytes} — the file staked on the current round
+
+    // ---- Payload (file) loading: sample fetch or local upload ----
+    function loadPayload(sel) {
+      if (sel === "upload") {
+        var f = alUpload && alUpload.files && alUpload.files[0];
+        if (!f) return Promise.resolve();
+        return new Promise(function (resolve) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            currentPayload = { mime: f.type || "application/octet-stream", bytes: new Uint8Array(reader.result) };
+            resolve();
+          };
+          reader.readAsArrayBuffer(f);
+        });
+      }
+      return fetch("/api/qkd/file", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sample: sel }) })
+        .then(function (r) { return r.json(); })
+        .then(function (m) {
+          return fetch("/api/qkd/file/" + m.handle)
+            .then(function (r) { return r.arrayBuffer(); })
+            .then(function (buf) { currentPayload = { mime: m.mime, bytes: new Uint8Array(buf) }; });
+        });
+    }
+    var alFile = document.getElementById("al-file"), alUpload = document.getElementById("al-upload");
+    if (alFile) alFile.addEventListener("change", function () {
+      if (alFile.value === "upload") { if (alUpload) alUpload.hidden = false; }
+      else { if (alUpload) alUpload.hidden = true; loadPayload(alFile.value); }
+    });
+    if (alUpload) alUpload.addEventListener("change", function () { loadPayload("upload"); });
+    // Preload the default sample once at init so currentPayload is ready before any
+    // human action (avoids a race when playing as Bob/Eve, where Alice is the computer).
+    loadPayload("mission").then(function () { window.__payloadReady = true; });
 
     modeSolo.addEventListener("click", function () { multi.hidden = true; solo.hidden = false; });
     modeMulti.addEventListener("click", function () { solo.hidden = true; multi.hidden = false;
@@ -96,6 +130,19 @@
         + " — QBER " + Math.round(result.sampleQBER * 100) + "%, key " + result.finalKey + " bits"
         + (decision === "abort" ? ", ABORTED." : ", KEPT.");
       info.textContent = "Pick your role above to play another round.";
+      if (currentPayload && window.QkdFile) {
+        var aBits = result.aKeyFinal || [];
+        var ct = QkdFile.encrypt(currentPayload.bytes, aBits); // Alice encrypts with her final key
+        var bobEl = document.getElementById("bob-file"), eveEl = document.getElementById("eve-file");
+        if (decision === "keep") {
+          var bobPt = QkdFile.decrypt(ct, result.bKeyFinal || []); // Bob decrypts with HIS key
+          // clean channel => aKeyFinal === bKeyFinal => real file; Eve/noise => differ => garbles
+          if (!result.eveHit) QkdFile.renderInto(bobEl, bobPt, currentPayload.mime);
+          else QkdFile.scrambleInto(bobEl, ct);
+        } else { bobEl.textContent = "(aborted — no delivery)"; }
+        if (result.fileCracked) QkdFile.renderInto(eveEl, QkdFile.decrypt(ct, aBits), currentPayload.mime);
+        else QkdFile.scrambleInto(eveEl, ct);
+      }
     }
 
     function startRound() {
