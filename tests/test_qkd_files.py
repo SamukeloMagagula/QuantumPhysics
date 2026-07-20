@@ -18,6 +18,7 @@ def test_upload_roundtrip(tmp_path):
     handle = r.get_json()["handle"]
     g = c.get(f"/api/qkd/file/{handle}")
     assert g.data == b"hello-cipher-bytes"
+    assert g.headers.get("X-Content-Type-Options") == "nosniff"
 
 
 def test_oversize_rejected(tmp_path):
@@ -25,6 +26,13 @@ def test_oversize_rejected(tmp_path):
     big = io.BytesIO(b"x" * (262144 + 1))
     r = c.post("/api/qkd/file", data={"file": (big, "big.bin")}, content_type="multipart/form-data")
     assert r.status_code == 400
+
+
+def test_over_hard_cap_rejected(tmp_path):
+    c = _app(tmp_path).test_client()
+    huge = io.BytesIO(b"x" * (1024 * 1024 + 1))
+    r = c.post("/api/qkd/file", data={"file": (huge, "huge.bin")}, content_type="multipart/form-data")
+    assert r.status_code == 413
 
 
 def test_sample_handle(tmp_path):

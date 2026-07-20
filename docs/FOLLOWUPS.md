@@ -29,3 +29,12 @@ the current single-path (Symmetric) release.
 - `list_paths` sorts alphabetically; add an explicit order field before multiple paths.
 - `home.html` progress-bar width is a raw float (e.g. "33.333%").
 - `xor-tool.js` renders malformed hex as key chars; widgets lack `<label for>` a11y.
+
+## PhantomQ v3 follow-ups
+- `rooms/routes.py` `/paths/<id>` isn't in `APP_PREFIXES`; it provisions a guest only via its own `current_user()` call. Cosmetic asymmetry; add `/paths` to `APP_PREFIXES` or a comment.
+- Dead `.nav` CSS in `app.css` and orphaned unreferenced `_nav.html` — remove in a cleanup pass.
+- `dashboard.html` `id="rooms"` is inside the path loop → duplicate id once a 2nd learning path exists; use `id="rooms-{{ card.path.id }}"` before shipping a 2nd path.
+- `PhantomBotnet.crackableWithin(kb, w, 0)` treats `window=0` as falsy in JS (falls back to `ROUND_WINDOW`) while Python uses 0 — latent parity divergence at `window=0`; no caller passes 0. Use `windowSeconds === undefined ? ROUND_WINDOW : windowSeconds`.
+- Eve worker grid/readouts don't reset on `advance()`/`startRound()` → a new round shows the prior round's grid until the slider is touched (cosmetic).
+- Cross-page limitation: `PhantomBotnet` loads only on `/qkd` and the terminal `ps`/`kill`/`qkd`/`alice`/`eve`/`bob` commands only on `/terminal` — so terminal-driven QKD play and `kill`-reduces-crack-capacity have no user-reachable path in the shipping UI (they work when driven on `/qkd` directly, and are tested there). A future embed of the shell on `/qkd` (or loading `qkd-actions.js`/`botnet.js` on `/terminal`) would close this.
+- `QkdActions.subscribe` currently has zero subscribers (Option B: `qkd.js` renders off local `pending`). Fine today; wire a subscribe-based render if the reveal ever needs to reflect terminal-driven state changes live.

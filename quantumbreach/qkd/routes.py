@@ -84,4 +84,6 @@ def qkd_file_get(handle):
     except files.FileError as e:
         return jsonify({"error": e.message}), e.status
     files.cleanup(store)
-    return send_file(io.BytesIO(data), mimetype=mime, download_name=handle)
+    resp = send_file(io.BytesIO(data), mimetype=mime, download_name=handle)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp

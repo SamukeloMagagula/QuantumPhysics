@@ -14,13 +14,20 @@ Quantum Intercept can be played by up to 3 students on the same Wi‑Fi/LAN.
 
 Notes: same-network only (no accounts, no internet server). If a player stalls, the computer takes their turn after a minute so the game never freezes.
 
-## File heist + botnet
+## File heist + botnet (solo only, today)
 
-Alice can stake a file on the round (one of the bundled samples, or her own upload in solo
-play) — it rides along with her key setup. Eve can deploy a botnet of workers to try to
-brute-force the captured ciphertext before Bob decides; more workers crack faster but raise
-detection. Whichever side ends the round holding a working key gets the file in the clear:
-Bob decrypts it if he KEEPs on a clean channel, and Eve decrypts it too if her botnet finished
-cracking in time (earning a heist bonus). A garbled or aborted round means no delivery — the
-pane shows scrambled bytes instead. Malformed or out-of-range values (an oversized worker
-count, a bad file handle) are clamped or dropped server-side rather than bricking the round.
+In **Solo (vs computer)** play, Alice can stake a file on the round (one of the bundled
+samples, or her own upload) — it rides along with her key setup. Eve can deploy a botnet of
+workers to try to brute-force the captured ciphertext before Bob decides; more workers crack
+faster but raise detection. Whichever side ends the round holding a working key gets the file
+in the clear: Bob decrypts it if he KEEPs on a clean channel, and Eve decrypts it too if her
+botnet finished cracking in time (earning a heist bonus). A garbled or aborted round means no
+delivery — the pane shows scrambled bytes instead.
+
+Same-network **multiplayer** does not have this yet. The server accepts and stores a file
+handle from Alice's action and a worker count from Eve's action (`_clean_action` validates and
+clamps both, so malformed or out-of-range values are dropped rather than bricking the round),
+but `resolve_round`/`_resolve_scoring` never compute or set a crack result for them — there's
+no `fileCracked` outcome in multiplayer, no heist bonus, and no file/botnet UI in the
+multiplayer client (`qkd-multi.js`). Today that plumbing is inert storage, laid down for a
+future multiplayer file UI.
