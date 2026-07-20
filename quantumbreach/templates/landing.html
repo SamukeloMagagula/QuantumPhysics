@@ -1,12 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PhantomQ</title>
-</head>
-<body>
-  <h1>PhantomQ</h1>
-  <a href="/dashboard">Enter Platform</a>
-</body>
-</html>
+{% extends "app_base.html" %}
+{% block title %}PhantomQ — Learn cryptography by breaking it{% endblock %}
+{% block body %}
+<h1>PhantomQ</h1>
+<a class="btn" href="{{ url_for('main.dashboard') }}">Enter Platform</a>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% set points = (user_points if user_points is defined else 0) %}
+{% set rank = (user_rank if user_rank is defined else 'Script Kiddie') %}
+<aside class="sidebar">
+  <a class="brand" href="{{ url_for('main.landing') }}">Phantom<span class="q">Q</span></a>
+  <nav class="side-nav">
+    <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('main.dashboard') }}#paths">Paths</a>
+    <a href="{{ url_for('main.dashboard') }}#rooms">Rooms</a>
+    <a href="{{ url_for('main.terminal') }}">Terminal</a>
+    <a href="{{ url_for('main.qkd') }}">QKD Game</a>
+    <a href="{{ url_for('main.leaderboard') }}">Rankings</a>
+  </nav>
+  <div class="side-foot">
+    <button class="fx-toggle" id="fx-toggle" type="button" title="Toggle visual effects">FX</button>
+    <span class="chip" id="nav-points">{{ rank }} · <span data-countup="{{ points }}">{{ points }}</span> XP</span>
+    <button class="chip" id="nav-name" type="button" title="Click to rename">{{ (user.display_name if user else 'operative') }}</button>
+  </div>
+</aside>
