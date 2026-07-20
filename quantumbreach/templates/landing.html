@@ -1,6 +1,43 @@
 {% extends "app_base.html" %}
 {% block title %}PhantomQ — Learn cryptography by breaking it{% endblock %}
+{% block body_class %}landing{% endblock %}
 {% block body %}
-<h1>PhantomQ</h1>
-<a class="btn" href="{{ url_for('main.dashboard') }}">Enter Platform</a>
+<header class="lp-topbar">
+  <a class="brand" href="{{ url_for('main.landing') }}">Phantom<span class="q">Q</span></a>
+  <a class="btn" href="{{ url_for('main.dashboard') }}">Enter Platform</a>
+</header>
+
+<section id="hero" class="lp-hero">
+  <h1 data-typewriter>Hack. Learn. Win.</h1>
+  <p class="muted">A hands-on cryptography playground — from Caesar ciphers to quantum
+  key distribution. Break real codes, race a live leaderboard, and outsmart an
+  eavesdropper. No install, no signup.</p>
+  <div class="lp-cta">
+    <a class="btn" href="{{ url_for('main.dashboard') }}">Enter Platform</a>
+    <a class="btn ghost" href="#for-schools">For Schools</a>
+  </div>
+</section>
+
+<section id="features" class="lp-features">
+  <div class="lp-card"><h3>Capture-the-flag rooms</h3><p class="muted">Encrypt, attack, and crack your way through guided crypto challenges.</p></div>
+  <div class="lp-card"><h3>PhantomShell terminal</h3><p class="muted">A simulated Linux shell with real crypto tools and a virtual filesystem.</p></div>
+  <div class="lp-card"><h3>Quantum Intercept</h3><p class="muted">Play Alice, Bob, or Eve in a BB84 key-exchange heist — solo or across the classroom.</p></div>
+</section>
+
+<section id="for-schools" class="lp-schools">
+  <h2>For Schools</h2>
+  <ul class="lp-checks">
+    <li>Curriculum-aligned: symmetric ciphers → frequency analysis → XOR/OTP → quantum key distribution.</li>
+    <li>Zero install — runs on the school Wi‑Fi/LAN from one laptop.</li>
+    <li>Students start playing in 30 seconds, no accounts to manage.</li>
+    <li>Classroom multiplayer: run Quantum Intercept across up to 3 seats live.</li>
+    <li>Safe by design: no external APIs, no data collection, works offline.</li>
+  </ul>
+  <a class="btn" href="mailto:magagulasamukelo23@gmail.com?subject=PhantomQ%20school%20demo">Book a demo</a>
+</section>
+
+<footer class="lp-footer">
+  <span>PhantomQ — cryptography you learn by breaking.</span>
+  <a href="{{ url_for('main.dashboard') }}">Enter Platform</a>
+</footer>
 {% endblock %}

@@ -22,3 +22,15 @@ def test_dashboard_provisions_guest(tmp_path):
     r = c.get("/dashboard")
     assert r.status_code == 200
     assert "guest_id" in r.headers.get("Set-Cookie", "")
+
+
+def test_landing_pitches_schools(tmp_path):
+    c = _client(tmp_path)
+    html = c.get("/").get_data(as_text=True)
+    assert 'id="for-schools"' in html
+    assert "Book a demo" in html
+    assert "mailto:" in html
+    # entry CTA into the app
+    assert "/dashboard" in html
+    # signature animation retained
+    assert 'id="fx-bg"' in html
