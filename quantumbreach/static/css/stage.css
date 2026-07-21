@@ -32,3 +32,13 @@
 @media (prefers-reduced-motion: reduce) { .qubit { transition: none !important; animation: none !important; } }
 .preview-pane { margin-top: .4rem; min-height: 1.5rem; }
 .preview-pane:empty { display: none; }
+.qkd-layout { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; }
+.qkd-main { min-width: 0; }
+.qkd-feed { border: 1px solid rgba(0,255,170,.15); border-radius: 8px; background: rgba(0,0,0,.35);
+  padding: .6rem; max-height: 640px; overflow-y: auto; position: sticky; top: 1rem; }
+.qkd-feed h4 { margin: 0 0 .4rem; color: var(--accent, #0fa); font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+.qkd-feed .log-line { padding: .15rem 0; font-family: monospace; font-size: .8rem; border-bottom: 1px solid rgba(255,255,255,.04); }
+@media (max-width: 760px) {
+  .qkd-layout { grid-template-columns: 1fr; }
+  .qkd-feed { position: static; max-height: 240px; }
+}

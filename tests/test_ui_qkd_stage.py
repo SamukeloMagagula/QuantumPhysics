@@ -74,6 +74,18 @@ def test_stage_reveal_and_replay():
 
 
 @requires_browser
+def test_qkd_layout_has_feed_sidebar_and_collapses_narrow():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        assert pg.evaluate("() => !!document.getElementById('qkd-feed')")
+        cols = pg.evaluate("() => getComputedStyle(document.querySelector('.qkd-layout')).gridTemplateColumns.split(' ').length")
+        assert cols >= 2
+        pg.set_viewport_size({"width": 700, "height": 900})
+        cols_narrow = pg.evaluate("() => getComputedStyle(document.querySelector('.qkd-layout')).gridTemplateColumns.split(' ').length")
+        assert cols_narrow == 1
+
+
+@requires_browser
 def test_stage_reduced_motion_still_renders_endstate():
     with live_server() as base, browser_page() as pg:
         pg.emulate_media(reduced_motion="reduce")
