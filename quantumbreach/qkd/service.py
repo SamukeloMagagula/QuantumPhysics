@@ -309,6 +309,16 @@ def _resolve_scoring(db, g, cfg, decision):
         "stolen": result["stolen"], "sifted": result["sifted"], "bobDecision": decision,
         "aliceConfig": cfg["alice"], "eveConfig": cfg["eve"], "perRole": per_role, "round": g["round"],
         "file": {"sample": _sample, "mime": _mime, "cracked": file_cracked},
+        # secrecy-safe replay: public BB84 info only (all bases + sampled errors + Eve's taps).
+        # Raw key bits are never included (resolve_round never returns aBits/bBits/key arrays).
+        "replay": {
+            "n": result.get("n"),
+            "aBases": result.get("aBases", []),
+            "bBases": result.get("bBases", []),
+            "eveTaps": (cfg.get("eve") or {}).get("eveTaps", []),
+            "sampleIndices": result.get("sampleIndices", []),
+            "sampleErrors": result.get("sampleErrors", []),
+        },
     }
     _set_config(db, gid, cfg)
     db.commit()

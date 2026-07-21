@@ -274,3 +274,15 @@ def test_mp_eve_taps_drive_resolution(app):
     assert isinstance(cfg["eve"]["eveTaps"], list)
     assert all(t["basis"] in ("+", "x") for t in cfg["eve"]["eveTaps"])   # junk dropped
     assert cfg["lastResult"]["eveHit"] is True                            # taps caused interception
+
+
+def test_mp_replay_is_present_and_leaks_no_key_bits(app):
+    c, code = _play_full_round_human_bob(app, "mission", eve_workers=0, decision="keep", eve_p=1)
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    rep = st["lastResult"]["replay"]
+    assert rep["n"] >= 1
+    assert len(rep["aBases"]) == rep["n"] and len(rep["bBases"]) == rep["n"]
+    assert "sampleErrors" in rep and "sampleIndices" in rep
+    # secrecy: the serialized state must not contain raw key-bit arrays
+    body = c.get(f"/api/qkd/game/{code}").get_data(as_text=True)
+    assert "aBits" not in body and "bBits" not in body and "aKeyFinal" not in body
