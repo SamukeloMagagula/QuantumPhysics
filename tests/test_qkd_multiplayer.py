@@ -344,3 +344,20 @@ def test_mp_non_earner_never_sees_uploaded_handle(app):
     c, code = _play_full_round_human_bob_with_mime(app, "deadbeefcafe0001", "text/plain", "abort")
     f = _bob_file_view(c, code)
     assert f["visible"] is False and f["sample"] is None and f["isUpload"] is False
+
+
+def test_mp_non_earner_cannot_recover_upload_handle_via_aliceconfig(app):
+    # Regression: game_state's per-seat gate only rewrote lastResult["file"], but the
+    # raw upload handle (and its client-supplied mime) was ALSO stored verbatim in the
+    # sibling lastResult["aliceConfig"] field, which was shipped ungated to EVERY seat.
+    # Since GET /api/qkd/file/<handle> has no access control, a non-earning seat could
+    # read aliceConfig.file straight out of the JSON and fetch Alice's raw upload anyway
+    # -- completely bypassing the visible/cracked gate on lastResult["file"].
+    c, code = _play_full_round_human_bob_with_mime(app, "deadbeefcafe0001", "text/plain", "abort")
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    ac = st["lastResult"].get("aliceConfig") or {}
+    assert "file" not in ac
+    assert "fileMime" not in ac
+    # secrecy check must hold across the raw serialized body too, not just the parsed dict
+    body = c.get(f"/api/qkd/game/{code}").get_data(as_text=True)
+    assert "deadbeefcafe0001" not in body

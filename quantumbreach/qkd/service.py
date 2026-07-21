@@ -125,6 +125,15 @@ def game_state(db, code, user):
             "mime": f.get("mime") if visible else None,
             "isUpload": bool(f.get("isUpload")) if visible else False,
         }
+        # aliceConfig is stored for internal bookkeeping only (no client reads it — an
+        # uploaded file's fetchable handle in aliceConfig.file/fileMime would otherwise
+        # leak to every seat unconditionally, bypassing the per-seat gate on lr["file"]
+        # above, since GET /api/qkd/file/<handle> has no access control of its own.
+        if "aliceConfig" in lr:
+            ac = dict(lr["aliceConfig"])
+            ac.pop("file", None)
+            ac.pop("fileMime", None)
+            lr["aliceConfig"] = ac
         view["lastResult"] = lr
     return view
 
