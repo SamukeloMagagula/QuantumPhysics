@@ -121,27 +121,28 @@ def drive(base, out):
         assert "CLASSIFIED" in shell_out, "cat missions/mission.txt did not print the file body"
         pg.screenshot(path=os.path.join(out, "6b-terminal-packs.png"), full_page=True)
 
-        # v3 tour: QKD file heist, round 1 -- button-driven flow ending in a VISIBLE
-        # decrypted file. Play as Eve, pick a botnet size (screenshot the worker grid),
-        # then a clean "None" intercept so computer-Bob KEEPs and Bob's pane decrypts
-        # the preloaded default sample (mission.txt) in the clear.
+        # QKD Channel Heist (Solo): play as Eve on the network-map stage -- qubits stream
+        # Alice->Bob over the fiber, Eve deploys a botnet, and (with no taps -> a clean
+        # channel) computer-Bob KEEPs so Bob's pane de-scrambles the preloaded mission
+        # sample. Screenshots the network map + heist, then the visible decrypt.
         pg.goto(base + "/qkd", wait_until="networkidle")
         pg.click("#mode-solo")
-        pg.click('.role[data-role="eve"]'); pg.wait_for_timeout(300)
+        pg.click('.role[data-role="eve"]')
+        pg.wait_for_selector('#qkd-stage .stage-qubits .qubit', timeout=5000)
         pg.evaluate(
             "() => { var w = document.getElementById('ev-w'); w.value = 100; "
             "w.dispatchEvent(new Event('input')); }")
         pg.click("#ev-crack"); pg.wait_for_timeout(200)
+        stage_qubits = pg.eval_on_selector_all("#qkd-stage .stage-qubits .qubit", "els => els.length")
         grid_workers = pg.eval_on_selector_all("#ev-grid .worker", "els => els.length")
-        print("[qkd] deployed botnet | worker grid tiles:", grid_workers)
-        assert grid_workers and grid_workers > 0, "botnet worker grid did not render any tiles"
-        pg.screenshot(path=os.path.join(out, "7-qkd-botnet.png"), full_page=True)
+        print("[qkd] solo heist | network-map qubits:", stage_qubits, "| botnet grid tiles:", grid_workers)
+        assert stage_qubits and stage_qubits > 0, "the network-map stage rendered no qubits"
+        pg.screenshot(path=os.path.join(out, "7-qkd-solo-heist.png"), full_page=True)
 
-        pg.click('.ev[data-p="0"]')  # clean channel: no interception this round
-        pg.wait_for_selector("#bob-file pre", timeout=5000)
+        pg.click("#ev-commit")  # no taps -> clean channel -> computer Bob KEEPs
+        pg.wait_for_selector("#bob-file pre", timeout=6000)
         bob_file_text = pg.text_content("#bob-file pre") or ""
-        print("[qkd] played Eve/None -> computer Bob KEEPs on a clean channel | "
-              "#bob-file decrypted:", "CLASSIFIED" in bob_file_text)
+        print("[qkd] committed a clean intercept -> Bob's pane decrypted:", "CLASSIFIED" in bob_file_text)
         assert "CLASSIFIED" in bob_file_text, "Bob's pane did not decrypt the clean-channel file"
         pg.screenshot(path=os.path.join(out, "7b-qkd-file-reveal.png"), full_page=True)
 
@@ -178,12 +179,19 @@ def drive(base, out):
         pg.click("#mode-multi")
         pg.click("[data-create='eve']")
         pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
-        pg.wait_for_selector("#qm-w", timeout=8000)
+        pg.wait_for_selector("#qm-stage .stage-qubits .qubit", timeout=8000)
         pg.eval_on_selector("#qm-w", "el => { el.value = 64; el.dispatchEvent(new Event('input')); }")
         pg.wait_for_timeout(150)
+        # tap a qubit on the shared wire, then deploy the botnet
+        pg.click("#qm-stage .stage-qubits .qubit:nth-child(2)")
+        pg.click('#qm-stage .tap-picker [data-basis="x"]')
         mp_tiles = pg.evaluate("() => document.querySelectorAll('#qm-grid .worker').length")
-        print("[qkd-mp] Eve deployed a botnet | multiplayer worker grid tiles:", mp_tiles)
-        pg.screenshot(path=os.path.join(out, "9b-qkd-mp-eve-botnet.png"), full_page=True)
+        mp_qubits = pg.evaluate("() => document.querySelectorAll('#qm-stage .stage-qubits .qubit').length")
+        print("[qkd-mp] Eve tapped the wire + deployed a botnet | qubits:", mp_qubits, "| worker tiles:", mp_tiles)
+        pg.screenshot(path=os.path.join(out, "9b-qkd-mp-eve-heist.png"), full_page=True)
+        pg.click("#qm-eve-go")  # commit taps -> computer Bob decides -> synced replay
+        pg.wait_for_timeout(1200)
+        pg.screenshot(path=os.path.join(out, "9c-qkd-mp-replay.png"), full_page=True)
 
         # GHOST chatbot: the launcher lives in the app shell, so open it from an
         # app page (dashboard) rather than the anonymous landing page.

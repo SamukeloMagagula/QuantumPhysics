@@ -24,9 +24,13 @@ def test_solo_buttons_mirror_into_qkd_actions_state():
         pg.wait_for_function("() => window.__payloadReady === true", timeout=5000)
         pg.click("#mode-solo")
         pg.click(".role[data-role='eve']")
-        pg.click(".ev[data-p='0.5']")
-        pg.wait_for_timeout(150)
-        assert pg.evaluate("() => QkdActions.state().eve.p") == 0.5
+        # New heist input: tap a qubit on the stage + Commit (replaces the old intercept chips).
+        pg.wait_for_selector("#qkd-stage .stage-qubits .qubit", timeout=5000)
+        pg.click("#qkd-stage .stage-qubits .qubit:nth-child(1)")
+        pg.click('#qkd-stage .tap-picker [data-basis="x"]')
+        pg.click("#ev-commit")
+        pg.wait_for_timeout(200)
+        # the button-driven round still mirrors computer-Alice's key + drives phase in QkdActions
         assert pg.evaluate("() => QkdActions.state().alice.n") > 0
         assert pg.evaluate("() => QkdActions.state().phase") == "resolve"
 

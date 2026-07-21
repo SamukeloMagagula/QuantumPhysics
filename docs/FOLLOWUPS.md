@@ -42,3 +42,9 @@ the current single-path (Symmetric) release.
 - Multiplayer file heist is **samples-only** — Alice can't upload a personal file in multiplayer (Solo can). Uploads in MP need the plaintext stored server-side so the server can gate visibility + peers can fetch it (a privacy surface across peers). Deferred.
 - Eve's heist **score** bonus is KEEP-only (it flows through the shared `engine.score_round`, which only scores Eve when she intercepted and Bob kept), but her **reveal** is cracked-based (she sees the file whenever her botnet cracked, any decision). Deliberate Solo-consistency choice; making the bonus decision-independent would change Solo's scoring too.
 - `QkdActions.subscribe` currently has zero subscribers (Option B: `qkd.js` renders off local `pending`). Fine today; wire a subscribe-based render if the reveal ever needs to reflect terminal-driven state changes live.
+
+## Quantum Channel Heist follow-ups (shipped 2026-07-21 on `quantum-channel-heist`)
+- Solo Eve heist timer is a fixed 20s countdown; not yet tuned/tunable per difficulty, and there is no separate no-timer "Learn" mode (the log narrates each step instead).
+- The MP Eve tap stream shows a fixed 24-qubit display length (the server clamps/validates the real indices against Alice's actual n); a future refinement could stream exactly `n` qubits once Eve's client knows the key length.
+- The de-scramble reveal is a single 500ms blur→render for all types; per-file-type animation (image line-reveal, text typewriter, PDF progress bar) is stubbed as the same wrapper today.
+- Computer Eve still uses the random-`p` path (no visible taps); a token computer-Eve tap set for spectacle is deferred.
