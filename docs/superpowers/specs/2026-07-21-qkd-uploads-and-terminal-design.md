@@ -79,10 +79,11 @@ surface held to the minimum the architecture actually requires:
   every other terminal command's request/response shape). Deferred.
 - No change to the file store's size/MIME limits (still 256 KB,
   `text/plain`/`image/png`/`image/jpeg`/`application/pdf`/`application/octet-stream`).
-- Multiplayer terminal-driven play is **not** in scope — `QkdActions` (and
-  therefore the terminal commands that call it) only exists on the client
-  playing Solo; this was already a known, accepted cross-page/cross-mode
-  limitation before this spec and remains one.
+- Multiplayer terminal-driven play is **not** in scope — `QkdActions`
+  models Solo state only; there is no multiplayer equivalent for terminal
+  commands to drive, regardless of which page they're typed on. (Solo
+  terminal-driven play, by contrast, is now fully in scope via the embedded
+  `/qkd` mini-shell — see Architecture §2.)
 - The upload preview shown to **other** players (Bob/Eve in MP) is
   unchanged — still nothing, until they earn the reveal at resolve. Only
   the uploader's own view gains a preview.
@@ -127,6 +128,21 @@ PhantomShell's virtual filesystem (`static/js/vfs.js`, `PhantomVFS`) and its
 existing `>`/`>>` output-redirection in `terminal.js`'s `run()` are reused
 as-is for the export/crack tool — no terminal-core changes needed.
 
+**Critical correction found during planning:** `/terminal` and `/qkd` are
+**separate page loads**, each a fresh JS environment. `terminal.html` loads
+`terminal.js` + `shell-fs.js`/`shell-text.js`/`shell-net.js`/`shell-sys.js`/
+`shell-qkd.js`/`labs.js`/`vfs.js`; `qkd.html` loads `qkd-stage.js`/
+`qkd-multi.js`/`qkd-file.js`/`botnet.js`/`qkd-actions.js`/`qkd.js` and has
+**no terminal markup at all**. So `shell-qkd.js`'s guard ("qkd: open the QKD
+page first") wasn't a minor caveat — on `/terminal`, `QkdActions` can never
+exist, full stop, regardless of any refactor in this spec. Typing `alice
+set`/`eve tap`/`bob keep` on `/terminal` cannot move anything on `/qkd`'s
+screen because they're never the same page. Confirmed with the user: the fix
+is to **embed a small terminal directly on `/qkd`** (§2), reusing
+`terminal.js`'s existing engine/DOM contract as-is — this is what makes
+"type in the terminal to play the game" literally true, on the same page as
+the stage.
+
 ## Key Decisions
 
 | Decision | Choice | Why |
@@ -145,6 +161,8 @@ as-is for the export/crack tool — no terminal-core changes needed.
 | Feed data source | The `QkdActions` subscriber (Solo) / the existing MP poll handler emit log lines on state transitions — **one log call site per event**, not scattered across every button handler | Consistent with QkdActions-as-source-of-truth (this spec's Architecture §1); avoids the log drifting out of sync with what the buttons/terminal actually did |
 | Feed host element | **One shared `#qkd-feed` sidebar** in `qkd.html`, passed to both the Solo and MP `QuantumStage.mount()` calls as `opts.feedEl` | Only one mode is visible at a time (existing hidden-attribute toggle); avoids two independent log panels that could show stale/wrong content |
 | Redesign scope | `/qkd` page layout only | Explicit user confirmation — not a repeat of the site-wide HTB restructure |
+| Where the terminal actually runs | **Embed a small terminal directly on `/qkd`**, reusing `terminal.js`'s existing engine/DOM contract (same `#shell`/`#shell-out`/`#shell-in` IDs, just styled smaller) | `/terminal` and `/qkd` are separate pages; `QkdActions` can never exist on `/terminal`, so "type to play" is only achievable on the same page as the stage — confirmed with the user after discovering this during planning |
+| Mini-shell script set | `terminal.js` + `vfs.js` + `shell-qkd.js` only — **not** `labs.js`/`shell-fs.js`/`shell-text.js`/`shell-net.js`/`shell-sys.js` | Keeps the embedded shell focused on QKD play + the export/crack tool (which needs VFS for `>` redirection); the unrelated packs would just be clutter here. Running an unloaded pack's command (e.g. `lab`) degrades to a caught error string, not a crash — an accepted, documented boundary |
 
 ## Architecture
 
@@ -189,7 +207,26 @@ instead of a stale one). Button click handlers (`#al-send`, `.stage
 onTap`-driven taps, `#ev-commit`, `#btn-keep`/`#btn-abort`) call `QkdActions`
 functions directly instead of building `pending` locally.
 
-### 2. `shell-qkd.js` — full command set
+### 2. Embedded `/qkd` terminal + `shell-qkd.js` — full command set
+
+`quantumbreach/templates/qkd.html` gains the same terminal DOM contract
+`terminal.html` uses — `<div id="shell"><div id="shell-out"></div><div
+class="shell-row">...<input id="shell-in">...</div></div>` — styled
+smaller via an additional class, but otherwise identical, so
+`terminal.js`'s existing interactive-shell wiring (which looks up exactly
+these three IDs) works unmodified. `qkd.html`'s scripts block loads
+`vfs.js`, `terminal.js`, and `shell-qkd.js` (in that order, matching
+`terminal.html`'s existing load order) — **not** `labs.js`/`shell-fs.js`/
+`shell-text.js`/`shell-net.js`/`shell-sys.js`, which stay `/terminal`-only.
+This is what makes "type in the terminal to play the game" literally true:
+the same page now has both the visual stage and a command line acting on
+the same `QkdActions` state. `/terminal` keeps loading `shell-qkd.js` too
+(unchanged) — its `qkd`/`alice`/`eve`/`bob` commands there still print the
+"open the QKD page first" guard, exactly as today, for anyone using that
+page for other tools.
+
+Command set (typed on either page; only fully functional on `/qkd`, where
+`QkdActions` exists):
 
 ```
 alice set --len N --sample S --file <name>   (existing; <name> also
@@ -219,7 +256,8 @@ qkd crack --upload [--maxbits N]              (NEW: same, against a freshly
 `eve intercept <pct>` is removed (no longer meaningful under the tap
 model); `man`/`help` text updated to match. All commands guard with the
 existing "qkd: open the QKD page first" message when `QkdActions` is
-undefined (unchanged cross-page limitation).
+undefined — still true today on `/terminal` (unchanged there) and no
+longer true on `/qkd` once the mini-shell is embedded there.
 
 ### 3. `qkd-crack.js` — standalone ciphertext export + brute force
 
@@ -390,6 +428,11 @@ underlying state layers stay separate, as already decided.
   the DOM (not from any persisted state — the feed has no server-side
   backing) as new ones are appended, so memory stays bounded across a long
   session.
+- A command from an unloaded pack (e.g. `lab`, `cat`) typed into the `/qkd`
+  mini-shell: `window.PhantomLabs`/equivalent is undefined, the command
+  throws, `terminal.js`'s existing `run()` catch-all turns it into a
+  printed `"error: ..."` string — no crash, no special handling needed
+  (accepted, documented boundary; see Non-Goals).
 
 ## Data Model Changes (SQLite)
 
@@ -404,10 +447,13 @@ mechanism already in place.
     commit, file reveal, botnet crack) must pass unchanged after the
     `QkdActions`-as-source-of-truth refactor — this is the main regression
     surface.
-  - Terminal drives the real game: run `alice set`, `eve tap`, `eve commit`,
-    `bob keep` via `PhantomShell.run(...)` and assert the **stage and score
-    actually update** (not just `QkdActions.state()`) — the test that
-    proves this spec's core claim.
+  - Terminal drives the real game: on the **`/qkd` page** (not
+    `/terminal`), run `alice set`, `eve tap`, `eve commit`, `bob keep` via
+    `PhantomShell.run(...)` and assert the **stage and score actually
+    update** (not just `QkdActions.state()`) — the test that proves this
+    spec's core claim. A companion test confirms the SAME commands typed
+    on `/terminal` still print the "open the QKD page first" guard
+    (unchanged behavior there).
   - `qkd export` + `qkd crack` round-trip: export a resolved round's
     ciphertext to the VFS, crack it back, assert the recovered plaintext
     matches (short key, so it's crackable within the test's `--maxbits`).
@@ -437,9 +483,11 @@ mechanism already in place.
    `qkd.js` becomes a subscriber. Ships with all existing Solo tests green
    (proves the refactor is behavior-preserving) before anything terminal-
    specific is added.
-2. **Terminal command set:** `alice upload`, `eve tap`, `eve commit`,
-   updated `bob`/`qkd status`, removal of `eve intercept`. Ships genuine
-   terminal-driven Solo play.
+2. **Embedded `/qkd` terminal + command set:** the `#shell`/`#shell-out`/
+   `#shell-in` markup + script loads on `qkd.html` (§2), plus `alice
+   upload`, `eve tap`, `eve commit`, updated `bob`/`qkd status`, removal of
+   `eve intercept`. Ships genuine terminal-driven Solo play on the page
+   where it's actually visible.
 3. **Ciphertext crack tool:** `qkd-crack.js` + `qkd export`/`qkd crack`
    terminal commands. Ships the standalone brute-force feature.
 4. **Multiplayer upload:** `qkd-multi.js` Alice panel upload option.
