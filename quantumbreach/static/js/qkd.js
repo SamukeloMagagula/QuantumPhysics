@@ -79,43 +79,43 @@
     var info = document.getElementById("qkd-info");
     var reveal = document.getElementById("qkd-reveal"), scoreEl = document.getElementById("qkd-score");
     var panels = { alice: document.getElementById("panel-alice"), bob: document.getElementById("panel-bob"), eve: document.getElementById("panel-eve") };
-    var myRole = null, score = 0, peak = 0, pending = null; // pending: {n,s,p} gathered so far
-    var currentPayload = null; // {mime, bytes} — the file staked on the current round
-    var stage = window.QuantumStage ? window.QuantumStage.mount(document.getElementById("qkd-stage"), {}) : null;
+    var myRole = null, score = 0, peak = 0;
+    var stage = window.QuantumStage ? window.QuantumStage.mount(document.getElementById("qkd-stage"), { feedEl: document.getElementById("qkd-feed") }) : null;
+    var lastSeenPayload = null, lastSeenPending = null, lastSeenResult = null;
 
-    // ---- Payload (file) loading: sample fetch or local upload ----
-    function loadPayload(sel) {
-      if (sel === "upload") {
-        var f = alUpload && alUpload.files && alUpload.files[0];
-        if (!f) return Promise.resolve();
-        return new Promise(function (resolve) {
-          var reader = new FileReader();
-          reader.onload = function () {
-            currentPayload = { mime: f.type || "application/octet-stream", bytes: new Uint8Array(reader.result) };
-            if (stage) stage.setPayload(currentPayload.mime, f.name || "upload");
-            resolve();
-          };
-          reader.readAsArrayBuffer(f);
-        });
-      }
-      return fetch("/api/qkd/file", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sample: sel }) })
-        .then(function (r) { return r.json(); })
-        .then(function (m) {
-          return fetch("/api/qkd/file/" + m.handle)
-            .then(function (r) { return r.arrayBuffer(); })
-            .then(function (buf) { currentPayload = { mime: m.mime, bytes: new Uint8Array(buf) };
-              if (stage) stage.setPayload(m.mime, String(sel)); });
-        });
-    }
+    // ---- Payload (file) loading: sample select or local upload ----
     var alFile = document.getElementById("al-file"), alUpload = document.getElementById("al-upload");
+    function readUploadedFile(inputEl) {
+      return new Promise(function (resolve) {
+        var f = inputEl.files && inputEl.files[0];
+        if (!f) { resolve(null); return; }
+        var reader = new FileReader();
+        reader.onload = function () {
+          window.QkdActions.setPayloadFromBytes(f.type || "application/octet-stream", new Uint8Array(reader.result), f.name || "upload");
+          resolve(f);
+        };
+        reader.readAsArrayBuffer(f);
+      });
+    }
     if (alFile) alFile.addEventListener("change", function () {
       if (alFile.value === "upload") { if (alUpload) alUpload.hidden = false; }
-      else { if (alUpload) alUpload.hidden = true; loadPayload(alFile.value); }
+      else { if (alUpload) alUpload.hidden = true; window.QkdActions.aliceSet({ file: alFile.value }); }
     });
-    if (alUpload) alUpload.addEventListener("change", function () { loadPayload("upload"); });
-    // Preload the default sample once at init so currentPayload is ready before any
-    // human action (avoids a race when playing as Bob/Eve, where Alice is the computer).
-    loadPayload("mission").then(function () { window.__payloadReady = true; });
+    if (alUpload) alUpload.addEventListener("change", function () { readUploadedFile(alUpload); });
+    // Shared, DOM-aware helper the terminal's `alice upload` command calls (shell-qkd.js
+    // stays decoupled from #al-upload's concrete element id).
+    window.QkdActions.promptUpload = function () {
+      return new Promise(function (resolve) {
+        if (!alUpload) { resolve(null); return; }
+        alUpload.value = "";
+        alUpload.onchange = function () { readUploadedFile(alUpload).then(resolve); };
+        alUpload.click();
+      });
+    };
+    // Preload the default sample once at init so a payload is ready before any
+    // human action (avoids a race when playing as Bob/Eve, where Alice is computer).
+    window.QkdActions.aliceSet({ file: "mission" });
+    window.__payloadReady = true;
 
     modeSolo.addEventListener("click", function () { multi.hidden = true; solo.hidden = false; });
     modeMulti.addEventListener("click", function () { solo.hidden = true; multi.hidden = false;
@@ -132,18 +132,13 @@
     function animate(result) {
       if (!stage) return;
       stage.streamQubits((result.aBases || []).map(function (b) { return { basis: b }; }), { tappable: false });
-      // mark the qubits Eve actually intercepted (her taps, or the computer's) as grabbed
       var qs = document.querySelectorAll("#qkd-stage .stage-qubits .qubit");
       (result.intercepted || []).forEach(function (hit, i) { if (hit && qs[i]) qs[i].classList.add("grabbed"); });
       stage.setIntrusion(result.sampleQBER, window.QuantumIntercept.ABORT);
       stage.log("Round resolved — intrusion " + Math.round(result.sampleQBER * 100) + "% (abort line 11%)", "info");
     }
     function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
-    // Mirror this button-driven round into QkdActions so window.QkdActions.state() reflects
-    // the same values the buttons produced (shared state layer — see qkd-actions.js). The
-    // existing pending/finish render path below is untouched; this call is additive only.
     function finish(result, decision) {
-      if (window.QkdActions) window.QkdActions.bobDecide(decision, result);
       var sc = window.QuantumIntercept.scoreRound(myRole, result, decision);
       score += sc.delta; scoreEl.textContent = "Score: " + score;
       if (score > peak) { peak = score; if (peak >= 1) postScore(peak); }
@@ -152,19 +147,20 @@
         + " — QBER " + Math.round(result.sampleQBER * 100) + "%, key " + result.finalKey + " bits"
         + (decision === "abort" ? ", ABORTED." : ", KEPT.");
       info.textContent = "Pick your role above to play another round.";
-      if (currentPayload && window.QkdFile && stage) {
+      var payload = window.QkdActions.state().payload;
+      if (payload && window.QkdFile && stage) {
         var aBits = result.aKeyFinal || [];
-        var ct = QkdFile.encrypt(currentPayload.bytes, aBits); // Alice encrypts with her final key
+        var ct = QkdFile.encrypt(payload.bytes, aBits);
         var bobEl = document.getElementById("bob-file"), eveEl = document.getElementById("eve-file");
         if (decision === "keep") {
-          var bobPt = QkdFile.decrypt(ct, result.bKeyFinal || []); // Bob decrypts with HIS key
-          // clean channel => aKeyFinal === bKeyFinal => real file; Eve/noise => differ => garbles
-          if (!result.eveHit) stage.revealFile(bobEl, bobPt, currentPayload.mime, "decrypt");
-          else stage.revealFile(bobEl, ct, currentPayload.mime, "scramble");
+          var bobPt = QkdFile.decrypt(ct, result.bKeyFinal || []);
+          if (!result.eveHit) stage.revealFile(bobEl, bobPt, payload.mime, "decrypt");
+          else stage.revealFile(bobEl, ct, payload.mime, "scramble");
         } else { bobEl.textContent = "(aborted — no delivery)"; }
-        if (result.fileCracked) stage.revealFile(eveEl, QkdFile.decrypt(ct, aBits), currentPayload.mime, "decrypt");
-        else stage.revealFile(eveEl, ct, currentPayload.mime, "scramble");
+        if (result.fileCracked) stage.revealFile(eveEl, QkdFile.decrypt(ct, aBits), payload.mime, "decrypt");
+        else stage.revealFile(eveEl, ct, payload.mime, "scramble");
       }
+      if (stage) stage.log(decision === "keep" ? ("Bob KEEPS the key. " + (result.fileCracked ? "Eve's botnet cracked it!" : (result.eveHit ? "Delivery corrupted." : "File decrypted!"))) : "Bob ABORTS the key.", "bob");
     }
 
     var evTimer = null;
@@ -173,40 +169,60 @@
       if (evTimer) clearInterval(evTimer);
       evTimer = setInterval(function () {
         left--; if (stage) stage.setTimer("⏱ 0:" + ("0" + Math.max(0, left)).slice(-2));
-        if (left <= 0) { clearInterval(evTimer); evTimer = null; if (stage) stage.log("Time! Committing your taps…", "alert"); resolveAndAwaitBob(); }
+        if (left <= 0) {
+          clearInterval(evTimer); evTimer = null;
+          if (stage) stage.log("Time! Committing your taps…", "alert");
+          if (window.QkdActions.state().phase === "eve") window.QkdActions.eveCommit();
+        }
       }, 1000);
     }
     function startRound() {
-      reveal.textContent = ""; pending = {};
-      if (window.QkdActions) window.QkdActions.advance(); // reset the shared action-layer state for a fresh round
+      reveal.textContent = ""; lastSeenPending = null; lastSeenResult = null;
+      window.QkdActions.advance();
       if (evTimer) { clearInterval(evTimer); evTimer = null; }
       if (myRole === "alice") { info.textContent = "Set your key length and check sample, then Send key."; }
-      else { var a = window.QuantumIntercept.computerStrategy("alice", {}, Math.random); pending.n = a.n; pending.s = a.s;
-             if (window.QkdActions) window.QkdActions.aliceSet({ n: pending.n, s: pending.s }); // mirror computer-Alice's key
-             if (myRole === "eve") {
-               info.textContent = "MISSION: tap qubits on the wire, then Commit.";
-               pending.eveTaps = [];
-               var evStates = []; for (var qi = 0; qi < pending.n; qi++) evStates.push({ basis: "?" });
-               if (stage) {
-                 stage.log("MISSION: intercept the key exchange — tap qubits and guess the basis.", "alert");
-                 stage.streamQubits(evStates, { tappable: true });
-                 stage.onTap(function (t) { pending.eveTaps.push({ i: t.index, basis: t.basis });
-                   stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve"); });
-               }
-               startEveCountdown(20);
-             }
-             else { pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
-                    if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
-                    resolveAndAwaitBob(); } }
+      else {
+        var a = window.QuantumIntercept.computerStrategy("alice", {}, Math.random);
+        window.QkdActions.aliceSet({ n: a.n, s: a.s });
+        if (myRole === "eve") {
+          info.textContent = "MISSION: tap qubits on the wire, then Commit.";
+          var evStates = []; for (var qi = 0; qi < a.n; qi++) evStates.push({ basis: "?" });
+          if (stage) {
+            stage.log("MISSION: intercept the key exchange — tap qubits and guess the basis.", "alert");
+            stage.streamQubits(evStates, { tappable: true });
+            stage.onTap(function (t) {
+              window.QkdActions.eveTap(t.index, t.basis);
+              stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve");
+            });
+          }
+          startEveCountdown(20);
+        } else {
+          var p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
+          window.QkdActions.eveIntercept(p * 100);
+          window.QkdActions.eveCommit();
+        }
+      }
     }
-    function resolveAndAwaitBob() {
-      if (evTimer) { clearInterval(evTimer); evTimer = null; }
-      if (pending.resolved) return; pending.resolved = true;   // guard: commit + timer can't double-resolve
-      if (stage) stage.setTimer("");
-      pending.result = window.QuantumIntercept.resolveRound(pending, Math.random);
-      animate(pending.result);
-      if (myRole === "bob") { info.textContent = "Inspect the QBER, then KEEP or ABORT."; }
-      else { var dec = window.QuantumIntercept.computerStrategy("bob", { sampleQBER: pending.result.sampleQBER }, Math.random).decision; finish(pending.result, dec); }
+
+    function render(state) {
+      if (state.payload && state.payload !== lastSeenPayload) {
+        lastSeenPayload = state.payload;
+        if (stage) stage.setPayload(state.payload.mime, state.payload.name || "payload");
+      }
+      renderBotnet(state);
+      if (state.pendingResult && state.pendingResult !== lastSeenPending) {
+        lastSeenPending = state.pendingResult;
+        animate(state.pendingResult);
+        if (!myRole || myRole === "bob") { info.textContent = "Inspect the QBER, then KEEP or ABORT."; }
+        else {
+          var dec = window.QuantumIntercept.computerStrategy("bob", { sampleQBER: state.pendingResult.sampleQBER }, Math.random).decision;
+          window.QkdActions.bobDecide(dec);
+        }
+      }
+      if (state.lastResult && state.lastResult !== lastSeenResult) {
+        lastSeenResult = state.lastResult;
+        finish(state.lastResult.result, state.lastResult.decision);
+      }
     }
 
     // Alice controls
@@ -215,46 +231,41 @@
     if (alS) { alS.addEventListener("input", function () { document.getElementById("al-s-val").textContent = alS.value; }); }
     var alSend = document.getElementById("al-send");
     if (alSend) alSend.addEventListener("click", function () {
-      pending.n = parseInt(alN.value, 10); pending.s = parseInt(alS.value, 10);
-      if (window.QkdActions) window.QkdActions.aliceSet({ n: pending.n, s: pending.s }); // mirror human-Alice's key
-      pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
-      if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
-      resolveAndAwaitBob();
+      window.QkdActions.aliceSet({ n: parseInt(alN.value, 10), s: parseInt(alS.value, 10) });
+      var p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
+      window.QkdActions.eveIntercept(p * 100);
+      window.QkdActions.eveCommit();
     });
     // Eve controls: commit the qubit taps collected on the stage
     var evCommit = document.getElementById("ev-commit");
     if (evCommit) evCommit.addEventListener("click", function () {
-      if (myRole !== "eve" || !pending) return;
-      resolveAndAwaitBob();   // resolves with pending.eveTaps
+      if (myRole !== "eve") return;
+      if (window.QkdActions.state().phase === "eve") window.QkdActions.eveCommit();
     });
-    // Eve botnet panel: slider + deploy button drive QkdActions.eveCrack directly and
-    // render the worker grid / readouts inline (no subscribe — matches Task 12's Option B).
+    // Eve botnet panel: slider + deploy button drive QkdActions.eveCrack directly
     var evW = document.getElementById("ev-w"), evWVal = document.getElementById("ev-w-val"), evCrack = document.getElementById("ev-crack");
-    function renderBotnet() {
-      var PB = window.PhantomBotnet; if (!PB || !window.QkdActions) return;
-      var state = window.QkdActions.state();
-      var upperN = (pending && pending.n) || state.alice.n || 0;
+    function renderBotnet(state) {
+      var PB = window.PhantomBotnet; if (!PB) return;
       PB.renderPanel({
         grid: document.getElementById("ev-grid"),
         rate: document.getElementById("ev-rate"),
         eta: document.getElementById("ev-eta"),
         detect: document.getElementById("ev-detect")
-      }, state.eve.workers, upperN, state.eve.p);
+      }, state.eve.workers, state.alice.n || 0, state.eve.p);
     }
     if (evW) evW.addEventListener("input", function () {
       if (evWVal) evWVal.textContent = evW.value;
-      if (window.QkdActions) window.QkdActions.eveCrack({ workers: parseInt(evW.value, 10) });
-      renderBotnet();
+      window.QkdActions.eveCrack({ workers: parseInt(evW.value, 10) });
     });
     if (evCrack) evCrack.addEventListener("click", function () {
-      var n = evW ? parseInt(evW.value, 10) : 0;
-      if (window.QkdActions) window.QkdActions.eveCrack({ workers: n });
-      renderBotnet();
+      window.QkdActions.eveCrack({ workers: evW ? parseInt(evW.value, 10) : 0 });
     });
     // Bob controls
     var keep = document.getElementById("btn-keep"), abort = document.getElementById("btn-abort");
-    if (keep) keep.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "keep"); });
-    if (abort) abort.addEventListener("click", function () { if (pending && pending.result) finish(pending.result, "abort"); });
+    if (keep) keep.addEventListener("click", function () { if (window.QkdActions.state().phase === "bob") window.QkdActions.bobDecide("keep"); });
+    if (abort) abort.addEventListener("click", function () { if (window.QkdActions.state().phase === "bob") window.QkdActions.bobDecide("abort"); });
+
+    window.QkdActions.subscribe(render);
 
     // default: show solo, no role chosen yet
     solo.hidden = false;

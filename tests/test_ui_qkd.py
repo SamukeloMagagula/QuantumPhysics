@@ -55,3 +55,22 @@ def test_solo_eve_taps_drive_the_round():
         pg.click('#ev-commit')
         pg.wait_for_function("() => document.getElementById('qkd-score').textContent.indexOf('Score') >= 0", timeout=5000)
         assert pg.evaluate("() => document.querySelectorAll('#qkd-stage .qubit.grabbed').length") >= 1
+
+
+@requires_browser
+def test_qkd_actions_pendingresult_and_mode_are_explicit():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        out = pg.evaluate("""() => {
+          QkdActions.aliceSet({n: 8, s: 0});
+          QkdActions.eveTap(0, 'x');
+          var before = QkdActions.state().phase;
+          var r = QkdActions.eveCommit();
+          var after = QkdActions.state();
+          return { before: before, after: after.phase, hasPending: !!after.pendingResult, mode: after.eve.mode };
+        }""")
+        assert out["before"] == "eve"
+        assert out["after"] == "bob"
+        assert out["hasPending"] is True
+        assert out["mode"] == "tap"
