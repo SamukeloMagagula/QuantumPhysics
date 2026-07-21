@@ -123,6 +123,7 @@ def game_state(db, code, user):
             "cracked": cracked,
             "sample": f.get("sample") if visible else None,
             "mime": f.get("mime") if visible else None,
+            "isUpload": bool(f.get("isUpload")) if visible else False,
         }
         view["lastResult"] = lr
     return view
@@ -169,6 +170,10 @@ def _clean_action(role, action):
             fh = action.get("file")
             if isinstance(fh, str) and (fh in ("mission", "codes", "photo") or (len(fh) <= 32 and fh.isalnum())):
                 out["file"] = fh
+                if fh not in ("mission", "codes", "photo"):
+                    fm = action.get("fileMime")
+                    if isinstance(fm, str) and fm in files.ALLOWED_MIME:
+                        out["fileMime"] = fm
             return out
         if role == "eve":
             w = max(0, min(100, int(action.get("workers", 0) or 0)))
@@ -254,6 +259,8 @@ def advance(db, game):
             cfg["alice"] = {"n": int(act.get("n", 24)), "s": int(act.get("s", 6))}
             if act.get("file"):
                 cfg["alice"]["file"] = act["file"]
+            if act.get("fileMime"):
+                cfg["alice"]["fileMime"] = act["fileMime"]
             cur = db.execute(
                 "UPDATE qkd_games SET config=?, phase='eve_move', updated_at=CURRENT_TIMESTAMP "
                 "WHERE id=? AND phase='alice_setup'", (json.dumps(cfg), gid))
@@ -296,9 +303,11 @@ def _resolve_scoring(db, g, cfg, decision):
     file_cracked = eve_workers > 0 and botnet.crackable_within(final_key, eve_workers, botnet.ROUND_WINDOW)
     result["fileCracked"] = file_cracked   # engine.score_round adds HEIST_BONUS on KEEP when set
     _sample = (cfg.get("alice") or {}).get("file") or "mission"
-    _mime = files.SAMPLES.get(_sample, {}).get("mime")
+    _is_upload = _sample not in files.SAMPLES
+    _mime = (cfg.get("alice") or {}).get("fileMime") if _is_upload else files.SAMPLES.get(_sample, {}).get("mime")
     if _mime is None:
-        _sample = None  # unknown/stray handle -> no payload
+        _sample = None  # unknown/stray handle with no known mime -> no payload
+        _is_upload = False
     per_role = {}
     for role in ROLES:
         sc = score_round(role, result, decision)
@@ -308,7 +317,7 @@ def _resolve_scoring(db, g, cfg, decision):
         "eveHit": result["eveHit"], "sampleQBER": result["sampleQBER"], "finalKey": result["finalKey"],
         "stolen": result["stolen"], "sifted": result["sifted"], "bobDecision": decision,
         "aliceConfig": cfg["alice"], "eveConfig": cfg["eve"], "perRole": per_role, "round": g["round"],
-        "file": {"sample": _sample, "mime": _mime, "cracked": file_cracked},
+        "file": {"sample": _sample, "mime": _mime, "cracked": file_cracked, "isUpload": _is_upload},
         # secrecy-safe replay: public BB84 info only (all bases + sampled errors + Eve's taps).
         # Raw key bits are never included (resolve_round never returns aBits/bBits/key arrays).
         "replay": {

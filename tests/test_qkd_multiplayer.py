@@ -286,3 +286,61 @@ def test_mp_replay_is_present_and_leaks_no_key_bits(app):
     # secrecy: the serialized state must not contain raw key-bit arrays
     body = c.get(f"/api/qkd/game/{code}").get_data(as_text=True)
     assert "aBits" not in body and "bBits" not in body and "aKeyFinal" not in body
+
+
+# ---- multiplayer Alice-uploaded file (not just bundled samples) ----
+
+def test_clean_action_accepts_upload_handle_and_mime():
+    # An uploaded file's handle (16 hex chars from files.save_bytes) is not a known
+    # sample name, but still passes the len<=32/isalnum check; fileMime rides along
+    # only when it's a real handle (not for the 3 known sample names).
+    out = service._clean_action("alice", {"n": 16, "s": 2, "file": "abc123ef00112233", "fileMime": "text/plain"})
+    assert out == {"n": 16, "s": 2, "file": "abc123ef00112233", "fileMime": "text/plain"}
+    # an unsupported/garbage mime is silently dropped, not raised
+    out2 = service._clean_action("alice", {"n": 16, "s": 2, "file": "abc123ef00112233", "fileMime": "text/html"})
+    assert out2 == {"n": 16, "s": 2, "file": "abc123ef00112233"}
+    # fileMime is ignored for known sample names (mime is looked up server-side instead)
+    out3 = service._clean_action("alice", {"n": 16, "s": 2, "file": "mission", "fileMime": "text/plain"})
+    assert out3 == {"n": 16, "s": 2, "file": "mission"}
+
+
+def _play_full_round_human_bob_with_mime(app, alice_file, alice_mime, decision):
+    """Like _play_full_round_human_bob, but for an uploaded (non-sample) file handle that
+    needs an explicit fileMime carried in cfg['alice'] (mirrors what _clean_action stores)."""
+    c, code = _solo_game(app, "bob")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 0, "file": alice_file, "fileMime": alice_mime}
+        cfg["eve"] = {"p": 0, "workers": 0}
+        cfg["result"] = resolve_round({"n": 8, "s": 0, "p": 0}, random.Random(1).random)
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": decision}})
+    return c, code
+
+
+def test_mp_upload_handle_carries_through_to_lastresult(app):
+    # Regression: before this fix, _resolve_scoring only recognized the 3 bundled sample
+    # names via files.SAMPLES; an uploaded handle got _mime=None -> _sample=None -> the
+    # uploaded file vanished from lastResult even though Alice genuinely staked one.
+    c, code = _play_full_round_human_bob_with_mime(app, "deadbeefcafe0001", "text/plain", "keep")
+    lr = _raw_cfg(app, code)["lastResult"]
+    assert lr["file"]["isUpload"] is True
+    assert lr["file"]["sample"] == "deadbeefcafe0001"
+    assert lr["file"]["mime"] == "text/plain"
+
+
+def test_mp_bob_sees_uploaded_file_on_clean_keep(app):
+    c, code = _play_full_round_human_bob_with_mime(app, "deadbeefcafe0001", "text/plain", "keep")
+    f = _bob_file_view(c, code)
+    assert f["visible"] is True and f["sample"] == "deadbeefcafe0001" and f["isUpload"] is True
+
+
+def test_mp_non_earner_never_sees_uploaded_handle(app):
+    # Abort -> Bob does not earn the file; the handle/mime must not leak to a non-earner,
+    # same secrecy invariant as the sample-based path (test_mp_bob_scrambled_on_abort).
+    c, code = _play_full_round_human_bob_with_mime(app, "deadbeefcafe0001", "text/plain", "abort")
+    f = _bob_file_view(c, code)
+    assert f["visible"] is False and f["sample"] is None and f["isUpload"] is False
