@@ -37,8 +37,42 @@
       setTimer: function (txt) { timer.textContent = txt; },
       onTap: function (cb) { tapCb = cb; },
       _emitTap: function (index, b) { if (tapCb) tapCb({ index: index, basis: b }); },
-      setPayload: function () {}, streamQubits: function () {}, revealFile: function () {}, playReplay: function () {}
+      setPayload: function () {}, revealFile: function () {}, playReplay: function () {}
     };
+
+    var taps = [];
+    handle.tapsSoFar = function () { return taps.slice(); };
+    handle.streamQubits = function (states, sopts) {
+      sopts = sopts || {};
+      qubits.innerHTML = ""; taps = [];
+      var count = states.length;
+      states.forEach(function (st, i) {
+        var q = el("span", "qubit" + (sopts.tappable ? " tappable" : ""));
+        q.textContent = st.glyph || (st.basis === "x" ? "◇" : st.basis === "+" ? "○" : "•");
+        q.style.left = (count <= 1 ? 50 : (i / (count - 1)) * 92 + 4) + "%";
+        if (sopts.tappable) {
+          q.addEventListener("click", function () {
+            if (q.classList.contains("grabbed")) return;
+            openPicker(q, i);
+          });
+        }
+        qubits.appendChild(q);
+      });
+    };
+    function openPicker(q, i) {
+      var old = root.querySelector(".tap-picker"); if (old) old.remove();
+      var pk = el("div", "tap-picker");
+      ["+", "x"].forEach(function (b) {
+        var btn = el("button", "tap-basis"); btn.type = "button";
+        btn.setAttribute("data-basis", b); btn.textContent = b === "x" ? "⊗" : "⊕";
+        btn.addEventListener("click", function () {
+          q.classList.add("grabbed"); pk.remove();
+          taps.push({ i: i, basis: b }); handle._emitTap(i, b);
+        });
+        pk.appendChild(btn);
+      });
+      q.appendChild(pk);
+    }
     return handle;
   }
   window.QuantumStage = { mount: mount };

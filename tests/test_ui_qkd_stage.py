@@ -21,3 +21,26 @@ def test_stage_mounts_network_map_and_log():
         }""")
         assert out["net"] and out["alice"] and out["bob"] and out["evetap"]
         assert out["logline"] and out["hot"]   # 0.14 > 0.11 abort line -> hot
+
+
+@requires_browser
+def test_stage_streams_and_taps():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => {
+          var root = document.createElement('div'); document.body.appendChild(root);
+          var h = QuantumStage.mount(root, {});
+          var taps = [];
+          h.onTap(function (t) { taps.push(t); });
+          h.streamQubits([{basis:'+'},{basis:'x'},{basis:'+'}], {tappable: true});
+          var qs = root.querySelectorAll('.stage-qubits .qubit');
+          qs[1].click();
+          var picker = root.querySelector('.tap-picker');
+          picker.querySelector("[data-basis='x']").click();
+          return { count: qs.length, tapped: JSON.stringify(taps), grabbed: qs[1].className.indexOf('grabbed') >= 0,
+                   taplist: JSON.stringify(h.tapsSoFar()) };
+        }""")
+        assert out["count"] == 3
+        assert out["tapped"] == '[{"index":1,"basis":"x"}]'
+        assert out["grabbed"] is True
+        assert out["taplist"] == '[{"i":1,"basis":"x"}]'
