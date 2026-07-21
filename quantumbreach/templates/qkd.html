@@ -35,11 +35,8 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
     <button class="btn" id="al-send" type="button">Send key</button>
   </div>
   <div id="panel-eve" class="qkd-panel" hidden>
-    <span class="muted">Intercept:</span>
-    <button class="chip ev" data-p="0" type="button">None</button>
-    <button class="chip ev" data-p="0.25" type="button">Light</button>
-    <button class="chip ev" data-p="0.5" type="button">Heavy</button>
-    <button class="chip ev" data-p="1" type="button">Full</button>
+    <p class="muted">Tap qubits on the wire and pick a measuring basis (⊕/⊗). Guess wrong and you disturb the qubit — Bob will see the error. Then commit before the timer runs out.</p>
+    <button class="btn" id="ev-commit" type="button">Commit intercept</button>
     <div class="botnet">
       <label>Workers: <span id="ev-w-val">0</span><input id="ev-w" type="range" min="0" max="100" value="0"></label>
       <button class="btn" id="ev-crack" type="button">Deploy botnet</button>

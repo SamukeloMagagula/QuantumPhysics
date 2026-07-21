@@ -132,6 +132,9 @@
     function animate(result) {
       if (!stage) return;
       stage.streamQubits((result.aBases || []).map(function (b) { return { basis: b }; }), { tappable: false });
+      // mark the qubits Eve actually intercepted (her taps, or the computer's) as grabbed
+      var qs = document.querySelectorAll("#qkd-stage .stage-qubits .qubit");
+      (result.intercepted || []).forEach(function (hit, i) { if (hit && qs[i]) qs[i].classList.add("grabbed"); });
       stage.setIntrusion(result.sampleQBER, window.QuantumIntercept.ABORT);
       stage.log("Round resolved — intrusion " + Math.round(result.sampleQBER * 100) + "% (abort line 11%)", "info");
     }
@@ -164,18 +167,42 @@
       }
     }
 
+    var evTimer = null;
+    function startEveCountdown(seconds) {
+      var left = seconds; if (stage) stage.setTimer("⏱ 0:" + ("0" + left).slice(-2));
+      if (evTimer) clearInterval(evTimer);
+      evTimer = setInterval(function () {
+        left--; if (stage) stage.setTimer("⏱ 0:" + ("0" + Math.max(0, left)).slice(-2));
+        if (left <= 0) { clearInterval(evTimer); evTimer = null; if (stage) stage.log("Time! Committing your taps…", "alert"); resolveAndAwaitBob(); }
+      }, 1000);
+    }
     function startRound() {
       reveal.textContent = ""; pending = {};
       if (window.QkdActions) window.QkdActions.advance(); // reset the shared action-layer state for a fresh round
+      if (evTimer) { clearInterval(evTimer); evTimer = null; }
       if (myRole === "alice") { info.textContent = "Set your key length and check sample, then Send key."; }
       else { var a = window.QuantumIntercept.computerStrategy("alice", {}, Math.random); pending.n = a.n; pending.s = a.s;
              if (window.QkdActions) window.QkdActions.aliceSet({ n: pending.n, s: pending.s }); // mirror computer-Alice's key
-             if (myRole === "eve") info.textContent = "Choose how aggressively to intercept.";
+             if (myRole === "eve") {
+               info.textContent = "MISSION: tap qubits on the wire, then Commit.";
+               pending.eveTaps = [];
+               var evStates = []; for (var qi = 0; qi < pending.n; qi++) evStates.push({ basis: "?" });
+               if (stage) {
+                 stage.log("MISSION: intercept the key exchange — tap qubits and guess the basis.", "alert");
+                 stage.streamQubits(evStates, { tappable: true });
+                 stage.onTap(function (t) { pending.eveTaps.push({ i: t.index, basis: t.basis });
+                   stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve"); });
+               }
+               startEveCountdown(20);
+             }
              else { pending.p = window.QuantumIntercept.computerStrategy("eve", {}, Math.random).p;
                     if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
                     resolveAndAwaitBob(); } }
     }
     function resolveAndAwaitBob() {
+      if (evTimer) { clearInterval(evTimer); evTimer = null; }
+      if (pending.resolved) return; pending.resolved = true;   // guard: commit + timer can't double-resolve
+      if (stage) stage.setTimer("");
       pending.result = window.QuantumIntercept.resolveRound(pending, Math.random);
       animate(pending.result);
       if (myRole === "bob") { info.textContent = "Inspect the QBER, then KEEP or ABORT."; }
@@ -194,11 +221,12 @@
       if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror computer-Eve's intercept
       resolveAndAwaitBob();
     });
-    // Eve controls
-    solo.querySelectorAll(".ev").forEach(function (b) { b.addEventListener("click", function () {
-      pending.p = parseFloat(b.getAttribute("data-p"));
-      if (window.QkdActions) window.QkdActions.eveIntercept(pending.p * 100); // mirror human-Eve's intercept
-      resolveAndAwaitBob(); }); });
+    // Eve controls: commit the qubit taps collected on the stage
+    var evCommit = document.getElementById("ev-commit");
+    if (evCommit) evCommit.addEventListener("click", function () {
+      if (myRole !== "eve" || !pending) return;
+      resolveAndAwaitBob();   // resolves with pending.eveTaps
+    });
     // Eve botnet panel: slider + deploy button drive QkdActions.eveCrack directly and
     // render the worker grid / readouts inline (no subscribe — matches Task 12's Option B).
     var evW = document.getElementById("ev-w"), evWVal = document.getElementById("ev-w-val"), evCrack = document.getElementById("ev-crack");
