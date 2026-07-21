@@ -1,5 +1,5 @@
 (function () {
-  var code = null, role = null, timer = null, lastPhase = null, mounted = false;
+  var code = null, role = null, timer = null, lastPhase = null, mounted = false, lastReveal = null;
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {},
@@ -65,6 +65,9 @@
       var lr = st.lastResult;
       rv.textContent = "Round " + lr.round + ": " + (lr.eveHit ? "Eve intercepted" : "clean") +
         ", QBER " + Math.round(lr.sampleQBER * 100) + "%, key " + lr.finalKey + " bits, Bob " + lr.bobDecision.toUpperCase() + ".";
+      revealFile(lr, st.yourRole);
+    } else {
+      var fv = $("qm-file-view"); if (fv) fv.innerHTML = ""; lastReveal = null;  // clear stale reveal on a new round
     }
     if (!st.youAreUpNow) return;
     if (st.phase === "alice_setup") {
@@ -120,6 +123,29 @@
     }
   }
   function act(action) { api("/api/qkd/game/" + code + "/act", { action: action }).then(render); }
+
+  function revealFile(lr, yourRole) {
+    var pane = $("qm-file-view"); if (!pane || !window.QkdFile) return;
+    if (lr.round === lastReveal) return;   // reveal once per round; polls don't re-fetch
+    lastReveal = lr.round;
+    var f = lr.file || {};
+    function caption() {
+      var cap = f.visible
+        ? (yourRole === "eve" ? "Your botnet cracked it!" : yourRole === "alice" ? "Your file." : "Delivered — you hold the key.")
+        : (yourRole === "eve" ? "Botnet didn't crack it in time."
+           : lr.bobDecision === "abort" ? "Aborted — no delivery." : "Corrupted — key mismatch.");
+      var p = document.createElement("p"); p.className = "muted"; p.textContent = cap; pane.appendChild(p);
+    }
+    if (f.visible && f.sample) {
+      api("/api/qkd/file", { sample: f.sample }).then(function (m) {
+        if (!m || !m.handle) { window.QkdFile.scrambleInto(pane, null); caption(); return; }
+        return fetch("/api/qkd/file/" + m.handle).then(function (r) { return r.arrayBuffer(); })
+          .then(function (buf) { window.QkdFile.renderInto(pane, new Uint8Array(buf), f.mime || m.mime); caption(); });
+      }).catch(function () { window.QkdFile.scrambleInto(pane, null); caption(); });
+    } else {
+      window.QkdFile.scrambleInto(pane, null); caption();
+    }
+  }
 
   window.QKDMulti = { mount: mount };
 })();

@@ -68,3 +68,21 @@ def test_mp_eve_has_botnet_panel():
         pg.click(".qm-ev[data-p='0.25']")
         pg.click("#qm-eve-go")
         pg.wait_for_timeout(400)
+
+
+@requires_browser
+def test_mp_reveal_renders_a_file_pane():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='alice']")            # human Alice; computer Bob/Eve auto-play
+        pg.wait_for_selector("#qm-start", timeout=8000)
+        pg.click("#qm-start")
+        pg.wait_for_selector("#qm-file", timeout=8000)
+        pg.select_option("#qm-file", "mission")
+        pg.click("#qm-al-go")
+        # computer Eve + Bob auto-resolve; Alice always sees her own file
+        pg.wait_for_function(
+            "() => { var v = document.querySelector('#qm-file-view'); return v && v.textContent.indexOf('CLASSIFIED') >= 0; }",
+            timeout=8000)
+        assert "CLASSIFIED" in pg.inner_text("#qm-file-view")

@@ -159,6 +159,32 @@ def drive(base, out):
               pg.evaluate("() => QkdActions.state().phase"),
               "| fileCracked:", result.get("result", {}).get("fileCracked") if isinstance(result, dict) else None)
 
+        # Multiplayer file-heist + botnet (single human vs computer seats):
+        # (a) as Alice, pick a sample + send -> the file decrypts in Alice's reveal pane;
+        # (b) as Eve, deploy a botnet -> the animated worker grid renders.
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='alice']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-file", timeout=8000)
+        pg.select_option("#qm-file", "mission"); pg.click("#qm-al-go")
+        pg.wait_for_function(
+            "() => { var v = document.querySelector('#qm-file-view'); return v && v.textContent.indexOf('CLASSIFIED') >= 0; }",
+            timeout=8000)
+        print("[qkd-mp] Alice sent a sample -> file decrypted in the multiplayer reveal pane")
+        pg.screenshot(path=os.path.join(out, "9-qkd-mp-file-reveal.png"), full_page=True)
+
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='eve']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-w", timeout=8000)
+        pg.eval_on_selector("#qm-w", "el => { el.value = 64; el.dispatchEvent(new Event('input')); }")
+        pg.wait_for_timeout(150)
+        mp_tiles = pg.evaluate("() => document.querySelectorAll('#qm-grid .worker').length")
+        print("[qkd-mp] Eve deployed a botnet | multiplayer worker grid tiles:", mp_tiles)
+        pg.screenshot(path=os.path.join(out, "9b-qkd-mp-eve-botnet.png"), full_page=True)
+
         # GHOST chatbot: the launcher lives in the app shell, so open it from an
         # app page (dashboard) rather than the anonymous landing page.
         pg.goto(base + "/dashboard", wait_until="networkidle")
