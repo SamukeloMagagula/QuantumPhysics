@@ -79,10 +79,29 @@
           '<option value="mission">mission.txt</option>' +
           '<option value="codes">codes.txt</option>' +
           '<option value="photo">photo.png</option>' +
+          '<option value="upload">upload a file…</option>' +
         '</select></label>' +
+        '<input id="qm-upload" type="file" hidden>' +
         '<button class="btn" id="qm-al-go" type="button">Send key</button>';
+      var qmUploadHandle = null, qmUploadMime = null;
+      $("qm-file").addEventListener("change", function () {
+        var upl = $("qm-upload");
+        if ($("qm-file").value === "upload") { upl.hidden = false; }
+        else { upl.hidden = true; qmUploadHandle = null; qmUploadMime = null; }
+      });
+      $("qm-upload").addEventListener("change", function () {
+        var f = $("qm-upload").files && $("qm-upload").files[0];
+        if (!f) return;
+        var fd = new FormData(); fd.append("file", f);
+        fetch("/api/qkd/file", { method: "POST", body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (m) { qmUploadHandle = m.handle; qmUploadMime = m.mime; });
+      });
       $("qm-al-go").addEventListener("click", function () {
-        act({ n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10), file: $("qm-file").value }); });
+        var fileVal = $("qm-file").value === "upload" ? qmUploadHandle : $("qm-file").value;
+        var action = { n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10), file: fileVal };
+        if ($("qm-file").value === "upload" && qmUploadMime) action.fileMime = qmUploadMime;
+        act(action); });
     } else if (st.phase === "eve_move") {
       if (keepEve) return;   // panel already built on a prior poll — keep Eve's taps/slider
       box.innerHTML =
@@ -127,7 +146,13 @@
            : lr.bobDecision === "abort" ? "Aborted — no delivery." : "Corrupted — key mismatch.");
       var p = document.createElement("p"); p.className = "muted"; p.textContent = cap; pane.appendChild(p);
     }
-    if (f.visible && f.sample) {
+    if (f.visible && f.sample && f.isUpload) {
+      // Uploaded files already have real bytes on disk under this handle -- fetch
+      // directly, unlike bundled samples which re-materialize via {sample: name}.
+      fetch("/api/qkd/file/" + f.sample).then(function (r) { return r.arrayBuffer(); })
+        .then(function (buf) { window.QkdFile.renderInto(pane, new Uint8Array(buf), f.mime); caption(); })
+        .catch(function () { window.QkdFile.scrambleInto(pane, null); caption(); });
+    } else if (f.visible && f.sample) {
       api("/api/qkd/file", { sample: f.sample }).then(function (m) {
         if (!m || !m.handle) { window.QkdFile.scrambleInto(pane, null); caption(); return; }
         return fetch("/api/qkd/file/" + m.handle).then(function (r) { return r.arrayBuffer(); })

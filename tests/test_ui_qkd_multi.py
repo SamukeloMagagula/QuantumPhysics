@@ -102,3 +102,21 @@ def test_mp_eve_taps_and_replay_render():
         pg.click("#qm-eve-go")                                                 # commit taps
         # computer Bob auto-decides; replay renders on the stage at resolve
         pg.wait_for_function("() => document.querySelectorAll('#qm-stage .stage-qubits .qubit').length > 0", timeout=8000)
+
+
+@requires_browser
+def test_mp_alice_can_upload_a_file():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='alice']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-file", timeout=8000)
+        pg.select_option("#qm-file", "upload")
+        pg.wait_for_selector("#qm-upload:not([hidden])", timeout=4000)
+        pg.set_input_files("#qm-upload", files=[{"name": "note.txt", "mimeType": "text/plain", "buffer": b"HELLO MP UPLOAD"}])
+        pg.wait_for_timeout(300)
+        pg.click("#qm-al-go")
+        pg.wait_for_function(
+            "() => { var v = document.querySelector('#qm-file-view'); return v && v.textContent.indexOf('HELLO MP UPLOAD') >= 0; }",
+            timeout=8000)
