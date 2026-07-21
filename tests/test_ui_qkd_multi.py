@@ -136,3 +136,19 @@ def test_mp_upload_preview_shows_immediately():
         pg.wait_for_function(
             "() => { var el = document.getElementById('qm-preview'); return el && el.textContent.indexOf('MP PREVIEW') >= 0; }",
             timeout=4000)
+
+
+@requires_browser
+def test_mp_round_narrates_into_the_feed_sidebar():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='eve']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-stage .stage-qubits .qubit", timeout=8000)
+        pg.click("#qm-stage .stage-qubits .qubit:nth-child(1)")
+        pg.click('#qm-stage .tap-picker [data-basis="x"]')
+        pg.click("#qm-eve-go")
+        pg.wait_for_timeout(1500)
+        feed_text = pg.inner_text("#qkd-feed")
+        assert "Eve taps qubit" in feed_text or "Replay" in feed_text

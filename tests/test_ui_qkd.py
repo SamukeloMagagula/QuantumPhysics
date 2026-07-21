@@ -88,3 +88,21 @@ def test_solo_upload_preview_shows_immediately():
         pg.wait_for_function(
             "() => { var el = document.getElementById('al-preview'); return el && el.textContent.indexOf('PREVIEW ME') >= 0; }",
             timeout=4000)
+
+
+@requires_browser
+def test_solo_round_narrates_into_the_feed_sidebar():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.wait_for_function("() => window.__payloadReady === true", timeout=5000)
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='eve']")
+        pg.wait_for_selector("#qkd-stage .stage-qubits .qubit", timeout=5000)
+        pg.click("#qkd-stage .stage-qubits .qubit:nth-child(1)")
+        pg.click('#qkd-stage .tap-picker [data-basis="x"]')
+        pg.click("#ev-commit")
+        pg.wait_for_function("() => document.getElementById('qkd-score').textContent.indexOf('Score') >= 0", timeout=5000)
+        feed_text = pg.inner_text("#qkd-feed")
+        assert "Eve taps qubit 0" in feed_text
+        assert "Round resolved" in feed_text
+        assert ("KEEPS" in feed_text or "ABORTS" in feed_text)

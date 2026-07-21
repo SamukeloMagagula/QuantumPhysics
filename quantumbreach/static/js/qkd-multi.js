@@ -30,7 +30,7 @@
   function enter(c, r, isHost) {
     code = c; role = r; $("qm-join").hidden = true; $("qm-play").hidden = false; $("qm-mycode").textContent = c;
     $("qm-start").hidden = !isHost;
-    if (window.QuantumStage && !stage) stage = window.QuantumStage.mount($("qm-stage"), {});
+    if (window.QuantumStage && !stage) stage = window.QuantumStage.mount($("qm-stage"), { feedEl: document.getElementById("qkd-feed") });
     if (timer) clearInterval(timer); timer = setInterval(poll, 1500); poll();
   }
   function poll() { api("/api/qkd/game/" + code).then(render); }
@@ -44,6 +44,10 @@
     $("qm-scores").innerHTML = st.scores.map(function (s) { return '<span class="chip">' + s.role + ": " + s.score + "</span>"; }).join("");
     if (stage && st.phase === "bob_decision" && typeof st.sampleQBER === "number") {
       stage.setIntrusion(st.sampleQBER, 0.11);  // Bob sees the intrusion on the shared stage meter
+    }
+    if (stage && st.phase !== lastPhase) {
+      if (st.phase === "eve_move") stage.log("Alice staked her key.", "info");
+      if (st.phase === "resolve" && st.lastResult) stage.log("Bob " + st.lastResult.bobDecision.toUpperCase() + "S the key.", "bob");
     }
     lastPhase = st.phase;
     renderControls(st); renderStatus(st);
