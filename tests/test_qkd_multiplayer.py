@@ -223,3 +223,35 @@ def test_mp_eve_botnet_cracks_short_key_and_scores(app):
 def test_mp_no_workers_no_crack(app):
     c, code = _play_full_round_human_bob(app, "mission", eve_workers=0, decision="keep", eve_p=1)
     assert _raw_cfg(app, code)["lastResult"]["file"]["cracked"] is False
+
+
+def _bob_file_view(c, code):
+    return (c.get(f"/api/qkd/game/{code}").get_json().get("lastResult") or {}).get("file")
+
+
+def test_mp_bob_sees_file_on_clean_keep(app):
+    c, code = _play_full_round_human_bob(app, "mission", eve_workers=0, decision="keep", eve_p=0)
+    f = _bob_file_view(c, code)             # clean channel (p=0) + keep -> Bob earns it
+    assert f["visible"] is True and f["sample"] == "mission"
+
+
+def test_mp_bob_scrambled_on_abort(app):
+    c, code = _play_full_round_human_bob(app, "mission", eve_workers=0, decision="abort", eve_p=0)
+    f = _bob_file_view(c, code)
+    assert f["visible"] is False and f["sample"] is None    # no leak of the sample id to a non-earner
+
+
+def test_mp_eve_sees_file_only_when_cracked(app):
+    # Seat a HUMAN Eve; computer Alice auto-plays -> eve_move. Override Alice's cfg to a short
+    # key + a sample, then Eve deploys 100 workers; computer Bob auto-keeps a clean channel.
+    c, code = _solo_game(app, "eve")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 0, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"p": 0, "workers": 100}})
+    f = (c.get(f"/api/qkd/game/{code}").get_json().get("lastResult") or {}).get("file")
+    assert f["visible"] is True and f["cracked"] is True and f["sample"] == "mission"

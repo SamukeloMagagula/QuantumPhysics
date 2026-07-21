@@ -108,9 +108,23 @@ def game_state(db, code, user):
     # Bob sees the sample QBER only during his decision phase.
     if g["phase"] == "bob_decision" and your_role == "bob" and "result" in cfg:
         view["sampleQBER"] = cfg["result"]["sampleQBER"]
-    # Full reveal only at resolve/ended.
+    # Full reveal only at resolve/ended; file visibility is computed per seat.
     if g["phase"] in ("resolve", "ended") and "lastResult" in cfg:
-        view["lastResult"] = cfg["lastResult"]
+        lr = dict(cfg["lastResult"])                 # shallow copy; never mutate stored cfg
+        f = dict(lr.get("file") or {})
+        cracked = bool(f.get("cracked"))
+        visible = (
+            your_role == "alice"
+            or (your_role == "bob" and lr.get("bobDecision") == "keep" and not lr.get("eveHit"))
+            or (your_role == "eve" and cracked)
+        )
+        lr["file"] = {
+            "visible": visible,
+            "cracked": cracked,
+            "sample": f.get("sample") if visible else None,
+            "mime": f.get("mime") if visible else None,
+        }
+        view["lastResult"] = lr
     return view
 
 
