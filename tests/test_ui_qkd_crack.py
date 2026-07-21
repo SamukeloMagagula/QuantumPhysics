@@ -1,0 +1,53 @@
+from tests.browser_utils import live_server, browser_page, requires_browser
+
+PLAINTEXT_JS = "\"the quick brown fox jumps over the lazy dog 1234567890\""
+
+
+@requires_browser
+def test_crack_short_key_succeeds():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => new Promise((resolve) => {
+          var s = %s;
+          var bytes = new Uint8Array(s.length); for (var i=0;i<s.length;i++) bytes[i]=s.charCodeAt(i);
+          var key = [1,0,1,1,0,0];
+          var ct = QkdFile.encrypt(bytes, key);
+          QkdCrack.bruteForce(ct, 'text/plain', {maxBits: 8}).then(function (r) {
+            resolve({ cracked: r.cracked, attempts: r.attempts, keyLen: r.keyBits ? r.keyBits.length : -1 });
+          });
+        })""" % PLAINTEXT_JS)
+        assert out["cracked"] is True
+        assert out["attempts"] > 0
+
+
+@requires_browser
+def test_crack_long_key_does_not_crack_within_small_maxbits():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => new Promise((resolve) => {
+          var s = %s;
+          var bytes = new Uint8Array(s.length); for (var i=0;i<s.length;i++) bytes[i]=s.charCodeAt(i);
+          var key = [1,0,1,1,0,0,1,0,1,1,0,1,0,0,1,1];  // 16-bit key
+          var ct = QkdFile.encrypt(bytes, key);
+          QkdCrack.bruteForce(ct, 'text/plain', {maxBits: 6}).then(function (r) {  // cap well below 16
+            resolve({ cracked: r.cracked });
+          });
+        })""" % PLAINTEXT_JS)
+        assert out["cracked"] is False
+
+
+@requires_browser
+def test_export_ciphertext_round_trips_through_decrypt():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => {
+          var payload = { mime: 'text/plain', bytes: new Uint8Array([72,73]) };
+          var key = [1,0,1,1];
+          var exported = QkdCrack.exportCiphertext(payload, key);
+          var parsed = JSON.parse(exported);
+          var cipherBytes = Uint8Array.from(atob(parsed.cipher), c => c.charCodeAt(0));
+          var back = QkdFile.decrypt(cipherBytes, key);
+          return { v: parsed.v, mime: parsed.mime, recovered: Array.from(back) };
+        }""")
+        assert out["v"] == 1 and out["mime"] == "text/plain"
+        assert out["recovered"] == [72, 73]
