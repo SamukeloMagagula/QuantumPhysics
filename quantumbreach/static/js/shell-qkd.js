@@ -30,7 +30,10 @@
       if (p.args[0] === "upload") {
         if (!A().promptUpload) return "alice: upload not available here";
         return A().promptUpload().then(function (f) {
-          return f ? ("alice: uploaded " + f.name + " (" + f.type + ", " + f.size + " bytes)") : "alice: upload cancelled";
+          if (!f) return "alice: upload cancelled";
+          var msg = "alice: uploaded " + f.name + " (" + f.type + ", " + f.size + " bytes)";
+          if (f.snippet) msg += ": \"" + f.snippet + "\"";
+          return msg;
         });
       }
       if (p.args[0] !== "set") return "usage: alice set --len N --sample S --file <name> | alice upload";

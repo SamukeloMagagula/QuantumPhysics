@@ -111,7 +111,10 @@
         var reader = new FileReader();
         reader.onerror = function () { settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "could not read file" }); };
         reader.onload = function () {
-          bruteForce(new Uint8Array(reader.result), f.type || "application/octet-stream", opts || {}).then(settle);
+          bruteForce(new Uint8Array(reader.result), f.type || "application/octet-stream", opts || {}).then(function (r) {
+            r.uploadedName = f.name; r.uploadedType = f.type || "application/octet-stream"; r.uploadedSize = f.size;
+            settle(r);
+          });
         };
         reader.readAsArrayBuffer(f);
       };
@@ -121,8 +124,9 @@
   }
   function formatResult(r) {
     if (r.error) return "qkd crack: " + r.error;
-    if (r.cracked) return "CRACKED in " + r.attempts + " attempts (" + (r.elapsedMs / 1000).toFixed(1) + "s) — key length " + r.keyBits.length + " bits.";
-    return "not cracked — exhausted " + r.attempts + " attempts (" + (r.elapsedMs / 1000).toFixed(1) + "s), up to " + (r.maxBits || 22) + "-bit keys.";
+    var prefix = r.uploadedName ? ("uploaded " + r.uploadedName + " (" + r.uploadedType + ", " + r.uploadedSize + " bytes) — ") : "";
+    if (r.cracked) return prefix + "CRACKED in " + r.attempts + " attempts (" + (r.elapsedMs / 1000).toFixed(1) + "s) — key length " + r.keyBits.length + " bits.";
+    return prefix + "not cracked — exhausted " + r.attempts + " attempts (" + (r.elapsedMs / 1000).toFixed(1) + "s), up to " + (r.maxBits || 22) + "-bit keys.";
   }
   window.QkdCrack = { exportCiphertext: exportCiphertext, bruteForce: bruteForce,
     crackVfsPath: crackVfsPath, crackUpload: crackUpload, formatResult: formatResult };

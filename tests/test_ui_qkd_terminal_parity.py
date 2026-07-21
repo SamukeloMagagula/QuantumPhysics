@@ -170,3 +170,19 @@ def test_prompt_upload_fires_set_payload_exactly_once(tmp_path):
         pg.wait_for_function("() => window.__uploadResult !== null", timeout=5000)
         assert pg.evaluate("() => window.__uploadResult") == "note.txt"
         assert pg.evaluate("() => window.__setPayloadCalls") == 1
+
+
+@requires_browser
+def test_alice_upload_terminal_prints_a_preview_summary():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='alice']")
+        pg.wait_for_selector("#shell-in", timeout=5000)
+        pg.once("filechooser", lambda fc: fc.set_files(files=[{"name": "diary.txt", "mimeType": "text/plain", "buffer": b"Dear diary, today was a good day for QKD."}]))
+        pg.fill("#shell-in", "alice upload"); pg.press("#shell-in", "Enter")
+        pg.wait_for_timeout(300)
+        out_text = pg.inner_text("#shell-out")
+        assert "diary.txt" in out_text
+        assert "text/plain" in out_text
+        assert "Dear diary" in out_text

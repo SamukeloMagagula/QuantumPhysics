@@ -105,3 +105,17 @@ def test_terminal_export_then_crack_round_trip():
           return PhantomVFS.readFile(PhantomShell.env.tree, abs);
         }""")
         assert '"v":1' in out_text or '"v": 1' in out_text
+
+
+@requires_browser
+def test_crack_upload_prints_file_metadata():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='alice']")
+        pg.wait_for_selector("#shell-in", timeout=5000)
+        pg.once("filechooser", lambda fc: fc.set_files(files=[{"name": "cipher.bin", "mimeType": "application/octet-stream", "buffer": b"not a real cipher, just bytes"}]))
+        pg.fill("#shell-in", "qkd crack --upload --maxbits 4"); pg.press("#shell-in", "Enter")
+        pg.wait_for_timeout(1500)
+        out_text = pg.inner_text("#shell-out")
+        assert "cipher.bin" in out_text

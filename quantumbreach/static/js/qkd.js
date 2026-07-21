@@ -95,7 +95,12 @@
           window.QkdActions.setPayloadFromBytes(f.type || "application/octet-stream", bytes, f.name || "upload");
           var preview = document.getElementById("al-preview");
           if (preview && window.QkdFile) window.QkdFile.renderInto(preview, bytes, f.type || "application/octet-stream");
-          resolve(f);
+          var snippet = "";
+          if ((f.type || "").indexOf("text/") === 0) {
+            var s = ""; for (var i = 0; i < Math.min(bytes.length, 100); i++) s += String.fromCharCode(bytes[i]);
+            snippet = s;
+          }
+          resolve({ name: f.name, type: f.type || "application/octet-stream", size: f.size, snippet: snippet });
         };
         reader.readAsArrayBuffer(f);
       });
