@@ -20,15 +20,23 @@
     var intrusion = el("div", "stage-intrusion");
     var ifill = el("div", "stage-intrusion-fill cool");
     intrusion.appendChild(ifill);
-    var logBox = el("div", "stage-log");
+    var logBox = opts.feedEl || el("div", "stage-log");
 
     root.appendChild(payload); root.appendChild(net);
-    root.appendChild(intrusion); root.appendChild(timer); root.appendChild(logBox);
+    root.appendChild(intrusion); root.appendChild(timer);
+    if (!opts.feedEl) root.appendChild(logBox);
 
     var tapCb = null;
     var handle = {
       root: root, qubitsEl: qubits, payloadEl: payload, logEl: logBox, timerEl: timer,
-      log: function (line, kind) { var d = el("div", "log-line " + (kind || "info")); d.textContent = line; logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight; },
+      log: function (line, kind) {
+        var d = el("div", "log-line " + (kind || "info")); d.textContent = line;
+        logBox.appendChild(d);
+        // Cap only log-line entries, not a feedEl's own header (e.g. #qkd-feed's <h4>).
+        var lines = logBox.querySelectorAll(".log-line");
+        while (lines.length > 200) { logBox.removeChild(lines[0]); lines = logBox.querySelectorAll(".log-line"); }
+        logBox.scrollTop = logBox.scrollHeight;
+      },
       setIntrusion: function (pct, abortLine) {
         var v = Math.max(0, Math.min(1, +pct || 0)); var line = abortLine == null ? 0.11 : abortLine;
         ifill.style.width = Math.round(v * 100) + "%";

@@ -86,6 +86,58 @@ def test_qkd_layout_has_feed_sidebar_and_collapses_narrow():
 
 
 @requires_browser
+def test_stage_logs_into_external_feed_element_when_given():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => {
+          var root = document.createElement('div'); document.body.appendChild(root);
+          var feed = document.createElement('div'); document.body.appendChild(feed);
+          var h = QuantumStage.mount(root, { feedEl: feed });
+          h.log('hello from the stage', 'info');
+          return {
+            inFeed: feed.textContent.indexOf('hello from the stage') >= 0,
+            noInternalLog: root.querySelectorAll('.stage-log').length === 0
+          };
+        }""")
+        assert out["inFeed"] is True
+        assert out["noInternalLog"] is True
+
+
+@requires_browser
+def test_stage_feed_caps_at_200_lines():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        count = pg.evaluate("""() => {
+          var root = document.createElement('div'); document.body.appendChild(root);
+          var feed = document.createElement('div'); document.body.appendChild(feed);
+          var h = QuantumStage.mount(root, { feedEl: feed });
+          for (var i = 0; i < 250; i++) h.log('line ' + i, 'info');
+          return feed.children.length;
+        }""")
+        assert count == 200
+
+
+@requires_browser
+def test_stage_feed_cap_never_removes_a_non_log_line_header():
+    # #qkd-feed (the real sidebar) has a static <h4>Live Feed</h4> header as its first
+    # child; the 200-line cap must only ever prune .log-line entries, never blindly
+    # remove logBox.firstChild (which would eventually delete the header itself).
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => {
+          var root = document.createElement('div'); document.body.appendChild(root);
+          var feed = document.createElement('div');
+          var hdr = document.createElement('h4'); hdr.textContent = 'Live Feed'; feed.appendChild(hdr);
+          document.body.appendChild(feed);
+          var h = QuantumStage.mount(root, { feedEl: feed });
+          for (var i = 0; i < 250; i++) h.log('line ' + i, 'info');
+          return { headerSurvived: feed.querySelector('h4') != null, lineCount: feed.querySelectorAll('.log-line').length };
+        }""")
+        assert out["headerSurvived"] is True
+        assert out["lineCount"] == 200
+
+
+@requires_browser
 def test_stage_reduced_motion_still_renders_endstate():
     with live_server() as base, browser_page() as pg:
         pg.emulate_media(reduced_motion="reduce")
