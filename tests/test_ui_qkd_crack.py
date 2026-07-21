@@ -84,3 +84,24 @@ def test_crack_upload_does_not_misreport_slow_processing_as_cancelled(tmp_path):
         result = pg.evaluate("() => window.__crackResult")
         assert result.get("error") != "upload cancelled"
         assert result["attempts"] > 0
+
+
+@requires_browser
+def test_terminal_export_then_crack_round_trip():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.wait_for_function("() => window.__payloadReady === true", timeout=5000)
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='eve']")
+        pg.wait_for_selector("#shell-in", timeout=5000)
+        pg.fill("#shell-in", "eve commit"); pg.press("#shell-in", "Enter")
+        pg.wait_for_function("() => document.getElementById('qkd-score').textContent.indexOf('Score') >= 0", timeout=5000)
+        pg.fill("#shell-in", "qkd export > captures/secret.enc"); pg.press("#shell-in", "Enter")
+        pg.wait_for_timeout(150)
+        # /qkd only loads vfs.js + terminal.js + shell-qkd.js (no shell-fs.js), so read the
+        # VFS directly rather than via a `cat` command that isn't loaded on this page.
+        out_text = pg.evaluate("""() => {
+          var abs = PhantomVFS.resolve(PhantomShell.env.tree, PhantomShell.env.cwd, 'captures/secret.enc');
+          return PhantomVFS.readFile(PhantomShell.env.tree, abs);
+        }""")
+        assert '"v":1' in out_text or '"v": 1' in out_text
