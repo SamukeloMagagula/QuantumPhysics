@@ -95,6 +95,7 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
 {% endblock %}
 
 {% block scripts %}
+  <script src="{{ url_for('static', filename='js/qkd-stage.js') }}"></script>
   <script src="{{ url_for('static', filename='js/qkd-multi.js') }}"></script>
   <script src="{{ url_for('static', filename='js/qkd-file.js') }}"></script>
   <script src="{{ url_for('static', filename='js/botnet.js') }}"></script>
