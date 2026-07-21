@@ -18,6 +18,9 @@ def test_solo_as_bob_plays_a_round():
         pg.wait_for_timeout(200)
         assert "Score:" in pg.inner_text("#qkd-score")
         assert pg.inner_text("#qkd-reveal").strip() != ""
+        # the network-map stage rendered the round (qubits + intrusion meter)
+        assert pg.evaluate("() => document.querySelectorAll('#qkd-stage .stage-qubits .qubit').length") > 0
+        assert pg.evaluate("() => !!document.querySelector('#qkd-stage .stage-intrusion-fill')")
         pg.screenshot(path="/tmp/phantomq-qkd-solo.png", full_page=True)
 
 

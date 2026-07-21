@@ -76,12 +76,12 @@
     var solo = document.getElementById("qkd-solo"); if (!solo) return;
     var modeSolo = document.getElementById("mode-solo"), modeMulti = document.getElementById("mode-multi");
     var multi = document.getElementById("qkd-multi");
-    var photons = document.getElementById("qkd-photons"), meter = document.getElementById("qber-fill");
-    var qtext = document.getElementById("qber-text"), info = document.getElementById("qkd-info");
+    var info = document.getElementById("qkd-info");
     var reveal = document.getElementById("qkd-reveal"), scoreEl = document.getElementById("qkd-score");
     var panels = { alice: document.getElementById("panel-alice"), bob: document.getElementById("panel-bob"), eve: document.getElementById("panel-eve") };
     var myRole = null, score = 0, peak = 0, pending = null; // pending: {n,s,p} gathered so far
     var currentPayload = null; // {mime, bytes} — the file staked on the current round
+    var stage = window.QuantumStage ? window.QuantumStage.mount(document.getElementById("qkd-stage"), {}) : null;
 
     // ---- Payload (file) loading: sample fetch or local upload ----
     function loadPayload(sel) {
@@ -92,6 +92,7 @@
           var reader = new FileReader();
           reader.onload = function () {
             currentPayload = { mime: f.type || "application/octet-stream", bytes: new Uint8Array(reader.result) };
+            if (stage) stage.setPayload(currentPayload.mime, f.name || "upload");
             resolve();
           };
           reader.readAsArrayBuffer(f);
@@ -102,7 +103,8 @@
         .then(function (m) {
           return fetch("/api/qkd/file/" + m.handle)
             .then(function (r) { return r.arrayBuffer(); })
-            .then(function (buf) { currentPayload = { mime: m.mime, bytes: new Uint8Array(buf) }; });
+            .then(function (buf) { currentPayload = { mime: m.mime, bytes: new Uint8Array(buf) };
+              if (stage) stage.setPayload(m.mime, String(sel)); });
         });
     }
     var alFile = document.getElementById("al-file"), alUpload = document.getElementById("al-upload");
@@ -128,12 +130,10 @@
     });
 
     function animate(result) {
-      photons.innerHTML = "";
-      for (var i = 0; i < Math.min(result.n, 40); i++) { var d = document.createElement("span"); d.className = "photon"; d.style.animationDelay = (i * 25) + "ms"; photons.appendChild(d); }
-      var pct = Math.round(result.sampleQBER * 100);
-      meter.style.width = Math.min(100, pct * 3) + "%";
-      meter.className = "qber-fill " + (result.sampleQBER > window.QuantumIntercept.ABORT ? "hot" : "cool");
-      qtext.textContent = "QBER: " + pct + "% (abort line 11%)";
+      if (!stage) return;
+      stage.streamQubits((result.aBases || []).map(function (b) { return { basis: b }; }), { tappable: false });
+      stage.setIntrusion(result.sampleQBER, window.QuantumIntercept.ABORT);
+      stage.log("Round resolved — intrusion " + Math.round(result.sampleQBER * 100) + "% (abort line 11%)", "info");
     }
     function postScore(s) { fetch("/api/qkd/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: Math.max(0, s) }) }).catch(function () {}); }
     // Mirror this button-driven round into QkdActions so window.QkdActions.state() reflects
@@ -149,18 +149,18 @@
         + " — QBER " + Math.round(result.sampleQBER * 100) + "%, key " + result.finalKey + " bits"
         + (decision === "abort" ? ", ABORTED." : ", KEPT.");
       info.textContent = "Pick your role above to play another round.";
-      if (currentPayload && window.QkdFile) {
+      if (currentPayload && window.QkdFile && stage) {
         var aBits = result.aKeyFinal || [];
         var ct = QkdFile.encrypt(currentPayload.bytes, aBits); // Alice encrypts with her final key
         var bobEl = document.getElementById("bob-file"), eveEl = document.getElementById("eve-file");
         if (decision === "keep") {
           var bobPt = QkdFile.decrypt(ct, result.bKeyFinal || []); // Bob decrypts with HIS key
           // clean channel => aKeyFinal === bKeyFinal => real file; Eve/noise => differ => garbles
-          if (!result.eveHit) QkdFile.renderInto(bobEl, bobPt, currentPayload.mime);
-          else QkdFile.scrambleInto(bobEl, ct);
+          if (!result.eveHit) stage.revealFile(bobEl, bobPt, currentPayload.mime, "decrypt");
+          else stage.revealFile(bobEl, ct, currentPayload.mime, "scramble");
         } else { bobEl.textContent = "(aborted — no delivery)"; }
-        if (result.fileCracked) QkdFile.renderInto(eveEl, QkdFile.decrypt(ct, aBits), currentPayload.mime);
-        else QkdFile.scrambleInto(eveEl, ct);
+        if (result.fileCracked) stage.revealFile(eveEl, QkdFile.decrypt(ct, aBits), currentPayload.mime, "decrypt");
+        else stage.revealFile(eveEl, ct, currentPayload.mime, "scramble");
       }
     }
 
