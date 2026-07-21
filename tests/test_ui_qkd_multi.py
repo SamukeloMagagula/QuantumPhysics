@@ -64,8 +64,9 @@ def test_mp_eve_has_botnet_panel():
         pg.wait_for_timeout(150)
         tiles = pg.evaluate("() => document.querySelectorAll('#qm-grid .worker').length")
         assert tiles == 40
-        # pick an intercept + commit -> advances without error
-        pg.click(".qm-ev[data-p='0.25']")
+        # tap a qubit on the stage + commit -> advances without error
+        pg.click("#qm-stage .stage-qubits .qubit:nth-child(1)")
+        pg.click('#qm-stage .tap-picker [data-basis="x"]')
         pg.click("#qm-eve-go")
         pg.wait_for_timeout(400)
 
@@ -86,3 +87,18 @@ def test_mp_reveal_renders_a_file_pane():
             "() => { var v = document.querySelector('#qm-file-view'); return v && v.textContent.indexOf('CLASSIFIED') >= 0; }",
             timeout=8000)
         assert "CLASSIFIED" in pg.inner_text("#qm-file-view")
+
+
+@requires_browser
+def test_mp_eve_taps_and_replay_render():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='eve']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-stage .stage-qubits .qubit", timeout=8000)   # Eve's tappable stream
+        pg.click("#qm-stage .stage-qubits .qubit:nth-child(1)")
+        pg.click('#qm-stage .tap-picker [data-basis="x"]')
+        pg.click("#qm-eve-go")                                                 # commit taps
+        # computer Bob auto-decides; replay renders on the stage at resolve
+        pg.wait_for_function("() => document.querySelectorAll('#qm-stage .stage-qubits .qubit').length > 0", timeout=8000)

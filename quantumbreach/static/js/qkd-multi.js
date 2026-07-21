@@ -1,5 +1,6 @@
 (function () {
   var code = null, role = null, timer = null, lastPhase = null, mounted = false, lastReveal = null;
+  var stage = null, lastReplayRound = null;
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {},
@@ -29,6 +30,7 @@
   function enter(c, r, isHost) {
     code = c; role = r; $("qm-join").hidden = true; $("qm-play").hidden = false; $("qm-mycode").textContent = c;
     $("qm-start").hidden = !isHost;
+    if (window.QuantumStage && !stage) stage = window.QuantumStage.mount($("qm-stage"), {});
     if (timer) clearInterval(timer); timer = setInterval(poll, 1500); poll();
   }
   function poll() { api("/api/qkd/game/" + code).then(render); }
@@ -40,11 +42,10 @@
     }).join("");
     $("qm-start").hidden = !(st.phase === "lobby" && $("qm-start").hidden === false);
     $("qm-scores").innerHTML = st.scores.map(function (s) { return '<span class="chip">' + s.role + ": " + s.score + "</span>"; }).join("");
-    if (st.phase === "bob_decision" && typeof st.sampleQBER === "number") {
-      var pct = Math.round(st.sampleQBER * 100); $("qm-qber").style.width = Math.min(100, pct * 3) + "%";
-      $("qm-qber").className = "qber-fill " + (st.sampleQBER > 0.11 ? "hot" : "cool");
+    if (stage && st.phase === "bob_decision" && typeof st.sampleQBER === "number") {
+      stage.setIntrusion(st.sampleQBER, 0.11);  // Bob sees the intrusion on the shared stage meter
     }
-    if (st.phase !== lastPhase) { $("qm-photons").innerHTML = ""; for (var i = 0; i < 24; i++) { var d = document.createElement("span"); d.className = "photon"; d.style.animationDelay = (i * 25) + "ms"; $("qm-photons").appendChild(d); } lastPhase = st.phase; }
+    lastPhase = st.phase;
     renderControls(st); renderStatus(st);
   }
 
@@ -65,6 +66,7 @@
       var lr = st.lastResult;
       rv.textContent = "Round " + lr.round + ": " + (lr.eveHit ? "Eve intercepted" : "clean") +
         ", QBER " + Math.round(lr.sampleQBER * 100) + "%, key " + lr.finalKey + " bits, Bob " + lr.bobDecision.toUpperCase() + ".";
+      if (stage && lr.replay && lr.round !== lastReplayRound) { lastReplayRound = lr.round; stage.playReplay(lr.replay); }
       revealFile(lr, st.yourRole);
     } else {
       var fv = $("qm-file-view"); if (fv) fv.innerHTML = ""; lastReveal = null;  // clear stale reveal on a new round
@@ -82,36 +84,25 @@
       $("qm-al-go").addEventListener("click", function () {
         act({ n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10), file: $("qm-file").value }); });
     } else if (st.phase === "eve_move") {
-      if (keepEve) return;   // panel already built on a prior poll — keep Eve's selection
-      var pIntercept = 0;
+      if (keepEve) return;   // panel already built on a prior poll — keep Eve's taps/slider
       box.innerHTML =
-        '<div class="qm-intercepts"><span class="muted">Intercept:</span>' +
-          '<button class="chip qm-ev on" data-p="0" type="button">None</button>' +
-          '<button class="chip qm-ev" data-p="0.25" type="button">Light</button>' +
-          '<button class="chip qm-ev" data-p="0.5" type="button">Heavy</button>' +
-          '<button class="chip qm-ev" data-p="1" type="button">Full</button>' +
-        '</div>' +
+        '<p class="muted">Tap qubits on the wire and pick ⊕/⊗. Wrong basis disturbs the qubit — Bob will see the error.</p>' +
         '<label>Workers <span id="qm-w-val">0</span><input id="qm-w" type="range" min="0" max="100" value="0"></label>' +
         '<div id="qm-grid" class="worker-grid"></div>' +
-        '<p class="muted"><span id="qm-rate">0</span> keys/s · ETA <span id="qm-eta">—</span> · detection +<span id="qm-detect">0</span>%</p>' +
-        '<button class="btn" id="qm-eve-go" type="button">Commit move</button>';
-      var drawPanel = function () {
-        var w = parseInt($("qm-w").value, 10) || 0;
-        $("qm-w-val").textContent = w;
-        window.PhantomBotnet.renderPanel(
-          { grid: $("qm-grid"), rate: $("qm-rate"), eta: $("qm-eta"), detect: $("qm-detect") },
-          w, 24, pIntercept);   // 24 = display-only key-length estimate (Eve can't see Alice's n)
-      };
-      box.querySelectorAll(".qm-ev").forEach(function (b) {
-        b.addEventListener("click", function () {
-          box.querySelectorAll(".qm-ev").forEach(function (x) { x.classList.remove("on"); });
-          b.classList.add("on"); pIntercept = parseFloat(b.getAttribute("data-p")); drawPanel();
-        });
-      });
-      $("qm-w").addEventListener("input", drawPanel);
+        '<p class="muted"><span id="qm-rate">0</span> keys/s · ETA <span id="qm-eta">—</span></p>' +
+        '<button class="btn" id="qm-eve-go" type="button">Commit intercept</button>';
+      // Display a fixed-length tappable stream; the server clamps/validates the real indices.
+      var states = []; for (var qi = 0; qi < 24; qi++) states.push({ basis: "?" });
+      window.__qmTaps = [];
+      if (stage) {
+        stage.streamQubits(states, { tappable: true });
+        stage.onTap(function (t) { window.__qmTaps.push({ i: t.index, basis: t.basis });
+          stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve"); });
+      }
+      $("qm-w").addEventListener("input", function () { $("qm-w-val").textContent = $("qm-w").value;
+        if (window.PhantomBotnet) window.PhantomBotnet.renderPanel({ grid: $("qm-grid"), rate: $("qm-rate"), eta: $("qm-eta") }, parseInt($("qm-w").value, 10) || 0, 24, 0); });
       $("qm-eve-go").addEventListener("click", function () {
-        act({ p: pIntercept, workers: parseInt($("qm-w").value, 10) || 0 }); });
-      drawPanel();
+        act({ taps: window.__qmTaps || [], workers: parseInt($("qm-w").value, 10) || 0 }); });
     } else if (st.phase === "bob_decision") {
       box.innerHTML = '<button class="btn" id="qm-keep" type="button">KEEP KEY</button>' +
         '<button class="btn ghost" id="qm-abort" type="button">ABORT</button>';
