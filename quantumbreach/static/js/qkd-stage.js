@@ -37,7 +37,38 @@
       setTimer: function (txt) { timer.textContent = txt; },
       onTap: function (cb) { tapCb = cb; },
       _emitTap: function (index, b) { if (tapCb) tapCb({ index: index, basis: b }); },
-      setPayload: function () {}, revealFile: function () {}, playReplay: function () {}
+      setPayload: function (mime, thumbText) {
+        payload.innerHTML = "";
+        var chip = el("div", "payload-chip");
+        chip.innerHTML = "<span class='pf'>" + ((mime || "").indexOf("image") === 0 ? "🖼" : (mime === "application/pdf" ? "📄" : "🗎")) + "</span> ";
+        chip.appendChild(document.createTextNode(thumbText || "payload"));
+        payload.appendChild(chip);
+      },
+      revealFile: function (paneEl, bytes, mime, mode) {
+        if (!paneEl || !window.QkdFile) return Promise.resolve();
+        var reduced = window.PhantomFX && window.PhantomFX.reduced && window.PhantomFX.reduced();
+        if (mode === "scramble") { window.QkdFile.scrambleInto(paneEl, bytes || null); return Promise.resolve(); }
+        paneEl.classList.add("decrypting");
+        return new Promise(function (resolve) {
+          var done = function () { paneEl.classList.remove("decrypting"); window.QkdFile.renderInto(paneEl, bytes, mime); resolve(); };
+          if (reduced) { done(); } else { setTimeout(done, 500); }
+        });
+      },
+      playReplay: function (replay, ropts) {
+        replay = replay || {};
+        var states = (replay.aBases || []).map(function (b) { return { basis: b }; });
+        handle.streamQubits(states, { tappable: false });
+        var qs = qubits.querySelectorAll(".qubit");
+        (replay.eveTaps || []).forEach(function (t) { if (qs[t.i]) qs[t.i].classList.add("grabbed"); });
+        (replay.sampleIndices || []).forEach(function (idx, k) {
+          if (qs[idx]) qs[idx].classList.add((replay.sampleErrors || [])[k] ? "err" : "ok");
+        });
+        var errs = (replay.sampleErrors || []).filter(Boolean).length;
+        var rate = (replay.sampleIndices || []).length ? errs / replay.sampleIndices.length : 0;
+        handle.setIntrusion(rate, 0.11);
+        handle.log("Replay: " + (replay.eveTaps || []).length + " qubits tapped, intrusion " + Math.round(rate * 100) + "%", "eve");
+        return Promise.resolve();
+      }
     };
 
     var taps = [];
