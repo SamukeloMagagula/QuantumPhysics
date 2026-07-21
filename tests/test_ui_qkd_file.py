@@ -82,3 +82,19 @@ def test_killing_botnet_workers_reduces_live_crack_capacity():
         assert pg.evaluate("() => PhantomBotnet.pids().length") == 2
         cracked_reduced = pg.evaluate("() => QkdActions.bobDecide('keep', " + presolved + ").result.fileCracked")
         assert cracked_reduced is False
+
+
+@requires_browser
+def test_botnet_render_panel_draws_tiles():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        n = pg.evaluate("""() => {
+          var g = document.createElement('div'), r = document.createElement('span'),
+              e = document.createElement('span'), d = document.createElement('span');
+          PhantomBotnet.renderPanel({grid:g, rate:r, eta:e, detect:d}, 7, 8, 0.5);
+          return [g.querySelectorAll('.worker').length, r.textContent.length > 0, e.textContent, d.textContent];
+        }""")
+        assert n[0] == 7            # 7 worker tiles
+        assert n[1] is True         # rate rendered
+        assert "s" in n[2] or "heat" in n[2]   # eta formatted (finite 'Ns' or heat-death)
+        assert n[3] == "50"         # detectionDelta(0.5) == 50

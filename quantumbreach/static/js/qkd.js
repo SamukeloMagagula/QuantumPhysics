@@ -190,13 +190,13 @@
     function renderBotnet() {
       var PB = window.PhantomBotnet; if (!PB || !window.QkdActions) return;
       var state = window.QkdActions.state();
-      var workers = state.eve.workers;
-      var grid = document.getElementById("ev-grid");
-      if (grid) { grid.innerHTML = ""; for (var i = 0; i < workers; i++) { var t = document.createElement("span"); t.className = "worker"; grid.appendChild(t); } }
-      var rate = document.getElementById("ev-rate"); if (rate) rate.textContent = PB.keysPerSec(workers).toLocaleString();
-      var det = document.getElementById("ev-detect"); if (det) det.textContent = PB.detectionDelta(state.eve.p);
-      var eta = document.getElementById("ev-eta");
-      if (eta) { var upperN = (pending && pending.n) || state.alice.n || 0; var e = PB.crackEta(upperN, workers); eta.textContent = (e === Infinity ? "∞ (heat death)" : e.toFixed(1) + "s"); }
+      var upperN = (pending && pending.n) || state.alice.n || 0;
+      PB.renderPanel({
+        grid: document.getElementById("ev-grid"),
+        rate: document.getElementById("ev-rate"),
+        eta: document.getElementById("ev-eta"),
+        detect: document.getElementById("ev-detect")
+      }, state.eve.workers, upperN, state.eve.p);
     }
     if (evW) evW.addEventListener("input", function () {
       if (evWVal) evWVal.textContent = evW.value;
