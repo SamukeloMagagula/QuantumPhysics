@@ -8,7 +8,7 @@ merged to `main`) and the multiplayer file-heist/botnet feature
 
 ## Summary
 
-Three additions to Quantum Intercept, all client-JS-first with the Python
+Six additions to Quantum Intercept, all client-JS-first with the Python
 surface held to the minimum the architecture actually requires:
 
 1. **Uploads everywhere.** Solo already supports uploading a personal
@@ -33,6 +33,19 @@ surface held to the minimum the architecture actually requires:
    up to a length cap, validated against the plaintext's expected shape),
    not a fake progress bar. This satisfies "upload an encrypted file and
    try to crack it," entirely client-side.
+4. **Upload preview.** Whoever uploads a file (Solo's `#al-upload`, the new
+   MP `#qm-upload`, or the terminal's `alice upload`/`qkd crack --upload`)
+   immediately sees what they picked, before it's staked/encrypted —
+   **only for the uploader**; Bob/Eve's earn-to-reveal secrecy is
+   unaffected, since nobody else's view changes.
+5. **A persistent live activity feed** on the `/qkd` page — a sidebar
+   showing a running, readable log of what's happening in the round
+   ("Alice staked secret.jpg", "Eve tapped qubit 7 in ⊗", "Bob KEEPS the
+   key", "File decrypted!"), shared by Solo and Multiplayer, replacing the
+   small in-stage log box with a proper, always-visible panel.
+6. **A `/qkd` page layout rework** to host the feed sidebar alongside the
+   stage cleanly (two-column layout; the rest of the site is unchanged —
+   this is not a repeat of the earlier site-wide HTB restructure).
 
 ## Goals
 
@@ -46,6 +59,13 @@ surface held to the minimum the architecture actually requires:
 - All new logic is JavaScript. Python is touched only where the MP upload
   path structurally requires it — and given the backend already accepts
   generic uploads, that may end up being **zero new Python code**.
+- Anyone who uploads a file sees a preview of exactly what they picked,
+  immediately, before it's encrypted — across every upload entry point
+  (Solo panel, MP panel, both terminal upload commands).
+- `/qkd` has a persistent, readable live activity feed (Solo and MP) so a
+  player (or a classroom watching one screen) can follow what's happening
+  without squinting at the small in-stage log.
+- The `/qkd` page layout accommodates the feed without cramping the stage.
 
 ## Non-Goals (this spec)
 
@@ -63,6 +83,23 @@ surface held to the minimum the architecture actually requires:
   therefore the terminal commands that call it) only exists on the client
   playing Solo; this was already a known, accepted cross-page/cross-mode
   limitation before this spec and remains one.
+- The upload preview shown to **other** players (Bob/Eve in MP) is
+  unchanged — still nothing, until they earn the reveal at resolve. Only
+  the uploader's own view gains a preview.
+- The terminal's upload preview is a **text summary** (filename, MIME,
+  size, and a short text snippet for `text/plain`) — not a rendered image
+  thumbnail inside the terminal DOM. Visual thumbnail previews are scoped
+  to the two on-page upload panels (Solo, MP), which already have a natural
+  place to render one.
+- The live feed is **not** a spectator feature — it shows only the current
+  player's own game (Solo round, or the MP game they're seated in), not
+  other users' games elsewhere on the site. No new realtime transport is
+  introduced; the feed is driven by the same client-side state changes
+  (Solo) and the existing ~1.5s HTTP poll (MP) already in place — "live"
+  means "kept up to date automatically," not push/websocket-real-time.
+- The layout rework is scoped to `/qkd` only. The rest of the site
+  (landing, dashboard, terminal, rooms, leaderboard) is unchanged — this is
+  not a repeat of the earlier site-wide restructure.
 
 ## Background
 
@@ -102,6 +139,12 @@ as-is for the export/crack tool — no terminal-core changes needed.
 | Export format | `{v:1, mime, cipher: base64}`, no declared key length | A real attacker doesn't know the key length either; the crack tool must discover it, which also makes the format usable against non-export files |
 | Crack tool scope | Standalone JS module, not wired to scoring | YAGNI; avoids entangling a practice tool with the scored game loop |
 | Language split | New logic is JS; Python touched only if structurally required | Explicit user preference; MP upload may require zero new Python since the endpoint already exists |
+| Preview visibility | **Uploader-only** — Bob/Eve's view never changes before resolve | Protects the game's core earn-to-reveal lesson; showing the raw file to everyone on upload would spoil the round before it starts |
+| Preview rendering | Reuse `QkdFile.renderInto` directly (no decrypt-animation wrapper) for the two on-page panels; a text summary line for the two terminal upload commands | One tested render path, no new renderer; terminal has no visual-thumbnail affordance today, so a text summary is the honest, low-risk scope |
+| "Live stream" meaning | A **persistent activity feed** sidebar (Solo + MP), not spectator mode or real video | Matches what the codebase can actually support today (HTTP polling, one client's own game) without new transport or discovery infrastructure |
+| Feed data source | The `QkdActions` subscriber (Solo) / the existing MP poll handler emit log lines on state transitions — **one log call site per event**, not scattered across every button handler | Consistent with QkdActions-as-source-of-truth (this spec's Architecture §1); avoids the log drifting out of sync with what the buttons/terminal actually did |
+| Feed host element | **One shared `#qkd-feed` sidebar** in `qkd.html`, passed to both the Solo and MP `QuantumStage.mount()` calls as `opts.feedEl` | Only one mode is visible at a time (existing hidden-attribute toggle); avoids two independent log panels that could show stale/wrong content |
+| Redesign scope | `/qkd` page layout only | Explicit user confirmation — not a repeat of the site-wide HTB restructure |
 
 ## Architecture
 
@@ -240,6 +283,85 @@ real upload handle (`secrets.token_hex(8)`, 16 hex chars) satisfies.
 **No Python changes anticipated** for this piece; confirmed at
 implementation time by grep before assuming so.
 
+### 5. Upload preview
+
+Applies to all four upload entry points once they exist (Solo `#al-upload`
+already ships today; MP `#qm-upload` from §4; `alice upload` and `qkd crack
+--upload` from §2/§3).
+
+- **Solo/MP panels:** a small preview pane (`#al-preview` / `#qm-preview`)
+  sits next to the upload control. On file selection — using the bytes
+  already read locally via `FileReader` for the existing upload flow, no
+  new I/O — call `QkdFile.renderInto(previewEl, bytes, mime)` directly
+  (the same low-level renderer the post-resolve reveal uses, but WITHOUT
+  the `stage.revealFile` decrypt-animation wrapper — this is an immediate
+  confirmation, not a dramatic reveal). The preview updates every time a
+  new file is picked; switching back to a bundled sample clears it.
+- **Terminal (`alice upload`, `qkd crack --upload`):** after the native
+  file picker resolves, print a one-line text summary: filename, MIME type,
+  size in bytes, and — for `text/plain` only — the first ~100 characters of
+  the decoded content as a quoted snippet. No image/PDF rendering inside
+  the terminal DOM (declared boundary; see Non-Goals).
+- This preview is **local and immediate** — it happens before any upload
+  POST (MP) or round resolution (Solo/terminal), using bytes the browser
+  already has in hand. Nothing about it changes what Bob/Eve can see.
+
+### 6. `/qkd` page layout rework
+
+The Solo (`#qkd-solo`) and Multiplayer (`#qkd-multi`) containers are
+wrapped in a shared two-column grid: the existing stage/controls/panels
+column stays as-is (left, wider), and a new `<aside id="qkd-feed">`
+sidebar sits alongside it (right). Both `#qkd-solo` and `#qkd-multi` keep
+their existing `hidden`-attribute mode-toggle (only one visible at a
+time); `#qkd-feed` is a **single shared element** outside both, always
+visible once a mode is chosen, so switching Solo↔Multiplayer doesn't
+recreate or duplicate the feed. Below the site's existing narrow-viewport
+breakpoint (matching the pattern already used for the app shell), the grid
+collapses to a single column with the feed stacked below the stage rather
+than beside it. No other page's layout changes.
+
+### 7. Live activity feed (`#qkd-feed`, shared by Solo + MP)
+
+Extends `QuantumStage.mount(root, opts)` (the shared stage module built in
+the Channel Heist work) to accept `opts.feedEl`: an external element to
+render log lines
+into, replacing the internal `.stage-log` box when provided (falls back to
+the existing internal log if `opts.feedEl` is omitted — no behavior change
+for any other caller). Both the Solo and MP `mount()` calls in `qkd.js`/
+`qkd-multi.js` pass the same `#qkd-feed` reference from §6, so there is one
+feed, one source of truth, no duplicate/independent log state.
+
+**Log call sites** (all via the existing `handle.log(line, kind)`, no new
+logging mechanism): the `QkdActions` subscriber added in Architecture §1
+logs a line on every meaningful state transition it already observes —
+`alice` phase entered with a payload (`"Alice staked <filename-or-sample>."`),
+each `eveTap` (`"Eve tapped qubit <i> in <basis>."`, already present via the
+existing `stage.onTap` wiring — kept as-is), `eveCommit`/resolve
+(`"Round resolved — intrusion <pct>%."`, already present), and the
+reveal outcome (`"Bob KEEPS/ABORTS the key."`, `"File decrypted!"` /
+`"File cracked!"` / `"Delivery failed."` depending on `lastResult`/`file`).
+This consolidates logging at the state layer instead of scattering
+`stage.log()` calls across every button handler, so the feed can never
+show something that didn't actually happen to the shared state. The feed
+is append-only across rounds within a session (not cleared by `advance()`,
+unlike the qubit lane), capped at the last ~200 lines with auto-scroll to
+the newest entry, so a full session's history is browsable without
+unbounded DOM growth.
+
+**Multiplayer's equivalent log sites:** MP has no `QkdActions` (see
+Non-Goals), so its log lines are added at the parallel points in
+`qkd-multi.js`'s existing `render()`/`renderControls()` poll handler —
+the same functions that already detect a phase change or a new
+`lastResult` each poll. Concretely: when `render()` observes the phase
+just became `"alice_setup"`→`"eve_move"` with a payload set, log
+`"Alice staked <sample/filename>."`; `playReplay` already logs each
+tapped qubit (unchanged, existing behavior from the Channel Heist work);
+when a fresh `lastResult` appears, log the decision and reveal outcome the
+same way §7's Solo side does. This mirrors the Solo log lines
+event-for-event without requiring MP to adopt `QkdActions` — the feed
+looks and behaves the same in both modes even though the two modes'
+underlying state layers stay separate, as already decided.
+
 ### Error handling / edge cases
 
 - `alice upload`/`qkd crack --upload` with no file picked: the picker
@@ -256,6 +378,18 @@ implementation time by grep before assuming so.
 - Very large `--maxbits`: no hard cap enforced beyond a sane implementation
   ceiling (documented, not silently rejected) — a user who wants to watch
   the tab churn for a long time may.
+- Preview render failure (e.g. a corrupt/truncated image the browser can't
+  decode): `QkdFile.renderInto` already falls back to a "binary payload"
+  message for unrenderable content (existing behavior) — the preview pane
+  shows that fallback rather than erroring.
+- MP upload rejected by the file store (oversized/disallowed MIME): the
+  existing `POST /api/qkd/file` error response (`{error: ...}`) is shown
+  next to the upload control, same pattern as any other MP action failure;
+  no payload is staked, Alice's setup control stays open for another try.
+- Feed overflow: once past ~200 lines, the oldest lines are dropped from
+  the DOM (not from any persisted state — the feed has no server-side
+  backing) as new ones are appended, so memory stays bounded across a long
+  session.
 
 ## Data Model Changes (SQLite)
 
@@ -281,10 +415,23 @@ mechanism already in place.
     the tool is a real search, not decorative).
   - MP upload: Alice picks "Upload file…", the file reaches Bob/Eve's
     reveal exactly as a sample would.
+  - Upload preview: picking a file in Solo/MP populates the preview pane
+    with the SAME bytes (assert rendered content matches, e.g. text
+    content or an `<img>` with a matching data URL) before any round
+    resolves; `alice upload`/`qkd crack --upload` print a summary line
+    containing the filename and size.
+  - Live feed: playing a round (Solo) produces the expected sequence of
+    feed lines (stake → taps → resolve → reveal outcome) in `#qkd-feed`;
+    switching Solo→Multiplayer→Solo does not duplicate or clear feed
+    content mid-session; the same assertions hold for an MP round via the
+    poll-driven path.
+  - Layout: `/qkd` renders the two-column grid with `#qkd-feed` present and
+    non-empty after a round; a narrow-viewport render collapses to a
+    single column (existing breakpoint pattern).
 - **Regression:** the full existing suite (engine, MP secrecy, Channel
   Heist stage, all prior QKD tests) stays green.
 
-## Sequencing (5 phases, each shippable)
+## Sequencing (8 phases, each shippable)
 
 1. **QkdActions refactor:** `eveTap`/`eveCommit`/`setPayloadFromBytes`,
    `qkd.js` becomes a subscriber. Ships with all existing Solo tests green
@@ -297,9 +444,20 @@ mechanism already in place.
    terminal commands. Ships the standalone brute-force feature.
 4. **Multiplayer upload:** `qkd-multi.js` Alice panel upload option.
    Ships upload parity between Solo and MP.
-5. **Polish:** `drive.py` screenshots (terminal-driven round, a crack
-   succeeding/failing), docs (`QKD_MULTIPLAYER.md`, terminal `help`/`man`
-   text), `docs/FOLLOWUPS.md` updates for anything deferred.
+5. **Upload preview:** the Solo/MP preview panes (§5) plus the terminal
+   text-summary output for `alice upload` and `qkd crack --upload` —
+   sequenced last among the upload work since it touches all four upload
+   entry points from phases 1–4.
+6. **`/qkd` layout rework:** the two-column grid + `#qkd-feed` host
+   element (§6), with no feed content yet — purely structural, so the next
+   phase has a stable place to render into.
+7. **Live activity feed:** `QuantumStage.mount`'s `opts.feedEl` support +
+   the consolidated log call sites in the `QkdActions` subscriber and the
+   MP poll handler (§7). Ships the feed itself.
+8. **Polish:** `drive.py` screenshots (terminal-driven round, a crack
+   succeeding/failing, the new layout with the feed populated), docs
+   (`QKD_MULTIPLAYER.md`, terminal `help`/`man` text), `docs/FOLLOWUPS.md`
+   updates for anything deferred.
 
 ## Open Questions
 
@@ -307,6 +465,10 @@ None blocking. Resolved defaults: QkdActions as the single source of truth
 for Solo; `eve tap`/`eve commit` replacing `eve intercept`; a standalone,
 unscored ciphertext crack tool with a real (not simulated) brute force;
 MP upload reusing the existing endpoint with an anticipated-zero Python
-change (to be confirmed, not assumed, during implementation). Tunable at
-implementation: the default `--maxbits` cap, the exact plausibility
-heuristics for `application/octet-stream`, and terminal help/man copy.
+change (to be confirmed, not assumed, during implementation); upload
+previews are uploader-only and text-only in the terminal; the live feed is
+a persistent activity log (not spectator mode or real video), scoped to
+`/qkd`'s own layout. Tunable at implementation: the default `--maxbits`
+cap, the exact plausibility heuristics for `application/octet-stream`,
+terminal help/man copy, the feed's line cap (~200) and exact wording, and
+the layout's narrow-viewport breakpoint value.
