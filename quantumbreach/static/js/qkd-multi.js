@@ -66,9 +66,14 @@
     if (st.phase === "alice_setup") {
       box.innerHTML = '<label>Key length <input id="qm-n" type="range" min="8" max="64" value="24"></label>' +
         '<label>Check sample <input id="qm-s" type="range" min="0" max="24" value="6"></label>' +
+        '<label>Payload <select id="qm-file">' +
+          '<option value="mission">mission.txt</option>' +
+          '<option value="codes">codes.txt</option>' +
+          '<option value="photo">photo.png</option>' +
+        '</select></label>' +
         '<button class="btn" id="qm-al-go" type="button">Send key</button>';
       $("qm-al-go").addEventListener("click", function () {
-        act({ n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10) }); });
+        act({ n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10), file: $("qm-file").value }); });
     } else if (st.phase === "eve_move") {
       [["None", 0], ["Light", 0.25], ["Heavy", 0.5], ["Full", 1]].forEach(function (o) {
         var b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = o[0];

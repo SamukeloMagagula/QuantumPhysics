@@ -1,4 +1,4 @@
-from tests.browser_utils import live_server, two_player_pages, requires_browser
+from tests.browser_utils import live_server, two_player_pages, browser_page, requires_browser
 
 
 @requires_browser
@@ -32,3 +32,19 @@ def test_two_players_play_a_multiplayer_round():
         bob.wait_for_function("() => document.getElementById('qm-reveal').textContent.indexOf('Round') !== -1", timeout=8000)
         alice.wait_for_function("() => document.getElementById('qm-reveal').textContent.indexOf('Round') !== -1", timeout=8000)
         alice.screenshot(path="/tmp/phantomq-qkd-multi.png", full_page=True)
+
+
+@requires_browser
+def test_mp_alice_has_sample_picker():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='alice']")            # create a game as Alice; Bob/Eve computer
+        pg.wait_for_selector("#qm-start", timeout=8000)
+        pg.click("#qm-start")                        # host starts -> alice_setup
+        pg.wait_for_selector("#qm-file", timeout=6000)   # Alice-setup control shows the picker
+        opts = pg.evaluate("() => Array.from(document.querySelectorAll('#qm-file option')).map(o => o.value)")
+        assert "mission" in opts and "photo" in opts
+        pg.select_option("#qm-file", "codes")
+        pg.click("#qm-al-go")                          # submit; must not error, round advances
+        pg.wait_for_timeout(400)
