@@ -48,3 +48,23 @@ def test_mp_alice_has_sample_picker():
         pg.select_option("#qm-file", "codes")
         pg.click("#qm-al-go")                          # submit; must not error, round advances
         pg.wait_for_timeout(400)
+
+
+@requires_browser
+def test_mp_eve_has_botnet_panel():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='eve']")               # create as Eve; computer Alice auto-plays
+        pg.wait_for_selector("#qm-start", timeout=8000)
+        pg.click("#qm-start")                         # host starts -> computer Alice -> eve_move
+        pg.wait_for_selector("#qm-w", timeout=8000)   # botnet slider present on Eve's turn
+        # deploy workers -> grid renders tiles
+        pg.eval_on_selector("#qm-w", "el => { el.value = 40; el.dispatchEvent(new Event('input')); }")
+        pg.wait_for_timeout(150)
+        tiles = pg.evaluate("() => document.querySelectorAll('#qm-grid .worker').length")
+        assert tiles == 40
+        # pick an intercept + commit -> advances without error
+        pg.click(".qm-ev[data-p='0.25']")
+        pg.click("#qm-eve-go")
+        pg.wait_for_timeout(400)

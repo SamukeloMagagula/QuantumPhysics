@@ -56,7 +56,11 @@
   }
 
   function renderControls(st) {
-    var box = $("qm-controls"), rv = $("qm-reveal"); box.innerHTML = ""; rv.textContent = "";
+    var box = $("qm-controls"), rv = $("qm-reveal");
+    // Preserve Eve's in-progress botnet panel across 1.5s polls (don't wipe her slider/intercept).
+    var keepEve = st.youAreUpNow && st.phase === "eve_move" && $("qm-w");
+    if (!keepEve) box.innerHTML = "";
+    rv.textContent = "";
     if (st.lastResult) {
       var lr = st.lastResult;
       rv.textContent = "Round " + lr.round + ": " + (lr.eveHit ? "Eve intercepted" : "clean") +
@@ -75,9 +79,36 @@
       $("qm-al-go").addEventListener("click", function () {
         act({ n: parseInt($("qm-n").value, 10), s: parseInt($("qm-s").value, 10), file: $("qm-file").value }); });
     } else if (st.phase === "eve_move") {
-      [["None", 0], ["Light", 0.25], ["Heavy", 0.5], ["Full", 1]].forEach(function (o) {
-        var b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = o[0];
-        b.addEventListener("click", function () { act({ p: o[1] }); }); box.appendChild(b); });
+      if (keepEve) return;   // panel already built on a prior poll — keep Eve's selection
+      var pIntercept = 0;
+      box.innerHTML =
+        '<div class="qm-intercepts"><span class="muted">Intercept:</span>' +
+          '<button class="chip qm-ev on" data-p="0" type="button">None</button>' +
+          '<button class="chip qm-ev" data-p="0.25" type="button">Light</button>' +
+          '<button class="chip qm-ev" data-p="0.5" type="button">Heavy</button>' +
+          '<button class="chip qm-ev" data-p="1" type="button">Full</button>' +
+        '</div>' +
+        '<label>Workers <span id="qm-w-val">0</span><input id="qm-w" type="range" min="0" max="100" value="0"></label>' +
+        '<div id="qm-grid" class="worker-grid"></div>' +
+        '<p class="muted"><span id="qm-rate">0</span> keys/s · ETA <span id="qm-eta">—</span> · detection +<span id="qm-detect">0</span>%</p>' +
+        '<button class="btn" id="qm-eve-go" type="button">Commit move</button>';
+      var drawPanel = function () {
+        var w = parseInt($("qm-w").value, 10) || 0;
+        $("qm-w-val").textContent = w;
+        window.PhantomBotnet.renderPanel(
+          { grid: $("qm-grid"), rate: $("qm-rate"), eta: $("qm-eta"), detect: $("qm-detect") },
+          w, 24, pIntercept);   // 24 = display-only key-length estimate (Eve can't see Alice's n)
+      };
+      box.querySelectorAll(".qm-ev").forEach(function (b) {
+        b.addEventListener("click", function () {
+          box.querySelectorAll(".qm-ev").forEach(function (x) { x.classList.remove("on"); });
+          b.classList.add("on"); pIntercept = parseFloat(b.getAttribute("data-p")); drawPanel();
+        });
+      });
+      $("qm-w").addEventListener("input", drawPanel);
+      $("qm-eve-go").addEventListener("click", function () {
+        act({ p: pIntercept, workers: parseInt($("qm-w").value, 10) || 0 }); });
+      drawPanel();
     } else if (st.phase === "bob_decision") {
       box.innerHTML = '<button class="btn" id="qm-keep" type="button">KEEP KEY</button>' +
         '<button class="btn ghost" id="qm-abort" type="button">ABORT</button>';
