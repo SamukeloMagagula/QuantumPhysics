@@ -65,3 +65,22 @@ def test_crack_upload_resolves_on_cancel_instead_of_hanging():
         })""")
         assert out["settled"] is True
         assert out["error"] in ("upload cancelled", "no file selected")
+
+
+@requires_browser
+def test_crack_upload_does_not_misreport_slow_processing_as_cancelled(tmp_path):
+    upload_path = tmp_path / "slow.bin"
+    upload_path.write_bytes(bytes((i * 37) % 256 for i in range(64)))  # 64 bytes, plausibility-neutral binary
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.evaluate("""() => {
+          window.__crackResult = null;
+          QkdCrack.crackUpload({ maxBits: 18 }).then(function (r) { window.__crackResult = r; });
+        }""")
+        pg.set_input_files("#qkd-crack-upload-input", str(upload_path))
+        # Simulate the OS dialog closing quickly (real browsers fire 'focus' right after file pick, well before bruteForce finishes)
+        pg.evaluate("() => window.dispatchEvent(new Event('focus'))")
+        pg.wait_for_function("() => window.__crackResult !== null", timeout=15000)
+        result = pg.evaluate("() => window.__crackResult")
+        assert result.get("error") != "upload cancelled"
+        assert result["attempts"] > 0

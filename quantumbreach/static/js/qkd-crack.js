@@ -89,21 +89,25 @@
     if (!_uploadInput) {
       _uploadInput = document.createElement("input");
       _uploadInput.type = "file"; _uploadInput.style.display = "none";
+      _uploadInput.id = "qkd-crack-upload-input";
       document.body.appendChild(_uploadInput);
     }
     return new Promise(function (resolve) {
       _uploadInput.value = "";
       var settled = false;
+      var pickStarted = false;
+      var CANCEL_GRACE_MS = 300; // time to let a real 'change' event arrive after window refocuses; does NOT need to cover bruteForce's own runtime — pickStarted decouples those
       function settle(result) { if (settled) return; settled = true; window.removeEventListener("focus", onFocus); resolve(result); }
       function onFocus() {
         // give the browser a beat to fire 'change' first if a file WAS picked
         setTimeout(function () {
-          if (!settled) settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "upload cancelled" });
-        }, 300);
+          if (!settled && !pickStarted) settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "upload cancelled" });
+        }, CANCEL_GRACE_MS);
       }
       _uploadInput.onchange = function () {
         var f = _uploadInput.files && _uploadInput.files[0];
         if (!f) { settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "no file selected" }); return; }
+        pickStarted = true;
         var reader = new FileReader();
         reader.onerror = function () { settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "could not read file" }); };
         reader.onload = function () {
