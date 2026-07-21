@@ -56,6 +56,10 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
     <div class="pane"><h4>Eve captured</h4><div id="eve-file" class="file-view"></div></div>
   </div>
   <div class="row"><span id="qkd-score" class="chip">Score: 0</span></div>
+  <div id="shell" class="shell qkd-embedded-shell">
+    <div id="shell-out" class="shell-out"></div>
+    <div class="shell-row"><span class="shell-prompt">$</span><input id="shell-in" class="shell-in" autocomplete="off" spellcheck="false"></div>
+  </div>
 </div>
 
 <div id="qkd-multi" class="qkd" hidden>
@@ -95,4 +99,7 @@ caught). Errors (QBER) above the {{ 11 }}% line mean an eavesdropper.</p>
   <script src="{{ url_for('static', filename='js/botnet.js') }}"></script>
   <script src="{{ url_for('static', filename='js/qkd-actions.js') }}"></script>
   <script src="{{ url_for('static', filename='js/qkd.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vfs.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/terminal.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/shell-qkd.js') }}"></script>
 {% endblock %}

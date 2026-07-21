@@ -100,9 +100,9 @@
     cat: "cat <file> — print a file",
     grep: "grep <pattern> <file> — filter lines",
     nmap: "nmap <target> — scan the quantum channel",
-    qkd: "qkd host|join <code>|start|status — control a QKD game",
-    eve: "eve intercept <0-100> | eve crack [--workers N] [--stop]",
-    alice: "alice set --len N --sample S --file <path>",
+    qkd: "qkd status | qkd export | qkd crack <path>|--upload [--maxbits N]",
+    eve: "eve tap <index> <basis +|x> | eve commit [--workers N] | eve crack [--workers N] | eve crack --stop",
+    alice: "alice set --len N --sample S --file <name> | alice upload",
     bob: "bob keep|abort — decide on the received key"
   };
 

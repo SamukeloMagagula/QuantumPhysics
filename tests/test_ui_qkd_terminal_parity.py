@@ -50,9 +50,9 @@ def test_parse_double_dash_captures_value_but_single_dash_stays_boolean():
 @requires_browser
 def test_shell_qkd_pack_calls_qkd_actions_with_parsed_values():
     # Inject a recording stub for QkdActions on the /terminal page (QkdActions itself
-    # only exists on /qkd — this is the documented cross-page limitation) so we can
-    # verify shell-qkd.js parses terminal input and calls the right QkdActions intents
-    # with the right values, end-to-end through the real PhantomShell.run().
+    # only exists on /qkd) so we can verify shell-qkd.js parses terminal input and
+    # calls the right QkdActions intents with the right values, end-to-end through
+    # the real PhantomShell.run().
     with live_server() as base, browser_page() as pg:
         pg.goto(base + "/terminal", wait_until="networkidle")
         pg.evaluate("""() => {
@@ -60,7 +60,8 @@ def test_shell_qkd_pack_calls_qkd_actions_with_parsed_values():
           window.QkdActions = {
             state: () => ({ phase: 'setup', alice: { n: 24, s: 6 }, eve: { p: 0, workers: 0 } }),
             aliceSet: (o) => window.__calls.push(['aliceSet', o]),
-            eveIntercept: (p) => window.__calls.push(['eveIntercept', p]),
+            eveTap: (i, b) => window.__calls.push(['eveTap', i, b]),
+            eveCommit: (o) => { window.__calls.push(['eveCommit', o]); return { sampleQBER: 0.1 }; },
             eveCrack: (o) => window.__calls.push(['eveCrack', o]),
             eveStopCrack: () => window.__calls.push(['eveStopCrack']),
             bobDecide: (d) => { window.__calls.push(['bobDecide', d]); return { result: { fileCracked: false, eveHit: false } }; }
@@ -69,22 +70,25 @@ def test_shell_qkd_pack_calls_qkd_actions_with_parsed_values():
 
         r1 = pg.evaluate("(async () => await PhantomShell.run('alice set --len 12 --sample 2 --file mission'))()")
         assert r1 == "alice: key set"
-        r2 = pg.evaluate("(async () => await PhantomShell.run('eve intercept 40'))()")
-        assert "40" in r2
-        r3 = pg.evaluate("(async () => await PhantomShell.run('eve crack --workers 6'))()")
-        assert "6" in r3
-        r4 = pg.evaluate("(async () => await PhantomShell.run('eve crack --stop'))()")
-        assert "stopped" in r4
-        r5 = pg.evaluate("(async () => await PhantomShell.run('bob keep'))()")
-        assert "bob: keep" in r5
+        r2 = pg.evaluate("(async () => await PhantomShell.run('eve tap 3 x'))()")
+        assert "3" in r2 and "x" in r2
+        r3 = pg.evaluate("(async () => await PhantomShell.run('eve commit --workers 6'))()")
+        assert "committed" in r3
+        r4 = pg.evaluate("(async () => await PhantomShell.run('eve crack --workers 6'))()")
+        assert "6" in r4
+        r5 = pg.evaluate("(async () => await PhantomShell.run('eve crack --stop'))()")
+        assert "stopped" in r5
+        r6 = pg.evaluate("(async () => await PhantomShell.run('bob keep'))()")
+        assert "bob: keep" in r6
 
         calls = pg.evaluate("() => window.__calls")
         assert calls[0][0] == "aliceSet"
         assert calls[0][1] == {"n": 12, "s": 2, "file": "mission"}
-        assert calls[1] == ["eveIntercept", 40]
-        assert calls[2][0] == "eveCrack" and calls[2][1] == {"workers": 6}
-        assert calls[3][0] == "eveStopCrack"
-        assert calls[4] == ["bobDecide", "keep"]
+        assert calls[1] == ["eveTap", 3, "x"]
+        assert calls[2][0] == "eveCommit" and calls[2][1] == {"workers": 6}
+        assert calls[3][0] == "eveCrack" and calls[3][1] == {"workers": 6}
+        assert calls[4][0] == "eveStopCrack"
+        assert calls[5] == ["bobDecide", "keep"]
 
 
 @requires_browser
@@ -98,6 +102,10 @@ def test_qkd_terminal_commands_guard_without_qkd_actions():
         assert out == "qkd: open the QKD page first"
         out2 = pg.evaluate("(async () => await PhantomShell.run('qkd status'))()")
         assert out2 == "qkd: open the QKD page first"
+        out3 = pg.evaluate("(async () => await PhantomShell.run('eve tap 0 x'))()")
+        assert out3 == "qkd: open the QKD page first"
+        out4 = pg.evaluate("(async () => await PhantomShell.run('alice upload'))()")
+        assert out4 == "qkd: open the QKD page first"
 
 
 @requires_browser
@@ -116,3 +124,49 @@ def test_bobdecide_uses_presolved_result_not_a_reroll():
         # Terminal-driven path (no presolved) still resolves internally without throwing.
         ok = pg.evaluate("() => { QkdActions.aliceSet({n:8,s:0}); QkdActions.eveIntercept(0); var lr = QkdActions.bobDecide('keep'); return !!(lr && lr.result && typeof lr.result.finalKey === 'number'); }")
         assert ok is True
+
+
+@requires_browser
+def test_embedded_qkd_terminal_drives_the_real_round():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.wait_for_function("() => window.__payloadReady === true", timeout=5000)
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='eve']")
+        pg.wait_for_selector("#shell-in", timeout=5000)
+        pg.fill("#shell-in", "eve tap 0 x"); pg.press("#shell-in", "Enter")
+        pg.wait_for_timeout(150)
+        pg.fill("#shell-in", "eve commit"); pg.press("#shell-in", "Enter")
+        pg.wait_for_function("() => document.getElementById('qkd-score').textContent.indexOf('Score') >= 0", timeout=5000)
+        assert pg.evaluate("() => document.querySelectorAll('#qkd-stage .qubit.grabbed').length") >= 1
+        assert pg.evaluate("() => QkdActions.state().phase") == "resolve"
+
+
+@requires_browser
+def test_prompt_upload_fires_set_payload_exactly_once(tmp_path):
+    # Task 1's review flagged: #al-upload has BOTH a standing addEventListener("change", ...)
+    # (added at setup) AND, via promptUpload(), used to set .onchange too -- both fire on the
+    # SAME "change" event, so a single file pick ran readUploadedFile (and therefore
+    # setPayloadFromBytes) TWICE. promptUpload() is the code path the new `alice upload`
+    # terminal command exercises, so this pins the fix: exactly one setPayloadFromBytes call
+    # (and one resolved file) per file pick, driven through a real simulated file chooser.
+    upload_path = tmp_path / "note.txt"
+    upload_path.write_text("HELLO PROMPT UPLOAD")
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.wait_for_function("() => window.__payloadReady === true", timeout=5000)
+        pg.click("#mode-solo")
+        pg.evaluate("""() => {
+          window.__setPayloadCalls = 0;
+          var orig = window.QkdActions.setPayloadFromBytes;
+          window.QkdActions.setPayloadFromBytes = function () {
+            window.__setPayloadCalls++;
+            return orig.apply(window.QkdActions, arguments);
+          };
+          window.__uploadResult = null;
+          window.QkdActions.promptUpload().then(function (f) { window.__uploadResult = f ? f.name : "null"; });
+        }""")
+        pg.set_input_files("#al-upload", str(upload_path))
+        pg.wait_for_function("() => window.__uploadResult !== null", timeout=5000)
+        assert pg.evaluate("() => window.__uploadResult") == "note.txt"
+        assert pg.evaluate("() => window.__setPayloadCalls") == 1

@@ -101,14 +101,23 @@
       if (alFile.value === "upload") { if (alUpload) alUpload.hidden = false; }
       else { if (alUpload) alUpload.hidden = true; window.QkdActions.aliceSet({ file: alFile.value }); }
     });
-    if (alUpload) alUpload.addEventListener("change", function () { readUploadedFile(alUpload); });
+    // ONE standing "change" listener drives every read of #al-upload (both the plain
+    // on-page file picker and the terminal's `alice upload`, wired below via
+    // pendingUploadResolve) so a single file pick never triggers readUploadedFile —
+    // and therefore setPayloadFromBytes — more than once.
+    var pendingUploadResolve = null;
+    if (alUpload) alUpload.addEventListener("change", function () {
+      readUploadedFile(alUpload).then(function (f) {
+        if (pendingUploadResolve) { var resolve = pendingUploadResolve; pendingUploadResolve = null; resolve(f); }
+      });
+    });
     // Shared, DOM-aware helper the terminal's `alice upload` command calls (shell-qkd.js
     // stays decoupled from #al-upload's concrete element id).
     window.QkdActions.promptUpload = function () {
       return new Promise(function (resolve) {
         if (!alUpload) { resolve(null); return; }
         alUpload.value = "";
-        alUpload.onchange = function () { readUploadedFile(alUpload).then(resolve); };
+        pendingUploadResolve = resolve;
         alUpload.click();
       });
     };
