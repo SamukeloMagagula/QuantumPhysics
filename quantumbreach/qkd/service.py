@@ -172,7 +172,24 @@ def _clean_action(role, action):
             return out
         if role == "eve":
             w = max(0, min(100, int(action.get("workers", 0) or 0)))
-            return {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0))), "workers": w}
+            out = {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0))), "workers": w}
+            raw = action.get("taps")
+            if isinstance(raw, list):
+                seen, taps = set(), []
+                for t in raw[:512]:
+                    if not isinstance(t, dict):
+                        continue
+                    b = t.get("basis")
+                    try:
+                        idx = int(t.get("i"))
+                    except (TypeError, ValueError):
+                        continue
+                    if b in ("+", "x") and 0 <= idx < 512 and idx not in seen:
+                        seen.add(idx); taps.append({"i": idx, "basis": b})
+                    if len(taps) >= 128:
+                        break
+                out["eveTaps"] = taps
+            return out
         return {"decision": "abort" if action.get("decision") == "abort" else "keep"}
     except (TypeError, ValueError):
         raise GameError("bad action", 400)
@@ -245,7 +262,12 @@ def advance(db, game):
                 continue  # another request already advanced this phase
         elif phase == "eve_move":
             cfg["eve"] = {"p": float(act.get("p", 0) or 0), "workers": int(act.get("workers", 0) or 0)}
-            result = resolve_round({"n": cfg["alice"]["n"], "s": cfg["alice"]["s"], "p": cfg["eve"]["p"]}, random.random)
+            if isinstance(act.get("eveTaps"), list):
+                cfg["eve"]["eveTaps"] = act["eveTaps"]
+            resolve_cfg = {"n": cfg["alice"]["n"], "s": cfg["alice"]["s"], "p": cfg["eve"]["p"]}
+            if cfg["eve"].get("eveTaps") is not None:
+                resolve_cfg["eveTaps"] = cfg["eve"]["eveTaps"]
+            result = resolve_round(resolve_cfg, random.random)
             cfg["result"] = result
             cur = db.execute(
                 "UPDATE qkd_games SET config=?, phase='bob_decision', updated_at=CURRENT_TIMESTAMP "

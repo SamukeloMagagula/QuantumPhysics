@@ -255,3 +255,22 @@ def test_mp_eve_sees_file_only_when_cracked(app):
     c.post(f"/api/qkd/game/{code}/act", json={"action": {"p": 0, "workers": 100}})
     f = (c.get(f"/api/qkd/game/{code}").get_json().get("lastResult") or {}).get("file")
     assert f["visible"] is True and f["cracked"] is True and f["sample"] == "mission"
+
+
+def test_mp_eve_taps_drive_resolution(app):
+    # Human Eve submits explicit taps; verify they land in cfg and the round resolves with them.
+    c, code = _solo_game(app, "eve")   # computer Alice auto-plays -> eve_move (human Eve)
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 6, "s": 0, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    # tap every qubit in the WRONG-ish basis to force interception; malformed entries dropped
+    taps = [{"i": i, "basis": "x"} for i in range(6)] + [{"i": 999, "basis": "z"}, {"bad": 1}]
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"taps": taps, "workers": 0}})
+    cfg = _raw_cfg(app, code)
+    assert isinstance(cfg["eve"]["eveTaps"], list)
+    assert all(t["basis"] in ("+", "x") for t in cfg["eve"]["eveTaps"])   # junk dropped
+    assert cfg["lastResult"]["eveHit"] is True                            # taps caused interception
