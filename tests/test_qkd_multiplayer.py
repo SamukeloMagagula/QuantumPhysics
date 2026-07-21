@@ -180,3 +180,46 @@ def test_double_next_at_final_round_writes_score_once(app):
         bob = next(s for s in service._seats(db, snap["id"]) if s["role"] == "bob")
     assert rows <= 1                       # never a duplicate row
     assert (rows == 1) == (bob["score"] > 0)
+
+
+# ---- multiplayer file-heist + botnet ----
+from quantumbreach.qkd.engine import resolve_round
+import random
+
+
+def _play_full_round_human_bob(app, alice_file, eve_workers, decision, eve_p=0):
+    """Seat a HUMAN Bob (computer Alice+Eve auto-advance to bob_decision), then override cfg
+    so file/workers/key/intercept are deterministic, and let Bob decide. Returns (client, code);
+    the client's cookie IS Bob's seat identity, so c.get(state) yields Bob's per-seat view.
+    eve_p seeds the resolved round's intercept (eveHit) so scoring paths are controllable."""
+    c, code = _solo_game(app, "bob")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 0, "file": alice_file}          # short key + chosen sample
+        cfg["eve"] = {"p": eve_p, "workers": eve_workers}            # intercept + N crack workers
+        cfg["result"] = resolve_round({"n": 8, "s": 0, "p": eve_p}, random.Random(1).random)
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": decision}})
+    return c, code
+
+
+def _raw_cfg(app, code):
+    with app.app_context():
+        return json.loads(service._game(get_db(), code)["config"] or "{}")
+
+
+def test_mp_eve_botnet_cracks_short_key_and_scores(app):
+    # Eve intercepts (eveHit) AND deploys 100 workers; Bob keeps anyway -> stolen + heist bonus.
+    c, code = _play_full_round_human_bob(app, "mission", eve_workers=100, decision="keep", eve_p=1)
+    lr = _raw_cfg(app, code)["lastResult"]          # raw stored form (pre per-seat rewrite)
+    assert lr["file"]["cracked"] is True            # 100 workers crack an <=8-bit key
+    assert lr["file"]["sample"] == "mission"
+    assert lr["perRole"]["eve"] >= 20               # Eve banked the heist bonus on a KEEP
+
+
+def test_mp_no_workers_no_crack(app):
+    c, code = _play_full_round_human_bob(app, "mission", eve_workers=0, decision="keep", eve_p=1)
+    assert _raw_cfg(app, code)["lastResult"]["file"]["cracked"] is False

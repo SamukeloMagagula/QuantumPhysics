@@ -3,6 +3,7 @@ import random
 import secrets
 
 from .engine import resolve_round, score_round, computer_strategy
+from . import botnet, files
 from ..progress.service import _award_badge
 
 ROLES = ("alice", "bob", "eve")
@@ -254,6 +255,14 @@ def _resolve_scoring(db, g, cfg, decision):
         db.commit()
         return  # another request already resolved this round
     result = cfg["result"]
+    eve_workers = int((cfg.get("eve") or {}).get("workers", 0) or 0)
+    final_key = int(result.get("finalKey") or 0)
+    file_cracked = eve_workers > 0 and botnet.crackable_within(final_key, eve_workers, botnet.ROUND_WINDOW)
+    result["fileCracked"] = file_cracked   # engine.score_round adds HEIST_BONUS on KEEP when set
+    _sample = (cfg.get("alice") or {}).get("file") or "mission"
+    _mime = files.SAMPLES.get(_sample, {}).get("mime")
+    if _mime is None:
+        _sample = None  # unknown/stray handle -> no payload
     per_role = {}
     for role in ROLES:
         sc = score_round(role, result, decision)
@@ -263,6 +272,7 @@ def _resolve_scoring(db, g, cfg, decision):
         "eveHit": result["eveHit"], "sampleQBER": result["sampleQBER"], "finalKey": result["finalKey"],
         "stolen": result["stolen"], "sifted": result["sifted"], "bobDecision": decision,
         "aliceConfig": cfg["alice"], "eveConfig": cfg["eve"], "perRole": per_role, "round": g["round"],
+        "file": {"sample": _sample, "mime": _mime, "cracked": file_cracked},
     }
     _set_config(db, gid, cfg)
     db.commit()
