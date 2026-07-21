@@ -71,3 +71,14 @@ def test_stage_reveal_and_replay():
         assert out["paneText"] is True
         assert out["payload"] is True
         assert out["replayQubits"] == 4
+
+
+@requires_browser
+def test_stage_reduced_motion_still_renders_endstate():
+    with live_server() as base, browser_page() as pg:
+        pg.emulate_media(reduced_motion="reduce")
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        ok = pg.evaluate("""() => { var r=document.createElement('div'); document.body.appendChild(r);
+          var h=QuantumStage.mount(r,{}); h.streamQubits([{basis:'+'},{basis:'x'}],{tappable:false});
+          return r.querySelectorAll('.qubit').length; }""")
+        assert ok == 2

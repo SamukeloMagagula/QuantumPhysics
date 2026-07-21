@@ -46,7 +46,8 @@
       },
       revealFile: function (paneEl, bytes, mime, mode) {
         if (!paneEl || !window.QkdFile) return Promise.resolve();
-        var reduced = window.PhantomFX && window.PhantomFX.reduced && window.PhantomFX.reduced();
+        var reduced = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+          || (window.PhantomFX && window.PhantomFX.isOff && window.PhantomFX.isOff());
         if (mode === "scramble") { window.QkdFile.scrambleInto(paneEl, bytes || null); return Promise.resolve(); }
         paneEl.classList.add("decrypting");
         return new Promise(function (resolve) {
