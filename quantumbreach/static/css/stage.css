@@ -30,3 +30,5 @@
 .qubit.ok { background: #0f8 !important; }
 .decrypting { filter: blur(4px); opacity: .6; transition: filter .5s, opacity .5s; }
 @media (prefers-reduced-motion: reduce) { .qubit { transition: none !important; animation: none !important; } }
+.preview-pane { margin-top: .4rem; min-height: 1.5rem; }
+.preview-pane:empty { display: none; }

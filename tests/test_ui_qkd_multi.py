@@ -120,3 +120,19 @@ def test_mp_alice_can_upload_a_file():
         pg.wait_for_function(
             "() => { var v = document.querySelector('#qm-file-view'); return v && v.textContent.indexOf('HELLO MP UPLOAD') >= 0; }",
             timeout=8000)
+
+
+@requires_browser
+def test_mp_upload_preview_shows_immediately():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-multi")
+        pg.click("[data-create='alice']")
+        pg.wait_for_selector("#qm-start", timeout=8000); pg.click("#qm-start")
+        pg.wait_for_selector("#qm-file", timeout=8000)
+        pg.select_option("#qm-file", "upload")
+        pg.wait_for_selector("#qm-upload:not([hidden])", timeout=4000)
+        pg.set_input_files("#qm-upload", files=[{"name": "note.txt", "mimeType": "text/plain", "buffer": b"MP PREVIEW"}])
+        pg.wait_for_function(
+            "() => { var el = document.getElementById('qm-preview'); return el && el.textContent.indexOf('MP PREVIEW') >= 0; }",
+            timeout=4000)

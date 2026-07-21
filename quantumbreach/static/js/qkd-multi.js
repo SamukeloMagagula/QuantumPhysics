@@ -82,16 +82,23 @@
           '<option value="upload">upload a file…</option>' +
         '</select></label>' +
         '<input id="qm-upload" type="file" hidden>' +
+        '<div id="qm-preview" class="file-view preview-pane"></div>' +
         '<button class="btn" id="qm-al-go" type="button">Send key</button>';
       var qmUploadHandle = null, qmUploadMime = null;
       $("qm-file").addEventListener("change", function () {
-        var upl = $("qm-upload");
+        var upl = $("qm-upload"), pv = $("qm-preview");
         if ($("qm-file").value === "upload") { upl.hidden = false; }
-        else { upl.hidden = true; qmUploadHandle = null; qmUploadMime = null; }
+        else { upl.hidden = true; qmUploadHandle = null; qmUploadMime = null; if (pv) pv.innerHTML = ""; }
       });
       $("qm-upload").addEventListener("change", function () {
         var f = $("qm-upload").files && $("qm-upload").files[0];
         if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          var pv = $("qm-preview");
+          if (pv && window.QkdFile) window.QkdFile.renderInto(pv, new Uint8Array(reader.result), f.type || "application/octet-stream");
+        };
+        reader.readAsArrayBuffer(f);
         var fd = new FormData(); fd.append("file", f);
         fetch("/api/qkd/file", { method: "POST", body: fd })
           .then(function (r) { return r.json(); })

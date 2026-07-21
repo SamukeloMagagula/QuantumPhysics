@@ -91,7 +91,10 @@
         if (!f) { resolve(null); return; }
         var reader = new FileReader();
         reader.onload = function () {
-          window.QkdActions.setPayloadFromBytes(f.type || "application/octet-stream", new Uint8Array(reader.result), f.name || "upload");
+          var bytes = new Uint8Array(reader.result);
+          window.QkdActions.setPayloadFromBytes(f.type || "application/octet-stream", bytes, f.name || "upload");
+          var preview = document.getElementById("al-preview");
+          if (preview && window.QkdFile) window.QkdFile.renderInto(preview, bytes, f.type || "application/octet-stream");
           resolve(f);
         };
         reader.readAsArrayBuffer(f);
@@ -99,7 +102,11 @@
     }
     if (alFile) alFile.addEventListener("change", function () {
       if (alFile.value === "upload") { if (alUpload) alUpload.hidden = false; }
-      else { if (alUpload) alUpload.hidden = true; window.QkdActions.aliceSet({ file: alFile.value }); }
+      else {
+        if (alUpload) alUpload.hidden = true;
+        var preview = document.getElementById("al-preview"); if (preview) preview.innerHTML = "";
+        window.QkdActions.aliceSet({ file: alFile.value });
+      }
     });
     // ONE standing "change" listener drives every read of #al-upload (both the plain
     // on-page file picker and the terminal's `alice upload`, wired below via

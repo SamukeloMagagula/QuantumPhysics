@@ -74,3 +74,17 @@ def test_qkd_actions_pendingresult_and_mode_are_explicit():
         assert out["after"] == "bob"
         assert out["hasPending"] is True
         assert out["mode"] == "tap"
+
+
+@requires_browser
+def test_solo_upload_preview_shows_immediately():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.click(".role[data-role='alice']")
+        pg.wait_for_selector("#al-file", timeout=5000)
+        pg.select_option("#al-file", "upload")
+        pg.set_input_files("#al-upload", files=[{"name": "hello.txt", "mimeType": "text/plain", "buffer": b"PREVIEW ME"}])
+        pg.wait_for_function(
+            "() => { var el = document.getElementById('al-preview'); return el && el.textContent.indexOf('PREVIEW ME') >= 0; }",
+            timeout=4000)
