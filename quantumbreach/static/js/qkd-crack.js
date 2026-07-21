@@ -93,15 +93,25 @@
     }
     return new Promise(function (resolve) {
       _uploadInput.value = "";
+      var settled = false;
+      function settle(result) { if (settled) return; settled = true; window.removeEventListener("focus", onFocus); resolve(result); }
+      function onFocus() {
+        // give the browser a beat to fire 'change' first if a file WAS picked
+        setTimeout(function () {
+          if (!settled) settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "upload cancelled" });
+        }, 300);
+      }
       _uploadInput.onchange = function () {
         var f = _uploadInput.files && _uploadInput.files[0];
-        if (!f) { resolve({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "no file selected" }); return; }
+        if (!f) { settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "no file selected" }); return; }
         var reader = new FileReader();
+        reader.onerror = function () { settle({ cracked: false, keyBits: null, attempts: 0, elapsedMs: 0, error: "could not read file" }); };
         reader.onload = function () {
-          bruteForce(new Uint8Array(reader.result), f.type || "application/octet-stream", opts || {}).then(resolve);
+          bruteForce(new Uint8Array(reader.result), f.type || "application/octet-stream", opts || {}).then(settle);
         };
         reader.readAsArrayBuffer(f);
       };
+      window.addEventListener("focus", onFocus);
       _uploadInput.click();
     });
   }

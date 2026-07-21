@@ -51,3 +51,17 @@ def test_export_ciphertext_round_trips_through_decrypt():
         }""")
         assert out["v"] == 1 and out["mime"] == "text/plain"
         assert out["recovered"] == [72, 73]
+
+
+@requires_browser
+def test_crack_upload_resolves_on_cancel_instead_of_hanging():
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        out = pg.evaluate("""() => new Promise((resolve) => {
+          var p = QkdCrack.crackUpload({});
+          p.then(function (r) { resolve({ settled: true, error: r.error }); });
+          // force window focus to simulate the dialog closing without a pick
+          setTimeout(function () { window.dispatchEvent(new Event('focus')); }, 50);
+        })""")
+        assert out["settled"] is True
+        assert out["error"] in ("upload cancelled", "no file selected")
