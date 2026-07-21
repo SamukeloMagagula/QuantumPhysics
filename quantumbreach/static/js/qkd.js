@@ -12,12 +12,23 @@
     var n = Math.max(1, config.n | 0);
     var p = Math.min(1, Math.max(0, +config.p || 0));
     var s = Math.max(0, config.s | 0);
+    var taps = null;
+    if (config.eveTaps != null) {
+      taps = {};
+      for (var t = 0; t < config.eveTaps.length; t++) {
+        var et = config.eveTaps[t];
+        if (et && (et.basis === "+" || et.basis === "x")) taps[et.i | 0] = et.basis;
+      }
+    }
     var aBits = [], aBases = [], bBases = [], bBits = [], intercepted = [], eBases = [];
     for (var i = 0; i < n; i++) {
       var d0 = draw(rng), d1 = draw(rng), d2 = draw(rng), d3 = draw(rng), d4 = draw(rng), d5 = draw(rng), d6 = draw(rng);
       var aBit = bit(d0), aBasis = basis(d1);
-      var interc = d2 < p, chBit, chBasis, eBasis = "";
-      if (interc) { eBasis = basis(d3); var eBit = (eBasis === aBasis) ? aBit : bit(d4); chBit = eBit; chBasis = eBasis; }
+      var interc, eBasis;
+      if (taps !== null) { interc = Object.prototype.hasOwnProperty.call(taps, i); eBasis = interc ? taps[i] : ""; }
+      else { interc = d2 < p; eBasis = interc ? basis(d3) : ""; }
+      var chBit, chBasis;
+      if (interc) { var eBit = (eBasis === aBasis) ? aBit : bit(d4); chBit = eBit; chBasis = eBasis; }
       else { chBit = aBit; chBasis = aBasis; }
       var bBasis = basis(d5);
       var bBit = (bBasis === chBasis) ? chBit : bit(d6);
@@ -33,9 +44,13 @@
     for (var k = 0; k < n; k++) { if (intercepted[k]) { eveHit = true; break; } }
     var stolen = 0;
     for (var j = sampleSize; j < m; j++) { var pos = sifted.positions[j]; if (intercepted[pos] && eBases[pos] === aBases[pos]) stolen++; }
+    var sampleIdx = sifted.positions.slice(0, sampleSize);
+    var sampleErrors = [];
+    for (var q = 0; q < sampleSize; q++) { var pp = sifted.positions[q]; sampleErrors.push(aBits[pp] !== bBits[pp]); }
     return { n: n, p: p, sifted: m, sampleSize: sampleSize, sampleQBER: sampleQBER, finalKey: finalKey,
              stolen: stolen, eveHit: eveHit, intercepted: intercepted, aBases: aBases, bBases: bBases,
-             aKeyFinal: sifted.aKey.slice(sampleSize), bKeyFinal: sifted.bKey.slice(sampleSize) };
+             aKeyFinal: sifted.aKey.slice(sampleSize), bKeyFinal: sifted.bKey.slice(sampleSize),
+             sampleIndices: sampleIdx, sampleErrors: sampleErrors };
   }
 
   function scoreRound(role, result, decision) {

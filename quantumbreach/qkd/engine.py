@@ -29,17 +29,31 @@ def resolve_round(config, rng=None):
     n = max(1, int(config.get("n", 0) or 0))
     p = min(1.0, max(0.0, float(config.get("p", 0) or 0)))
     s = max(0, int(config.get("s", 0) or 0))
+    tap_list = config.get("eveTaps")
+    taps = None
+    if tap_list is not None:
+        taps = {}
+        for t in tap_list:
+            try:
+                b = t.get("basis")
+                if b in ("+", "x"):
+                    taps[int(t.get("i"))] = b
+            except (TypeError, ValueError, AttributeError):
+                continue
     a_bits, a_bases, b_bases, b_bits, intercepted, e_bases = [], [], [], [], [], []
-    for _ in range(n):
+    for i in range(n):
         d0, d1, d2, d3, d4, d5, d6 = (_draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng), _draw(rng))
         a_bit, a_basis = _bit(d0), _basis(d1)
-        interc = d2 < p
+        if taps is not None:
+            interc = i in taps
+            e_basis = taps[i] if interc else ""
+        else:
+            interc = d2 < p
+            e_basis = _basis(d3) if interc else ""
         if interc:
-            e_basis = _basis(d3)
             e_bit = a_bit if e_basis == a_basis else _bit(d4)
             ch_bit, ch_basis = e_bit, e_basis
         else:
-            e_basis = ""
             ch_bit, ch_basis = a_bit, a_basis
         b_basis = _basis(d5)
         b_bit = ch_bit if b_basis == ch_basis else _bit(d6)
@@ -55,7 +69,10 @@ def resolve_round(config, rng=None):
     eve_hit = any(intercepted)
     stolen = sum(1 for i in positions[sample_size:] if intercepted[i] and e_bases[i] == a_bases[i])
     return {"n": n, "p": p, "sifted": m, "sampleSize": sample_size, "sampleQBER": sample_qber,
-            "finalKey": final_key, "stolen": stolen, "eveHit": eve_hit}
+            "finalKey": final_key, "stolen": stolen, "eveHit": eve_hit,
+            "aBases": a_bases, "bBases": b_bases, "intercepted": intercepted,
+            "sampleIndices": sample,
+            "sampleErrors": [a_bits[i] != b_bits[i] for i in sample]}
 
 
 def score_round(role, result, decision):

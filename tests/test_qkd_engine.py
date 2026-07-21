@@ -51,3 +51,29 @@ def test_eve_full_file_heist_bonus():
     assert s["delta"] == 3 + 20  # stolen bits + heist bonus
     result2 = dict(result); result2["fileCracked"] = False
     assert engine.score_round("eve", result2, "keep")["delta"] == 3
+
+
+def test_eve_taps_right_basis_reads_clean_no_added_error():
+    # rng always 0 -> aBit=0, aBasis='+', bBasis='+'. Eve taps photon 0 in '+' (matches Alice)
+    # -> clean read/resend -> no error introduced at the sampled bit.
+    r = engine.resolve_round({"n": 1, "s": 1, "eveTaps": [{"i": 0, "basis": "+"}]}, lambda: 0.0)
+    assert r["intercepted"] == [True]
+    assert r["eveHit"] is True
+    assert r["sampleQBER"] == 0.0
+
+
+def test_eve_taps_wrong_basis_can_disturb():
+    # aBit=0,aBasis='+'; Eve taps '+... no, taps 'x' (wrong): eBit=_bit(d4=0.9)=1 in 'x';
+    # bBasis=_basis(d5=0.0)='+' (!= 'x') -> bBit=_bit(d6=0.9)=1; aBit 0 vs 1 -> sampled mismatch.
+    seq = iter([0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.9])
+    r = engine.resolve_round({"n": 1, "s": 1, "eveTaps": [{"i": 0, "basis": "x"}]}, lambda: next(seq))
+    assert r["intercepted"] == [True]
+    assert r["aBases"] == ["+"] and r["bBases"] == ["+"]
+    assert r["sampleQBER"] == 1.0
+    assert r["sampleErrors"] == [True]
+
+
+def test_no_eve_taps_uses_random_p_unchanged():
+    r = engine.resolve_round({"n": 4, "s": 0, "p": 0.0}, lambda: 0.99)  # p=0 -> never intercept
+    assert r["eveHit"] is False and r["intercepted"] == [False, False, False, False]
+    assert "aBases" in r and len(r["aBases"]) == 4

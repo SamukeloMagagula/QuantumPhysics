@@ -45,3 +45,23 @@ def test_scoring_table():
         assert pg.evaluate("window.QuantumIntercept.scoreRound('alice', {eveHit:false, stolen:0, finalKey:5}, 'keep')") == {"delta": 5, "youWon": True}
         # Clean + ABORT -> false alarm, nobody scores.
         assert pg.evaluate("window.QuantumIntercept.scoreRound('bob', {eveHit:false, stolen:0, finalKey:5}, 'abort')") == {"delta": 0, "youWon": False}
+
+
+@requires_browser
+def test_resolver_eve_taps_parity():
+    from quantumbreach.qkd.engine import resolve_round
+    vec = [0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.9,   # photon 0
+           0.9, 0.9, 0.0, 0.0, 0.0, 0.9, 0.0]   # photon 1
+    it = iter(vec)
+    py = resolve_round({"n": 2, "s": 1, "eveTaps": [{"i": 0, "basis": "x"}]}, lambda: next(it))
+    with live_server() as base, browser_page() as pg:
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        js = """(v) => { let i=0; const rng=()=>v[i++];
+          const r = window.QuantumIntercept.resolveRound({n:2,s:1,eveTaps:[{i:0,basis:'x'}]}, rng);
+          return [r.sifted, r.sampleQBER, r.finalKey, r.stolen, r.eveHit, r.aBases.join(''), r.bBases.join(''), JSON.stringify(r.intercepted)]; }"""
+        j = pg.evaluate(js, vec)
+    import json
+    assert j[0] == py["sifted"] and j[1] == py["sampleQBER"] and j[2] == py["finalKey"]
+    assert j[3] == py["stolen"] and bool(j[4]) == py["eveHit"]
+    assert j[5] == "".join(py["aBases"]) and j[6] == "".join(py["bBases"])
+    assert j[7] == json.dumps(py["intercepted"], separators=(",", ":"))
