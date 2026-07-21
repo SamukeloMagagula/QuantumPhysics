@@ -34,5 +34,21 @@ decrypt in the clear, everyone else sees scrambled bytes.
 
 The reveal is **server-authoritative**: the server decides per seat who earned the file and
 sends the real sample only to that seat — no key material or another player's payload ever
-leaks over the wire. (Multiplayer ships bundled samples only; Solo also allows a personal
-upload.)
+leaks over the wire.
+
+## Uploads, the embedded terminal, and the live feed
+
+**Alice can now upload her own file** in multiplayer too — not just the bundled samples —
+picking "upload a file…" from the payload dropdown, the same generic `POST /api/qkd/file`
+endpoint Solo already used. The uploader sees an immediate preview of what they picked (never
+shown to Bob/Eve before the round resolves).
+
+`/qkd` itself now embeds a small terminal (the same PhantomShell engine `/terminal` uses), so
+the whole Solo heist can be played entirely by typing: `alice set --len N --sample S`/`alice
+upload`, `eve tap <index> <basis>`/`eve commit [--workers N]`, `bob keep|abort`. A standalone
+`qkd export`/`qkd crack <path>|--upload [--maxbits N]` ciphertext tool lives alongside it — a
+real brute-force key search (not a scripted animation), independent of the round in progress.
+
+A persistent **live activity feed** sidebar on `/qkd` narrates the round as it happens (Alice
+staking a file, Eve's taps, resolution, Bob's decision) for both Solo and multiplayer — it's an
+activity log, not a spectator/video feed.

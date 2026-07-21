@@ -146,6 +146,21 @@ def drive(base, out):
         assert "CLASSIFIED" in bob_file_text, "Bob's pane did not decrypt the clean-channel file"
         pg.screenshot(path=os.path.join(out, "7b-qkd-file-reveal.png"), full_page=True)
 
+        # Embedded terminal on /qkd: play a round entirely by typing, and confirm the
+        # live feed sidebar narrated it (Tasks 2/8/9/10 of the uploads+terminal plan).
+        pg.goto(base + "/qkd", wait_until="networkidle")
+        pg.click("#mode-solo")
+        pg.click('.role[data-role="eve"]')
+        pg.wait_for_selector("#shell-in", timeout=5000)
+        pg.fill("#shell-in", "eve tap 0 x"); pg.press("#shell-in", "Enter")
+        pg.wait_for_timeout(150)
+        pg.fill("#shell-in", "eve commit"); pg.press("#shell-in", "Enter")
+        pg.wait_for_function("() => document.getElementById('qkd-score').textContent.indexOf('Score') >= 0", timeout=5000)
+        feed_lines = pg.evaluate("() => document.getElementById('qkd-feed').children.length")
+        print("[qkd] embedded terminal played a round | feed lines:", feed_lines)
+        assert feed_lines and feed_lines > 1, "the live feed sidebar did not narrate the terminal-driven round"
+        pg.screenshot(path=os.path.join(out, "10-qkd-terminal-and-feed.png"), full_page=True)
+
         # v3 parity check -- the SAME QkdActions intent functions the terminal's
         # `shell-qkd` commands call (qkd/alice/eve/bob) drive this round too, confirming
         # buttons and terminal share one state object (Task 12). QkdActions.bobDecide()
