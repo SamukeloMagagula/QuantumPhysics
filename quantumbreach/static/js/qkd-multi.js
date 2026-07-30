@@ -120,25 +120,69 @@
         if ($("qm-file").value === "upload" && qmUploadMime) action.fileMime = qmUploadMime;
         act(action); });
     } else if (st.phase === "eve_move") {
-      if (keepEve) return;   // panel already built on a prior poll — keep Eve's taps/slider
+      if (keepEve) return;   // panel already built on a prior poll — keep Eve's method/taps/slider
+      var curMethod = "tap";
       box.innerHTML =
-        '<p class="muted">Tap qubits on the wire and pick ⊕/⊗. Wrong basis disturbs the qubit — Bob will see the error.</p>' +
-        '<label>Workers <span id="qm-w-val">0</span><input id="qm-w" type="range" min="0" max="100" value="0"></label>' +
-        '<div id="qm-grid" class="worker-grid"></div>' +
-        '<p class="muted"><span id="qm-rate">0</span> keys/s · ETA <span id="qm-eta">—</span></p>' +
-        '<button class="btn" id="qm-eve-go" type="button">Commit intercept</button>';
+        '<p class="muted">Pick how you try to get in this round.</p>' +
+        '<div class="qkd-roles">' +
+          '<button class="chip on" type="button" data-method="tap">Tap</button>' +
+          '<button class="chip" type="button" data-method="spoof">Spoof Bob</button>' +
+          '<button class="chip" type="button" data-method="bruteforce">Brute-force</button>' +
+        '</div>' +
+        '<div id="qm-method-body"></div>' +
+        '<button class="btn" id="qm-eve-go" type="button">Commit</button>';
+      window.__qmTaps = [];
+      window.__qmSpoof = { start: 0, len: 4, basis: "+" };
       // Display a fixed-length tappable stream; the server clamps/validates the real indices.
       var states = []; for (var qi = 0; qi < 24; qi++) states.push({ basis: "?" });
-      window.__qmTaps = [];
-      if (stage) {
-        stage.streamQubits(states, { tappable: true });
-        stage.onTap(function (t) { window.__qmTaps.push({ i: t.index, basis: t.basis });
-          stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve"); });
+      function renderMethodBody() {
+        var body = $("qm-method-body");
+        if (curMethod === "tap") {
+          body.innerHTML = '<p class="muted">Tap qubits on the wire and pick ⊕/⊗. Wrong basis disturbs the qubit — Bob (and Alice) will see the error.</p>';
+          if (stage) {
+            stage.streamQubits(states, { tappable: true });
+            stage.onTap(function (t) { window.__qmTaps.push({ i: t.index, basis: t.basis });
+              stage.log("Eve taps qubit " + t.index + " in " + (t.basis === "x" ? "⊗" : "⊕"), "eve"); });
+          }
+        } else if (curMethod === "spoof") {
+          body.innerHTML =
+            '<p class="muted">Impersonate Bob\'s receiver for a stretch of the stream — one guessed basis across the whole window.</p>' +
+            '<label>Window start <input id="qm-spoof-start" type="range" min="0" max="23" value="0"></label>' +
+            '<label>Window length <input id="qm-spoof-len" type="range" min="1" max="24" value="4"></label>' +
+            '<label>Basis ' +
+              '<select id="qm-spoof-basis"><option value="+">⊕</option><option value="x">⊗</option></select>' +
+            '</label>';
+          if (stage) stage.streamQubits(states, { tappable: false });
+          $("qm-spoof-start").addEventListener("input", function () { window.__qmSpoof.start = parseInt(this.value, 10) || 0; });
+          $("qm-spoof-len").addEventListener("input", function () { window.__qmSpoof.len = parseInt(this.value, 10) || 1; });
+          $("qm-spoof-basis").addEventListener("change", function () { window.__qmSpoof.basis = this.value; });
+        } else {
+          body.innerHTML =
+            '<p class="muted">No qubit interception — a quiet attempt to crack the sifted key after the fact.</p>' +
+            '<label>Workers <span id="qm-w-val">0</span><input id="qm-w" type="range" min="0" max="100" value="0"></label>' +
+            '<div id="qm-grid" class="worker-grid"></div>' +
+            '<p class="muted"><span id="qm-rate">0</span> keys/s · ETA <span id="qm-eta">—</span></p>';
+          if (stage) stage.streamQubits(states, { tappable: false });
+          $("qm-w").addEventListener("input", function () { $("qm-w-val").textContent = $("qm-w").value;
+            if (window.PhantomBotnet) window.PhantomBotnet.renderPanel({ grid: $("qm-grid"), rate: $("qm-rate"), eta: $("qm-eta") }, parseInt($("qm-w").value, 10) || 0, 24, 0); });
+        }
       }
-      $("qm-w").addEventListener("input", function () { $("qm-w-val").textContent = $("qm-w").value;
-        if (window.PhantomBotnet) window.PhantomBotnet.renderPanel({ grid: $("qm-grid"), rate: $("qm-rate"), eta: $("qm-eta") }, parseInt($("qm-w").value, 10) || 0, 24, 0); });
+      renderMethodBody();
+      box.querySelectorAll("[data-method]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          curMethod = b.getAttribute("data-method");
+          box.querySelectorAll("[data-method]").forEach(function (o) { o.classList.remove("on"); });
+          b.classList.add("on");
+          renderMethodBody();
+        });
+      });
       $("qm-eve-go").addEventListener("click", function () {
-        act({ taps: window.__qmTaps || [], workers: parseInt($("qm-w").value, 10) || 0 }); });
+        var workers = curMethod === "bruteforce" && $("qm-w") ? (parseInt($("qm-w").value, 10) || 0) : 0;
+        var action = { method: curMethod, workers: workers };
+        if (curMethod === "tap") action.taps = window.__qmTaps || [];
+        if (curMethod === "spoof") { action.start = window.__qmSpoof.start; action.len = window.__qmSpoof.len; action.basis = window.__qmSpoof.basis; }
+        act(action);
+      });
     } else if (st.phase === "bob_decision") {
       box.innerHTML = '<button class="btn" id="qm-keep" type="button">KEEP KEY</button>' +
         '<button class="btn ghost" id="qm-abort" type="button">ABORT</button>';
