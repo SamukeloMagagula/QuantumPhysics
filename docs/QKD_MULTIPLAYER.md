@@ -16,6 +16,30 @@ The replay is **server-authoritative and secrecy-safe**: only public BB84 info (
 
 Notes: same-network only (no accounts, no internet server). If a player stalls, the computer takes their turn after a minute so the game never freezes.
 
+## Hidden roles, Eve's methods, and the accusation vote
+
+Multiplayer is now played like a hidden-role social-deduction game layered on real BB84:
+every seat is assigned a random **codename** (e.g. `Node-Cyan`) when the game is created. You
+always see your own true role, but every other seat shows only its codename and whether it has
+acted — not who's Alice, Bob, or Eve — until the final reveal.
+
+Each round, Eve picks **one** of three methods instead of always tapping:
+- **Tap** — the original per-qubit tap + basis choice; direct, and shows up as scattered errors
+  in the sample.
+- **Spoof Bob** — pick one contiguous window of qubits and a single guessed basis across the
+  whole window (impersonating Bob's receiver for a stretch of the stream); shows up as
+  **clustered** errors instead of scattered ones.
+- **Brute-force** — the botnet crack, with zero qubit interception at all (no QBER impact) —
+  quietest, but least reliable.
+
+Both Alice and Bob (never Eve) see each round's sample QBER and its error shape
+(`none`/`clustered`/`scattered`) as evidence — Eve never sees it before the reveal.
+
+After round 3, the game enters an **accusation** phase: Alice and Bob each name which of the
+other two (codename-only) seats they believe is Eve. The crew wins only if **both** are correct;
+otherwise Eve escapes detection and wins. The final screen unmasks every seat's real name, role,
+and codename, alongside the round-by-round evidence trail.
+
 ## File heist + botnet
 
 A real file is the stake of every round — in both **Solo** and same-network **multiplayer**.
