@@ -174,6 +174,38 @@ def test_mp_upload_preview_shows_immediately():
 
 
 @requires_browser
+def test_mp_full_game_reaches_accusation_and_reveal():
+    with live_server() as base, two_player_pages() as (alice, bob):
+        alice.goto(base + "/qkd", wait_until="networkidle")
+        alice.click("#mode-multi")
+        alice.click('[data-create="alice"]')
+        alice.wait_for_function("() => (document.getElementById('qm-mycode').textContent || '').length === 4", timeout=8000)
+        code = alice.inner_text("#qm-mycode").strip()
+
+        bob.goto(base + "/qkd", wait_until="networkidle")
+        bob.click("#mode-multi")
+        bob.fill("#qm-code", code)
+        bob.click('[data-join="bob"]')
+        alice.click("#qm-start")
+
+        for _ in range(3):
+            alice.wait_for_selector("#qm-al-go", timeout=8000)
+            alice.click("#qm-al-go")
+            bob.wait_for_selector("#qm-keep", timeout=8000)
+            bob.click("#qm-keep")
+            bob.wait_for_selector("#qm-next", timeout=8000)
+            bob.click("#qm-next")
+            alice.wait_for_timeout(300)
+
+        bob.wait_for_selector(".accuse-btn", timeout=8000)
+        alice.wait_for_selector(".accuse-btn", timeout=8000)
+        bob.click(".accuse-btn")
+        alice.click(".accuse-btn")
+        bob.wait_for_function("() => document.getElementById('qm-reveal').textContent.indexOf('Eve was') !== -1", timeout=8000)
+        assert "Eve was" in bob.inner_text("#qm-reveal")
+
+
+@requires_browser
 def test_mp_round_narrates_into_the_feed_sidebar():
     with live_server() as base, browser_page() as pg:
         pg.goto(base + "/qkd", wait_until="networkidle")

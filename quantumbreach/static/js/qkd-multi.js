@@ -81,6 +81,15 @@
     } else {
       var fv = $("qm-file-view"); if (fv) fv.innerHTML = ""; lastReveal = null;  // clear stale reveal on a new round
     }
+    if (st.phase === "ended" && st.accusationResult && st.reveal) {
+      var ar = st.accusationResult, rv2 = st.reveal;
+      var lines = [
+        "Eve was " + rv2.eve.name + " (" + rv2.eve.codename + ").",
+        "Alice accused " + ar.aliceAccused + "; Bob accused " + ar.bobAccused + ".",
+        ar.crewWon ? "Crew correctly caught Eve — crew wins!" : "Eve escaped detection — Eve wins!",
+      ];
+      rv.textContent = lines.join(" ");
+    }
     if (!st.youAreUpNow) return;
     if (st.phase === "alice_setup") {
       box.innerHTML = '<label>Key length <input id="qm-n" type="range" min="8" max="64" value="24"></label>' +
@@ -191,6 +200,17 @@
     } else if (st.phase === "resolve") {
       box.innerHTML = '<button class="btn" id="qm-next" type="button">Next round</button>';
       $("qm-next").addEventListener("click", function () { act({ next: true }); });
+    } else if (st.phase === "accusation") {
+      var suspects = st.seats.filter(function (s) { return s.codename; });
+      box.innerHTML = '<p class="muted">Round over. Who do you think is Eve?</p>' +
+        suspects.map(function (s) {
+          return '<button class="btn accuse-btn" type="button" data-accuse="' + s.codename + '">' + s.codename + "</button>";
+        }).join("");
+      suspects.forEach(function (s) {
+        box.querySelector('[data-accuse="' + s.codename + '"]').addEventListener("click", function () {
+          act({ accuse: s.codename });
+        });
+      });
     }
   }
   function act(action) { api("/api/qkd/game/" + code + "/act", { action: action }).then(render); }
