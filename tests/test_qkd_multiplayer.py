@@ -35,12 +35,37 @@ def test_create_join_start_and_lobby_state(app):
     state = host.get(f"/api/qkd/game/{code}").get_json()
     assert state["phase"] == "lobby"
     assert state["yourRole"] == "alice"
-    seats = {s["role"]: s for s in state["seats"]}
-    assert seats["alice"]["kind"] == "human" and seats["bob"]["kind"] == "human"
-    assert seats["eve"]["kind"] == "computer"     # unfilled seat is computer
+    own = next(s for s in state["seats"] if s.get("role") == "alice")
+    assert own["kind"] == "human" and own["name"]
+    others = [s for s in state["seats"] if s.get("role") is None]
+    assert len(others) == 2
+    for s in others:
+        assert set(s.keys()) == {"codename", "submitted"}   # no role/kind/name leak
+    assert len({s["codename"] for s in others}) == 2         # distinct codenames
 
     host.post(f"/api/qkd/game/{code}/start")
     assert host.get(f"/api/qkd/game/{code}").get_json()["phase"] == "alice_setup"
+
+
+def test_anonymity_holds_from_bobs_view_too(app):
+    host = _guest(app)
+    code = host.post("/api/qkd/game", json={"role": "alice"}).get_json()["code"]
+    bob = _guest(app)
+    bob.post(f"/api/qkd/game/{code}/join", json={"role": "bob"})
+    host.post(f"/api/qkd/game/{code}/start")
+    st = bob.get(f"/api/qkd/game/{code}").get_json()
+    own = next(s for s in st["seats"] if s.get("role") == "bob")
+    assert own["name"]
+    others = [s for s in st["seats"] if s.get("role") is None]
+    assert len(others) == 2 and all(set(s.keys()) == {"codename", "submitted"} for s in others)
+
+
+def test_mid_game_view_hides_scores_shows_rounds_progress(app):
+    c, code = _solo_game(app, "bob")
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert "scores" not in st
+    assert st["roundsTotal"] == service.ROUNDS
+    assert st["roundsCompleted"] == 0
 
 
 def test_state_hides_secrets_in_lobby(app):

@@ -8,6 +8,7 @@ from ..progress.service import _award_badge
 
 ROLES = ("alice", "bob", "eve")
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous chars
+_CODENAMES = ("Node-Cyan", "Node-Amber", "Node-Violet", "Node-Coral", "Node-Slate", "Node-Gold")
 
 
 class GameError(Exception):
@@ -44,7 +45,10 @@ def create_game(db, user, role):
     if role not in ROLES:
         raise GameError("bad role")
     code = _new_code(db)
-    cur = db.execute("INSERT INTO qkd_games (code, phase, round) VALUES (?, 'lobby', 0)", (code,))
+    anon = dict(zip(ROLES, random.sample(_CODENAMES, len(ROLES))))
+    cur = db.execute(
+        "INSERT INTO qkd_games (code, phase, round, config) VALUES (?, 'lobby', 0, ?)",
+        (code, json.dumps({"anon": anon})))
     gid = cur.lastrowid
     for r in ROLES:
         if r == role:
@@ -97,17 +101,32 @@ def game_state(db, code, user):
     your = _seat_for_user(db, g["id"], user["id"]) if user else None
     your_role = your["role"] if your else None
     cfg = json.loads(g["config"] or "{}")
+    anon = cfg.get("anon") or {}
+    reveal_all = g["phase"] == "ended"
+    seat_views = []
+    for s in seats:
+        if s["role"] == your_role or reveal_all:
+            seat_views.append({"role": s["role"], "kind": s["kind"], "name": s["display_name"],
+                                "submitted": s["action"] is not None})
+        else:
+            seat_views.append({"codename": anon.get(s["role"], s["role"]), "submitted": s["action"] is not None})
     view = {
         "code": g["code"], "phase": g["phase"], "round": g["round"],
         "yourRole": your_role,
-        "seats": [{"role": s["role"], "kind": s["kind"], "name": s["display_name"],
-                   "submitted": s["action"] is not None} for s in seats],
-        "scores": [{"role": s["role"], "name": s["display_name"], "score": s["score"]} for s in seats],
+        "seats": seat_views,
+        "roundsTotal": ROUNDS,
         "youAreUpNow": _is_up(g["phase"], your_role, seats),
     }
-    # Bob sees the sample QBER only during his decision phase.
-    if g["phase"] == "bob_decision" and your_role == "bob" and "result" in cfg:
+    if reveal_all:
+        view["scores"] = [{"role": s["role"], "name": s["display_name"], "score": s["score"]} for s in seats]
+    else:
+        view["roundsCompleted"] = len(cfg.get("history", []))
+    # Alice and Bob both see the round's evidence during Bob's decision (Eve never does).
+    if g["phase"] == "bob_decision" and your_role in ("alice", "bob") and "result" in cfg:
         view["sampleQBER"] = cfg["result"]["sampleQBER"]
+        view["errorShape"] = cfg["result"].get("errorShape")
+    if your_role in ("alice", "bob") or reveal_all:
+        view["history"] = cfg.get("history", [])
     # Full reveal only at resolve/ended; file visibility is computed per seat.
     if g["phase"] in ("resolve", "ended") and "lastResult" in cfg:
         lr = dict(cfg["lastResult"])                 # shallow copy; never mutate stored cfg
@@ -135,6 +154,11 @@ def game_state(db, code, user):
             ac.pop("fileMime", None)
             lr["aliceConfig"] = ac
         view["lastResult"] = lr
+    if reveal_all:
+        if "accusationResult" in cfg:
+            view["accusationResult"] = cfg["accusationResult"]
+        if "reveal" in cfg:
+            view["reveal"] = cfg["reveal"]
     return view
 
 
