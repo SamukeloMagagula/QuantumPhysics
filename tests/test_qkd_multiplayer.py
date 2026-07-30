@@ -283,7 +283,7 @@ def test_mp_eve_sees_file_only_when_cracked(app):
 
 
 def test_mp_eve_taps_drive_resolution(app):
-    # Human Eve submits explicit taps; verify they land in cfg and the round resolves with them.
+    # Human Eve submits an explicit tap-method action; verify it lands in cfg and resolves with it.
     c, code = _solo_game(app, "eve")   # computer Alice auto-plays -> eve_move (human Eve)
     with app.app_context():
         db = get_db()
@@ -294,11 +294,103 @@ def test_mp_eve_taps_drive_resolution(app):
         db.commit()
     # tap every qubit in the WRONG-ish basis to force interception; malformed entries dropped
     taps = [{"i": i, "basis": "x"} for i in range(6)] + [{"i": 999, "basis": "z"}, {"bad": 1}]
-    c.post(f"/api/qkd/game/{code}/act", json={"action": {"taps": taps, "workers": 0}})
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"method": "tap", "taps": taps, "workers": 0}})
     cfg = _raw_cfg(app, code)
-    assert isinstance(cfg["eve"]["eveTaps"], list)
-    assert all(t["basis"] in ("+", "x") for t in cfg["eve"]["eveTaps"])   # junk dropped
-    assert cfg["lastResult"]["eveHit"] is True                            # taps caused interception
+    assert cfg["eve"]["method"] == "tap"
+    assert isinstance(cfg["eve"]["taps"], list)
+    assert all(t["basis"] in ("+", "x") for t in cfg["eve"]["taps"])   # junk dropped
+    assert cfg["lastResult"]["eveHit"] is True                          # taps caused interception
+
+
+def test_missing_method_defaults_to_bruteforce_zero_interception(app):
+    c, code = _solo_game(app, "eve")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 4, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    # No "method" key at all -- an old-shaped/malformed payload.
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"taps": [{"i": 0, "basis": "x"}], "workers": 0}})
+    cfg = _raw_cfg(app, code)
+    assert cfg["eve"]["method"] == "bruteforce"
+    assert cfg["lastResult"]["eveHit"] is False      # bruteforce never touches qubits
+    assert cfg["lastResult"]["sampleQBER"] == 0.0
+    assert cfg["lastResult"]["errorShape"] == "none"
+
+
+def test_spoof_window_expands_to_contiguous_single_basis_taps(app):
+    c, code = _solo_game(app, "eve")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 10, "s": 8, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"method": "spoof", "start": 2, "len": 4, "basis": "x", "workers": 0}})
+    cfg = _raw_cfg(app, code)
+    assert cfg["eve"]["method"] == "spoof"
+    assert cfg["eve"]["start"] == 2 and cfg["eve"]["len"] == 4 and cfg["eve"]["basis"] == "x"
+    assert cfg["lastResult"]["eveHit"] is True   # a spoofed window always intercepts every qubit in it
+
+
+def test_spoof_window_clamped_to_n(app):
+    c, code = _solo_game(app, "eve")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 0, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    # start+len wildly out of range must not crash -- clamped into [0, n)
+    r = c.post(f"/api/qkd/game/{code}/act", json={"action": {"method": "spoof", "start": 999, "len": 999, "basis": "+", "workers": 0}})
+    assert r.status_code == 200
+    cfg = _raw_cfg(app, code)
+    assert cfg["eve"]["start"] + cfg["eve"]["len"] <= 8
+    assert r.get_json()["phase"] in ("bob_decision", "resolve", "ended")   # advanced, not bricked
+
+
+def test_bruteforce_method_zero_qber_and_none_errorshape(app):
+    c, code = _solo_game(app, "eve")
+    with app.app_context():
+        db = get_db()
+        g = service._game(db, code)
+        cfg = json.loads(g["config"] or "{}")
+        cfg["alice"] = {"n": 8, "s": 4, "file": "mission"}
+        service._set_config(db, g["id"], cfg)
+        db.commit()
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"method": "bruteforce", "workers": 50}})
+    cfg = _raw_cfg(app, code)
+    assert cfg["eve"]["method"] == "bruteforce" and cfg["eve"]["workers"] == 50
+    assert cfg["lastResult"]["eveHit"] is False
+    assert cfg["lastResult"]["errorShape"] == "none"
+
+
+def test_alice_sees_evidence_during_bob_decision_not_just_bob(app):
+    # Human Alice + human Bob; computer Eve. After Alice submits, computer Eve auto-plays
+    # (method="computer_random"), landing on bob_decision -- Alice's own view must now
+    # also carry sampleQBER/errorShape, not just Bob's.
+    host = _guest(app)
+    code = host.post("/api/qkd/game", json={"role": "alice"}).get_json()["code"]
+    bob = _guest(app)
+    bob.post(f"/api/qkd/game/{code}/join", json={"role": "bob"})
+    host.post(f"/api/qkd/game/{code}/start")
+    host.post(f"/api/qkd/game/{code}/act", json={"action": {"n": 16, "s": 8, "file": "mission"}})
+    st = host.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "bob_decision"
+    assert "sampleQBER" in st and "errorShape" in st
+
+
+def test_history_records_one_entry_per_round(app):
+    c, code = _solo_game(app, "bob")
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert len(st["history"]) == 1
+    entry = st["history"][0]
+    assert set(entry.keys()) == {"round", "sampleQBER", "errorShape", "eveHit", "method"}
 
 
 def test_mp_replay_is_present_and_leaks_no_key_bits(app):

@@ -2,7 +2,7 @@ import json
 import random
 import secrets
 
-from .engine import resolve_round, score_round, computer_strategy
+from .engine import resolve_round, score_round, computer_strategy, classify_error_shape
 from . import botnet, files
 from ..progress.service import _award_badge
 
@@ -209,24 +209,41 @@ def _clean_action(role, action):
                         out["fileMime"] = fm
             return out
         if role == "eve":
-            w = max(0, min(100, int(action.get("workers", 0) or 0)))
-            out = {"p": min(1.0, max(0.0, float(action.get("p", 0) or 0))), "workers": w}
-            raw = action.get("taps")
-            if isinstance(raw, list):
-                seen, taps = set(), []
-                for t in raw[:512]:
-                    if not isinstance(t, dict):
-                        continue
-                    b = t.get("basis")
-                    try:
-                        idx = int(t.get("i"))
-                    except (TypeError, ValueError):
-                        continue
-                    if b in ("+", "x") and 0 <= idx < 512 and idx not in seen:
-                        seen.add(idx); taps.append({"i": idx, "basis": b})
-                    if len(taps) >= 128:
-                        break
-                out["eveTaps"] = taps
+            method = action.get("method")
+            if method not in ("tap", "spoof", "bruteforce"):
+                method = "bruteforce"
+            out = {"method": method, "workers": max(0, min(100, int(action.get("workers", 0) or 0)))}
+            if method == "tap":
+                raw = action.get("taps")
+                taps = []
+                if isinstance(raw, list):
+                    seen = set()
+                    for t in raw[:512]:
+                        if not isinstance(t, dict):
+                            continue
+                        b = t.get("basis")
+                        try:
+                            idx = int(t.get("i"))
+                        except (TypeError, ValueError):
+                            continue
+                        if b in ("+", "x") and 0 <= idx < 512 and idx not in seen:
+                            seen.add(idx); taps.append({"i": idx, "basis": b})
+                        if len(taps) >= 128:
+                            break
+                out["taps"] = taps
+            elif method == "spoof":
+                try:
+                    start = max(0, int(action.get("start", 0)))
+                except (TypeError, ValueError):
+                    start = 0
+                try:
+                    length = max(1, min(512, int(action.get("len", 1))))
+                except (TypeError, ValueError):
+                    length = 1
+                basis = action.get("basis")
+                out["start"] = start
+                out["len"] = length
+                out["basis"] = basis if basis in ("+", "x") else "+"
             return out
         return {"decision": "abort" if action.get("decision") == "abort" else "keep"}
     except (TypeError, ValueError):
@@ -301,13 +318,32 @@ def advance(db, game):
             if cur.rowcount == 0:
                 continue  # another request already advanced this phase
         elif phase == "eve_move":
-            cfg["eve"] = {"p": float(act.get("p", 0) or 0), "workers": int(act.get("workers", 0) or 0)}
-            if isinstance(act.get("eveTaps"), list):
-                cfg["eve"]["eveTaps"] = act["eveTaps"]
-            resolve_cfg = {"n": cfg["alice"]["n"], "s": cfg["alice"]["s"], "p": cfg["eve"]["p"]}
-            if cfg["eve"].get("eveTaps") is not None:
-                resolve_cfg["eveTaps"] = cfg["eve"]["eveTaps"]
+            n = cfg["alice"]["n"]
+            method = act.get("method") or "bruteforce"
+            workers = int(act.get("workers", 0) or 0)
+            eve_cfg = {"method": method, "workers": workers}
+            resolve_cfg = {"n": n, "s": cfg["alice"]["s"]}
+            if method == "computer_random":
+                p = float(act.get("p", 0) or 0)
+                eve_cfg["p"] = p
+                resolve_cfg["p"] = p
+            elif method == "tap":
+                taps = act.get("taps") or []
+                eve_cfg["taps"] = taps
+                resolve_cfg["p"] = 0.0
+                resolve_cfg["eveTaps"] = taps
+            elif method == "spoof":
+                start = max(0, min(n - 1, int(act.get("start", 0))))
+                length = max(1, min(n - start, int(act.get("len", 1))))
+                basis = act.get("basis") if act.get("basis") in ("+", "x") else "+"
+                eve_cfg.update({"start": start, "len": length, "basis": basis})
+                resolve_cfg["p"] = 0.0
+                resolve_cfg["eveTaps"] = [{"i": i, "basis": basis} for i in range(start, start + length)]
+            else:  # bruteforce: zero qubit interception, only the botnet crack matters
+                resolve_cfg["p"] = 0.0
+            cfg["eve"] = eve_cfg
             result = resolve_round(resolve_cfg, random.random)
+            result["errorShape"] = classify_error_shape(result["n"], result["sampleIndices"], result["sampleErrors"])
             cfg["result"] = result
             cur = db.execute(
                 "UPDATE qkd_games SET config=?, phase='bob_decision', updated_at=CURRENT_TIMESTAMP "
@@ -350,6 +386,7 @@ def _resolve_scoring(db, g, cfg, decision):
         "eveHit": result["eveHit"], "sampleQBER": result["sampleQBER"], "finalKey": result["finalKey"],
         "stolen": result["stolen"], "sifted": result["sifted"], "bobDecision": decision,
         "aliceConfig": cfg["alice"], "eveConfig": cfg["eve"], "perRole": per_role, "round": g["round"],
+        "errorShape": result.get("errorShape", "none"),
         "file": {"sample": _sample, "mime": _mime, "cracked": file_cracked, "isUpload": _is_upload},
         # secrecy-safe replay: public BB84 info only (all bases + sampled errors + Eve's taps).
         # Raw key bits are never included (resolve_round never returns aBits/bBits/key arrays).
@@ -357,11 +394,15 @@ def _resolve_scoring(db, g, cfg, decision):
             "n": result.get("n"),
             "aBases": result.get("aBases", []),
             "bBases": result.get("bBases", []),
-            "eveTaps": (cfg.get("eve") or {}).get("eveTaps", []),
+            "eveTaps": (cfg.get("eve") or {}).get("taps", []),
             "sampleIndices": result.get("sampleIndices", []),
             "sampleErrors": result.get("sampleErrors", []),
         },
     }
+    cfg.setdefault("history", []).append({
+        "round": g["round"], "sampleQBER": result["sampleQBER"], "errorShape": result.get("errorShape", "none"),
+        "eveHit": result["eveHit"], "method": (cfg.get("eve") or {}).get("method", "bruteforce"),
+    })
     _set_config(db, gid, cfg)
     db.commit()
 
