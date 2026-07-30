@@ -169,6 +169,9 @@ def _is_up(phase, role, seats):
     if need and need == role:
         by_role = {s["role"]: s for s in seats}
         return by_role[role]["action"] is None
+    if phase == "accusation":
+        by_role = {s["role"]: s for s in seats}
+        return by_role[role]["action"] is None
     return phase == "resolve"  # any human may advance to the next round
 
 
@@ -262,6 +265,15 @@ def submit_action(db, code, user, action):
     if phase == "resolve":
         if action.get("next"):
             _next_round(db, g)
+        return game_state(db, code, user)
+    if phase == "accusation":
+        if seat["action"] is not None:
+            return game_state(db, code, user)  # idempotent: already voted
+        cfg = json.loads(g["config"] or "{}")
+        guess = _clean_accusation(role, action, cfg)
+        _claim_action(db, g["id"], role, {"accuse": guess})
+        db.commit()
+        _advance_accusation(db, _game(db, code))
         return game_state(db, code, user)
     expected = {"alice_setup": "alice", "eve_move": "eve", "bob_decision": "bob"}.get(phase)
     if expected != role:
@@ -413,7 +425,7 @@ def _next_round(db, g):
     if fresh["phase"] != "resolve":
         return  # already advanced by another request
     if fresh["round"] >= ROUNDS:
-        _end_game(db, fresh)
+        _start_accusation(db, fresh)
         return
     # Atomic claim: only one request advances resolve -> next round.
     cur = db.execute(
@@ -431,15 +443,71 @@ def _next_round(db, g):
     advance(db, _game(db, g["code"]))
 
 
-def _end_game(db, g):
-    # Atomic claim: only one request transitions resolve -> ended, so scores post exactly once.
+def _start_accusation(db, g):
     cur = db.execute(
-        "UPDATE qkd_games SET phase='ended', updated_at=CURRENT_TIMESTAMP "
+        "UPDATE qkd_games SET phase='accusation', updated_at=CURRENT_TIMESTAMP "
         "WHERE id=? AND phase='resolve'", (g["id"],))
     if cur.rowcount == 0:
         db.commit()
-        return  # another request already ended the game
-    for s in _seats(db, g["id"]):
+        return  # another request already started the accusation phase
+    db.execute("UPDATE qkd_game_seats SET action=NULL WHERE game_id=?", (g["id"],))
+    db.commit()
+    _advance_accusation(db, _game(db, g["code"]))
+
+
+def _clean_accusation(role, action, cfg):
+    anon = cfg.get("anon") or {}
+    valid = {v for k, v in anon.items() if k != role}
+    guess = action.get("accuse") if isinstance(action, dict) else None
+    if not isinstance(guess, str) or guess not in valid:
+        raise GameError("bad action", 400)
+    return guess
+
+
+def _advance_accusation(db, game):
+    g = _game(db, game["code"])
+    if g["phase"] != "accusation":
+        return
+    gid = g["id"]
+    cfg = json.loads(g["config"] or "{}")
+    anon = cfg.get("anon") or {}
+    for role in ("alice", "bob"):
+        seat = _seat(db, gid, role)
+        if seat["action"] is None and seat["kind"] == "computer":
+            other_roles = [r for r in ROLES if r != role]
+            guess = anon.get(random.choice(other_roles), "")
+            _claim_action(db, gid, role, {"accuse": guess})
+            db.commit()
+    alice_seat = _seat(db, gid, "alice")
+    bob_seat = _seat(db, gid, "bob")
+    if alice_seat["action"] is not None and bob_seat["action"] is not None:
+        _resolve_accusation(db, g, cfg)
+
+
+def _resolve_accusation(db, g, cfg):
+    gid = g["id"]
+    cur = db.execute(
+        "UPDATE qkd_games SET phase='ended', updated_at=CURRENT_TIMESTAMP "
+        "WHERE id=? AND phase='accusation'", (gid,))
+    if cur.rowcount == 0:
+        db.commit()
+        return  # another request already resolved the accusation
+    anon = cfg.get("anon") or {}
+    alice_accuse = json.loads(_seat(db, gid, "alice")["action"] or "{}").get("accuse")
+    bob_accuse = json.loads(_seat(db, gid, "bob")["action"] or "{}").get("accuse")
+    eve_codename = anon.get("eve")
+    crew_won = alice_accuse == eve_codename and bob_accuse == eve_codename
+    cfg["accusationResult"] = {
+        "aliceAccused": alice_accuse, "bobAccused": bob_accuse,
+        "eveCodename": eve_codename, "crewWon": crew_won,
+    }
+    reveal = {}
+    for s in _seats(db, gid):
+        reveal[s["role"]] = {"name": s["display_name"], "kind": s["kind"], "codename": anon.get(s["role"])}
+    cfg["reveal"] = reveal
+    _set_config(db, gid, cfg)
+    db.commit()
+    for s in _seats(db, gid):
         if s["kind"] == "human" and s["user_id"] is not None and s["score"] > 0:
             db.execute("INSERT INTO qkd_scores (user_id, score) VALUES (?,?)", (s["user_id"], s["score"]))
             _award_badge(db, s["user_id"], "qkd-operative")
@@ -447,6 +515,25 @@ def _end_game(db, g):
 
 
 def _maybe_timeout(db, g):
+    if g["phase"] == "accusation":
+        stale = db.execute(
+            "SELECT (strftime('%s','now') - strftime('%s', updated_at)) AS age FROM qkd_games WHERE id=?",
+            (g["id"],)).fetchone()["age"]
+        if stale is not None and stale > TIMEOUT_SECONDS:
+            cfg = json.loads(g["config"] or "{}")
+            anon = cfg.get("anon") or {}
+            claimed_any = False
+            for role in ("alice", "bob"):
+                seat = _seat(db, g["id"], role)
+                if seat["kind"] == "human" and seat["action"] is None:
+                    other_roles = [r for r in ROLES if r != role]
+                    guess = anon.get(random.choice(other_roles), "")
+                    if _claim_action(db, g["id"], role, {"accuse": guess}):
+                        claimed_any = True
+                        db.commit()
+            if claimed_any:
+                _advance_accusation(db, _game(db, g["code"]))
+        return
     if g["phase"] not in ("alice_setup", "eve_move", "bob_decision"):
         return
     stale = db.execute(

@@ -155,6 +155,11 @@ def test_game_end_writes_qkd_score_iff_positive(app):
             c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
         elif st["phase"] == "resolve":
             c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+        elif st["phase"] == "accusation":
+            with app.app_context():
+                cfg = json.loads(service._game(get_db(), code)["config"] or "{}")
+                eve_codename = cfg["anon"]["eve"]
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
     final = c.get(f"/api/qkd/game/{code}").get_json()
     assert final["phase"] == "ended"
     bob_score = next(s["score"] for s in final["scores"] if s["role"] == "bob")
@@ -180,8 +185,25 @@ def test_double_resolve_applies_scoring_once(app):
     assert first == second   # scoring applied exactly once, not doubled
 
 
-def test_double_next_at_final_round_writes_score_once(app):
-    # A losing thread replaying a stale final-round resolve must not insert a 2nd qkd_scores row.
+def test_next_round_at_final_round_starts_accusation_not_ended(app):
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(30):
+        st = c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "accusation":
+            break
+        if st["phase"] == "bob_decision":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+    final = c.get(f"/api/qkd/game/{code}").get_json()
+    assert final["phase"] == "accusation"
+    assert final["round"] == service.ROUNDS
+
+
+def test_double_next_at_final_round_starts_accusation_once(app):
+    # A losing thread replaying a stale final-round resolve must not double-transition.
     c = _guest(app)
     code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
     c.post(f"/api/qkd/game/{code}/start")
@@ -193,18 +215,159 @@ def test_double_next_at_final_round_writes_score_once(app):
             c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
         elif st["phase"] == "resolve":
             c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
-        elif st["phase"] == "ended":
-            break
     with app.app_context():
         db = get_db()
         snap = service._game(db, code)
         assert snap["phase"] == "resolve" and snap["round"] >= service.ROUNDS
-        service._next_round(db, snap)   # ends the game, posts scores once
+        service._next_round(db, snap)
         service._next_round(db, snap)   # stale replay -> guarded no-op
-        rows = db.execute("SELECT COUNT(*) AS n FROM qkd_scores").fetchone()["n"]
-        bob = next(s for s in service._seats(db, snap["id"]) if s["role"] == "bob")
-    assert rows <= 1                       # never a duplicate row
-    assert (rows == 1) == (bob["score"] > 0)
+        after = service._game(db, code)
+    assert after["phase"] == "accusation"
+
+
+def _play_to_accusation(app):
+    """Drive a bob-human, alice/eve-computer game to the accusation phase."""
+    c = _guest(app)
+    code = c.post("/api/qkd/game", json={"role": "bob"}).get_json()["code"]
+    c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(30):
+        st = c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "accusation":
+            break
+        if st["phase"] == "bob_decision":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+    return c, code
+
+
+def test_accusation_self_accusation_rejected(app):
+    c, code = _play_to_accusation(app)
+    with app.app_context():
+        db = get_db()
+        cfg = json.loads(service._game(db, code)["config"] or "{}")
+        bob_codename = cfg["anon"]["bob"]   # Bob's own view never exposes his own codename (Task 2)
+    r = c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": bob_codename}})
+    assert r.status_code == 400
+    assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] == "accusation"  # not bricked
+
+
+def test_accusation_unknown_codename_rejected(app):
+    c, code = _play_to_accusation(app)
+    r = c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": "Not-A-Real-Codename"}})
+    assert r.status_code == 400
+    assert c.get(f"/api/qkd/game/{code}").get_json()["phase"] == "accusation"
+
+
+def _play_to_accusation_two_humans(app):
+    """Alice+Bob both human (Eve computer) so both votes are fully controllable -- unlike a
+    computer seat, whose vote auto-fills the instant the accusation phase starts and can't be
+    overridden afterward (`_claim_action` only claims a still-null action)."""
+    alice_c = _guest(app)
+    code = alice_c.post("/api/qkd/game", json={"role": "alice"}).get_json()["code"]
+    bob_c = _guest(app)
+    bob_c.post(f"/api/qkd/game/{code}/join", json={"role": "bob"})
+    alice_c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(60):
+        st = alice_c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "accusation":
+            break
+        if st["phase"] == "alice_setup":
+            alice_c.post(f"/api/qkd/game/{code}/act", json={"action": {"n": 16, "s": 8}})
+        elif st["phase"] == "bob_decision":
+            bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+    return alice_c, bob_c, code
+
+
+def test_accusation_crew_wins_iff_both_correct(app):
+    alice_c, bob_c, code = _play_to_accusation_two_humans(app)
+    with app.app_context():
+        db = get_db()
+        cfg = json.loads(service._game(db, code)["config"] or "{}")
+        eve_codename = cfg["anon"]["eve"]
+    alice_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
+    bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
+    st = alice_c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "ended"
+    assert st["accusationResult"]["crewWon"] is True
+    assert st["accusationResult"]["eveCodename"] == eve_codename
+    assert st["reveal"]["eve"]["kind"] == "computer"
+
+
+def test_accusation_eve_wins_when_either_vote_wrong(app):
+    alice_c, bob_c, code = _play_to_accusation_two_humans(app)
+    with app.app_context():
+        db = get_db()
+        cfg = json.loads(service._game(db, code)["config"] or "{}")
+        eve_codename = cfg["anon"]["eve"]
+        alice_codename = cfg["anon"]["alice"]
+    alice_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})   # Alice correct
+    bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": alice_codename}})   # Bob wrong
+    st = alice_c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "ended"
+    assert st["accusationResult"]["crewWon"] is False
+
+
+def _play_to_accusation_three_humans(app):
+    """Alice+Bob+Eve all human, so every vote (including Eve's, which never counts) is
+    fully controllable -- a computer seat's auto-vote is a coin flip we can't override."""
+    alice_c = _guest(app)
+    code = alice_c.post("/api/qkd/game", json={"role": "alice"}).get_json()["code"]
+    bob_c = _guest(app)
+    bob_c.post(f"/api/qkd/game/{code}/join", json={"role": "bob"})
+    eve_c = _guest(app)
+    eve_c.post(f"/api/qkd/game/{code}/join", json={"role": "eve"})
+    alice_c.post(f"/api/qkd/game/{code}/start")
+    for _ in range(60):
+        st = alice_c.get(f"/api/qkd/game/{code}").get_json()
+        if st["phase"] == "accusation":
+            break
+        if st["phase"] == "alice_setup":
+            alice_c.post(f"/api/qkd/game/{code}/act", json={"action": {"n": 16, "s": 8}})
+        elif st["phase"] == "eve_move":
+            eve_c.post(f"/api/qkd/game/{code}/act", json={"action": {"method": "bruteforce", "workers": 0}})
+        elif st["phase"] == "bob_decision":
+            bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"decision": "abort"}})
+        elif st["phase"] == "resolve":
+            bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"next": True}})
+    return alice_c, bob_c, eve_c, code
+
+
+def test_accusation_eves_vote_never_counts(app):
+    # All three seats human, so Eve's own vote is fully controllable too. Eve accuses Alice
+    # (a deliberately "wrong" pick from her point of view -- it must not matter either way);
+    # Alice and Bob both correctly name Eve's codename, so crewWon must be True regardless of
+    # what Eve voted.
+    alice_c, bob_c, eve_c, code = _play_to_accusation_three_humans(app)
+    with app.app_context():
+        db = get_db()
+        cfg = json.loads(service._game(db, code)["config"] or "{}")
+        alice_codename = cfg["anon"]["alice"]
+        eve_codename = cfg["anon"]["eve"]
+    r = eve_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": alice_codename}})
+    assert r.status_code == 200   # Eve's vote is accepted...
+    st = eve_c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "accusation"   # ...but alone it can't resolve the game -- Alice/Bob haven't voted
+    alice_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
+    bob_c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
+    final = eve_c.get(f"/api/qkd/game/{code}").get_json()
+    assert final["phase"] == "ended"
+    assert final["accusationResult"]["crewWon"] is True   # decided by Alice+Bob, not Eve's vote
+
+
+def test_accusation_computer_seats_auto_vote_to_reach_ended(app):
+    # Bob human, Alice+Eve computer: only Bob's vote is human; Alice's computer vote must
+    # auto-fill so the game reaches 'ended' without a second human.
+    c, code = _play_to_accusation(app)
+    with app.app_context():
+        db = get_db()
+        cfg = json.loads(service._game(db, code)["config"] or "{}")
+        eve_codename = cfg["anon"]["eve"]
+    c.post(f"/api/qkd/game/{code}/act", json={"action": {"accuse": eve_codename}})
+    st = c.get(f"/api/qkd/game/{code}").get_json()
+    assert st["phase"] == "ended"   # computer Alice auto-voted, letting the round resolve
 
 
 # ---- multiplayer file-heist + botnet ----
