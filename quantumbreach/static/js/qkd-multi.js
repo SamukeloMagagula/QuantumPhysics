@@ -38,12 +38,18 @@
   function render(st) {
     if (!st || st.error) return;
     $("qm-seats").innerHTML = st.seats.map(function (s) {
-      return '<span class="chip' + (s.role === st.yourRole ? ' on' : '') + '">' + s.role + ": " + s.name + (s.submitted ? " ✓" : "") + "</span>";
+      var mine = s.role === st.yourRole;
+      var label = s.role ? (s.role + ": " + s.name) : s.codename;
+      return '<span class="chip' + (mine ? ' on' : '') + '">' + label + (s.submitted ? " ✓" : "") + "</span>";
     }).join("");
     $("qm-start").hidden = !(st.phase === "lobby" && $("qm-start").hidden === false);
-    $("qm-scores").innerHTML = st.scores.map(function (s) { return '<span class="chip">' + s.role + ": " + s.score + "</span>"; }).join("");
+    if (st.scores) {
+      $("qm-scores").innerHTML = st.scores.map(function (s) { return '<span class="chip">' + s.role + ": " + s.score + "</span>"; }).join("");
+    } else {
+      $("qm-scores").innerHTML = '<span class="chip">Round ' + (st.roundsCompleted || 0) + " of " + (st.roundsTotal || 3) + "</span>";
+    }
     if (stage && st.phase === "bob_decision" && typeof st.sampleQBER === "number") {
-      stage.setIntrusion(st.sampleQBER, 0.11);  // Bob sees the intrusion on the shared stage meter
+      stage.setIntrusion(st.sampleQBER, 0.11);  // Bob (and Alice) see the intrusion on the shared stage meter
     }
     if (stage && st.phase !== lastPhase) {
       if (st.phase === "eve_move") stage.log("Alice staked her key.", "info");

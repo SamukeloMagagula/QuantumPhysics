@@ -2,6 +2,27 @@ from tests.browser_utils import live_server, two_player_pages, browser_page, req
 
 
 @requires_browser
+def test_mp_lobby_shows_codenames_not_roles_for_other_seats():
+    with live_server() as base, two_player_pages() as (alice, bob):
+        alice.goto(base + "/qkd", wait_until="networkidle")
+        alice.click("#mode-multi")
+        alice.click('[data-create="alice"]')
+        alice.wait_for_function("() => (document.getElementById('qm-mycode').textContent || '').length === 4", timeout=8000)
+        code = alice.inner_text("#qm-mycode").strip()
+
+        bob.goto(base + "/qkd", wait_until="networkidle")
+        bob.click("#mode-multi")
+        bob.fill("#qm-code", code)
+        bob.click('[data-join="bob"]')
+        bob.wait_for_timeout(500)
+
+        seats_text = alice.inner_text("#qm-seats")
+        assert "bob:" not in seats_text.lower() and "eve:" not in seats_text.lower()
+        assert "Node-" in seats_text   # the other two seats show codenames
+        assert "alice:" in seats_text.lower()   # Alice's own seat still shows her real role
+
+
+@requires_browser
 def test_two_players_play_a_multiplayer_round():
     with live_server() as base, two_player_pages() as (alice, bob):
         # Alice creates a game as Alice; Bob joins as Bob; Eve is computer.
