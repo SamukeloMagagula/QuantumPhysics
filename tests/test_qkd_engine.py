@@ -77,3 +77,28 @@ def test_no_eve_taps_uses_random_p_unchanged():
     r = engine.resolve_round({"n": 4, "s": 0, "p": 0.0}, lambda: 0.99)  # p=0 -> never intercept
     assert r["eveHit"] is False and r["intercepted"] == [False, False, False, False]
     assert "aBases" in r and len(r["aBases"]) == 4
+
+
+def test_classify_error_shape_none_when_no_errors():
+    assert engine.classify_error_shape(24, [3, 9, 15], [False, False, False]) == "none"
+
+
+def test_classify_error_shape_clustered_when_errors_bunch():
+    # errors at 10,11,12 out of n=24: span=2, n//3=8, span <= 8 -> clustered
+    assert engine.classify_error_shape(24, [2, 10, 11, 12, 20], [False, True, True, True, False]) == "clustered"
+
+
+def test_classify_error_shape_scattered_when_errors_spread_out():
+    # errors at 0 and 23 out of n=24: span=23, n//3=8, span > 8 -> scattered
+    assert engine.classify_error_shape(24, [0, 12, 23], [True, False, True]) == "scattered"
+
+
+def test_classify_error_shape_single_error_is_clustered():
+    assert engine.classify_error_shape(24, [12], [True]) == "clustered"
+
+
+def test_computer_strategy_eve_emits_method_shape():
+    out = engine.computer_strategy("eve", {}, lambda: 0.0)   # r=0.0 -> p=0.0 branch
+    assert out == {"method": "computer_random", "p": 0.0, "workers": 0}
+    out2 = engine.computer_strategy("eve", {}, lambda: 0.99)  # r=0.99 -> p=1.0 branch
+    assert out2 == {"method": "computer_random", "p": 1.0, "workers": 0}

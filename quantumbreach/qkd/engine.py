@@ -75,6 +75,24 @@ def resolve_round(config, rng=None):
             "sampleErrors": [a_bits[i] != b_bits[i] for i in sample]}
 
 
+def classify_error_shape(n, sample_indices, sample_errors):
+    """Classify a round's sampled-error positions as a detection signature.
+
+    'clustered' (errors bunch inside roughly a third of the stream) is the
+    'spoof' signature (Eve guessed one basis across a contiguous window);
+    'scattered' is the 'tap'/random-intercept signature; 'none' is no
+    sampled error at all. Threshold (n // 3) is a tunable heuristic, not a
+    physics constant.
+    """
+    errs = [sample_indices[k] for k, bad in enumerate(sample_errors) if bad]
+    if not errs:
+        return "none"
+    if len(errs) == 1:
+        return "clustered"
+    span = max(errs) - min(errs)
+    return "clustered" if span <= max(1, n // 3) else "scattered"
+
+
 def score_round(role, result, decision):
     eve = bool(result.get("eveHit"))
     defender, eve_delta = 0, 0
@@ -100,6 +118,6 @@ def computer_strategy(role, public, rng=None):
     if role == "eve":
         r = rng()
         p = 0.0 if r < 0.35 else 0.25 if r < 0.6 else 0.5 if r < 0.85 else 1.0
-        return {"p": p}
+        return {"method": "computer_random", "p": p, "workers": 0}
     q = (public or {}).get("sampleQBER", 0.0)
     return {"decision": "abort" if q > ABORT else "keep"}
