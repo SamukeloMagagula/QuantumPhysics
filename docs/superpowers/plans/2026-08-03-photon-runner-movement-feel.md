@@ -219,7 +219,7 @@ git commit -m "feat(engine): critically-damped spring simulators for movement/ca
 **Interfaces:**
 - Produces: `AnimPhase` type, `PhaseState` interface (`{ phase: AnimPhase; elapsed: number }`),
   `initialPhaseState(): PhaseState`, `advancePhase(state: PhaseState, dt: number, moving:
-  boolean, sprinting: boolean): PhaseState`. Consumed by Task 7 (`character.ts`).
+  boolean, sprinting: boolean): PhaseState`. Consumed by Task 6 (`character.ts`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -555,7 +555,7 @@ git commit -m "feat(input): Shift-to-sprint on the keyboard movement scheme"
 **Interfaces:**
 - Consumes: `MovementCallbacks.onMove(x, z, sprint?)` from Task 3.
 - Produces: `Game.setMoveVector(x: number, z: number, sprint?: boolean): void`. Consumed by
-  Task 5 (`createQuantumHeist`'s `setMoveVector` implementation).
+  Task 6 (`createQuantumHeist`'s `setMoveVector` implementation).
 
 - [ ] **Step 1: Update the `Game` interface**
 
@@ -596,7 +596,7 @@ The `Joystick` call site at (around) line 274 — `<Joystick onChange={(x, z) =>
 - [ ] **Step 3: Typecheck**
 
 Run: `npm run typecheck`
-Expected: no errors. `createQuantumHeist`'s `setMoveVector(x, z)` (2-arg, in `games/quantum-heist/index.ts`) still satisfies the now-3-parameter `Game.setMoveVector` interface because the third parameter is optional — this will only become a real behavior gap once Task 5 makes `setMoveVector` use `sprint`, at which point the signature must be updated too (that happens in Task 5).
+Expected: no errors. `createQuantumHeist`'s `setMoveVector(x, z)` (2-arg, in `games/quantum-heist/index.ts`) still satisfies the now-3-parameter `Game.setMoveVector` interface because the third parameter is optional — this will only become a real behavior gap once Task 6 makes `setMoveVector` use `sprint`, at which point the signature must be updated too (that happens in Task 6).
 
 - [ ] **Step 4: Commit**
 
@@ -607,237 +607,7 @@ git commit -m "feat(engine): thread optional sprint flag through Game.setMoveVec
 
 ---
 
-### Task 5: Spring-smoothed movement, sprint speed, and spring-based facing in Quantum Heist
-
-**Files:**
-- Modify: `photon-runner/games/quantum-heist/index.ts`
-
-**Interfaces:**
-- Consumes: `VectorSpringSimulator`, `RelativeSpringSimulator` from `engine/springs.ts` (Task 1);
-  `Game.setMoveVector(x, z, sprint?)` signature from Task 4.
-- Produces: `world.updateCamera(playerPos, dt, velocity)` call (3rd arg) — Task 6 must add this
-  parameter to `World.updateCamera` before this task's typecheck passes. Do Task 6 immediately
-  after this one, or do them together if working solo; typecheck will fail on this task alone
-  until Task 6 lands.
-
-**Context — current code being replaced** (`games/quantum-heist/index.ts`):
-
-```typescript
-const MOVE_SPEED = 4.4;
-...
-  const playerPos = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 2);
-  let moveX = 0;
-  let moveZ = 0;
-  let hasMoved = false;
-```
-
-and, inside `update(dt)`:
-
-```typescript
-      if (canMove) {
-        const len = Math.hypot(moveX, moveZ);
-        const nx = len > 1 ? moveX / len : moveX;
-        const nz = len > 1 ? moveZ / len : moveZ;
-        if (nx !== 0 || nz !== 0) {
-          const tx = playerPos.x + nx * MOVE_SPEED * dt;
-          const tz = playerPos.z - nz * MOVE_SPEED * dt;
-          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
-          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
-          player.setWalking(true);
-          player.faceDirection(nx, -nz);
-          if (!hasMoved) {
-            hasMoved = true;
-            teach('move');
-          }
-        } else {
-          player.setWalking(false);
-        }
-      } else if (g.phase === 'meeting' || g.phase === 'ended') {
-        ...
-      } else {
-        player.setWalking(false);
-      }
-      player.group.position.copy(playerPos);
-      player.update(dt);
-```
-
-and `setMoveVector`:
-
-```typescript
-    setMoveVector(x, z) {
-      moveX = x;
-      moveZ = z;
-    },
-```
-
-and the final camera call:
-
-```typescript
-      world.update(dt);
-      world.updateCamera(playerPos, dt);
-```
-
-`player.faceDirection(x, z)` (in `character.ts`) already does its own internal shortest-path
-turn smoothing — this task replaces that internal smoothing with a spring driven from here, so
-`character.ts`'s `faceDirection` in Task 7 becomes a pure "set target angle" call rather than
-integrating the turn itself. Confirm this ordering: **do Task 7 (`character.ts`) before or
-alongside this task**, since this task calls `player.faceDirection` expecting the new
-pass-through behavior. Recommended order: 1, 2, 3, 4, 7, 5, 6 (character.ts before the two
-call-sites that assume its new behavior) — the numbering above is by concern, not strict
-execution order; follow the dependency note here.
-
-- [ ] **Step 1: Add sprint speed, the movement spring, and the facing spring**
-
-Add near the top of `games/quantum-heist/index.ts`, alongside the existing speed constants:
-
-```typescript
-const MOVE_SPEED = 4.4;
-const SPRINT_SPEED = 7.0;
-const BOT_SPEED = 3.2;
-```
-
-Add the imports:
-
-```typescript
-import { VectorSpringSimulator, RelativeSpringSimulator } from '../../engine/springs';
-```
-
-Replace the `moveX`/`moveZ` declarations with a sprint flag and the two springs (kept alongside
-`playerPos`):
-
-```typescript
-  const playerPos = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 2);
-  let moveX = 0;
-  let moveZ = 0;
-  let sprinting = false;
-  let hasMoved = false;
-  const velocitySpring = new VectorSpringSimulator(0.12, 5.8);
-  const facingSpring = new RelativeSpringSimulator(0.05, 9);
-```
-
-- [ ] **Step 2: Replace the direct-write movement block with spring-integrated movement**
-
-Replace the entire `if (canMove) { ... } else if (g.phase === 'meeting' || g.phase === 'ended')
-{ ... } else { player.setWalking(false); }` chain (all three branches, verbatim as shown in
-"Context" above) with:
-
-```typescript
-      if (canMove) {
-        const len = Math.hypot(moveX, moveZ);
-        const nx = len > 1 ? moveX / len : moveX;
-        const nz = len > 1 ? moveZ / len : moveZ;
-        const speed = sprinting ? SPRINT_SPEED : MOVE_SPEED;
-        velocitySpring.target.set(nx * speed, -nz * speed);
-        velocitySpring.advance(dt);
-
-        if (nx !== 0 || nz !== 0) {
-          const tx = playerPos.x + velocitySpring.position.x * dt;
-          const tz = playerPos.z + velocitySpring.position.y * dt;
-          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
-          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
-          facingSpring.target = Math.atan2(nx, -nz);
-          player.setWalking(true);
-          player.setSprinting(sprinting);
-          if (!hasMoved) {
-            hasMoved = true;
-            teach('move');
-          }
-        } else {
-          player.setWalking(false);
-          player.setSprinting(false);
-        }
-        facingSpring.advance(dt);
-        player.faceDirection(facingSpring.position);
-      } else if (g.phase === 'meeting' || g.phase === 'ended') {
-        velocitySpring.target.set(0, 0);
-        velocitySpring.position.set(0, 0);
-        player.setSprinting(false);
-        const to = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 1.6).sub(playerPos);
-        to.y = 0;
-        if (to.length() > 0.25) {
-          to.normalize();
-          playerPos.addScaledVector(to, MOVE_SPEED * 0.7 * dt);
-          player.setWalking(true);
-          facingSpring.target = Math.atan2(to.x, to.z);
-          facingSpring.advance(dt);
-          player.faceDirection(facingSpring.position);
-        } else {
-          player.setWalking(false);
-        }
-      } else {
-        player.setWalking(false);
-        player.setSprinting(false);
-      }
-```
-
-This keeps the original three-way `if`/`else if`/`else` structure and the meeting/ended branch's
-existing auto-walk-to-meeting logic completely intact (same `to`/`normalize`/`addScaledWait`
-math as before, at the same `MOVE_SPEED * 0.7` speed — not spring-integrated, per the spec's
-Non-goals) — the only additions there are resetting `velocitySpring` to zero (so it doesn't
-carry stale momentum into the *next* time the player regains control), calling
-`player.setSprinting(false)` (Shift held during a meeting shouldn't sprint), and swapping the
-old direct `player.faceDirection(to.x, to.z)` call for the new angle-based
-`facingSpring`-driven one (required because Task 7 changes `faceDirection`'s signature to take a
-single angle — see Task 7 Step 0). The final `else` branch (tutorial-paused / terminal open)
-gets the same `setSprinting(false)` addition so a held Shift can't stick sprint on once movement
-resumes.
-
-Note: `velocitySpring.target` uses `(nx*speed, -nz*speed)` to match the existing sign
-convention (`tz = playerPos.z - nz * MOVE_SPEED * dt` in the old code — z decreases for forward
-input); the vector spring's `.y` field carries world-space Z velocity here, `.x` carries world
-X. `facingSpring.target` uses the same `atan2(nx, -nz)` the old `faceDirection` computed
-internally (see `character.ts`'s current `Math.atan2(x, z)` call with `x, -nz` passed in) so the
-model still faces the direction of travel with matching orientation.
-
-Update `player.group.position.copy(playerPos); player.update(dt);` — unchanged, keep as-is.
-
-- [ ] **Step 3: Update `setMoveVector` to capture sprint**
-
-```typescript
-    setMoveVector(x, z, sprint = false) {
-      moveX = x;
-      moveZ = z;
-      sprinting = sprint;
-    },
-```
-
-- [ ] **Step 4: Pass velocity through to the camera**
-
-Change the final lines of `update(dt)` from:
-
-```typescript
-      world.update(dt);
-      world.updateCamera(playerPos, dt);
-```
-
-to:
-
-```typescript
-      world.update(dt);
-      world.updateCamera(playerPos, dt, velocitySpring.position);
-```
-
-(This requires Task 6's `World.updateCamera` signature change to compile — see that task's
-note above.)
-
-- [ ] **Step 5: Typecheck and run the full suite**
-
-Run: `npm run typecheck && npm test`
-Expected: typecheck passes once Task 6 and Task 7 are also done (see the ordering note above);
-`npm test` stays at 148+ passing (no existing test imports `createQuantumHeist`, so none of
-these changes can break an existing assertion — confirm by checking `test/quantum-heist/` only
-covers `logic.ts`/`tutorial.ts`).
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add games/quantum-heist/index.ts
-git commit -m "feat(quantum-heist): spring-smoothed movement/facing, sprint speed, camera velocity feed"
-```
-
----
-
-### Task 6: Camera look-ahead spring
+### Task 5: Camera look-ahead spring
 
 **Files:**
 - Modify: `photon-runner/games/lab/world.ts`
@@ -845,7 +615,9 @@ git commit -m "feat(quantum-heist): spring-smoothed movement/facing, sprint spee
 **Interfaces:**
 - Consumes: `VectorSpringSimulator` from Task 1.
 - Produces: `World.updateCamera(playerPos: THREE.Vector3, dt: number, velocity?: THREE.Vector2):
-  void` — the new optional third parameter Task 5 already calls with `velocitySpring.position`.
+  void` — Task 6 calls this with a real velocity vector. The third parameter is optional so this
+  task's typecheck passes standalone (existing 2-arg callers, if any survive until Task 6 lands,
+  keep compiling).
 
 **Context — current code being replaced:**
 
@@ -929,39 +701,44 @@ git commit -m "feat(lab): spring-damped camera follow with speed-based look-ahea
 
 ---
 
-### Task 7: Wire the animation phase machine into `character.ts`
+### Task 6: Character animation phases + spring-smoothed movement/facing in Quantum Heist
+
+This task was originally planned as two separate tasks (movement in `index.ts`, animation
+phases in `character.ts`), but pre-flight review found they're circularly coupled:
+`character.ts`'s `faceDirection` signature change and `index.ts`'s call-site updates each only
+typecheck once the other has landed. They're merged into one task/commit so `npm run typecheck`
+never sees the broken intermediate state (per this plan's Global Constraints).
 
 **Files:**
 - Modify: `photon-runner/games/lab/character.ts`
+- Modify: `photon-runner/games/quantum-heist/index.ts`
 
 **Interfaces:**
-- Consumes: `AnimPhase`, `PhaseState`, `initialPhaseState`, `advancePhase` from
-  `games/lab/animPhase.ts` (Task 2).
-- Produces: `Humanoid.setSprinting(isSprinting: boolean): void` (new method, called by Task 5's
-  `games/quantum-heist/index.ts`); `Humanoid.faceDirection` changes signature from `(x: number,
-  z: number)` to `(angle: number)` — a plain "set target angle" call, since turn smoothing now
-  lives in the caller's `RelativeSpringSimulator` (Task 5). This is a breaking signature change
-  to an exported interface method — grep the repo for other callers before starting (see Step 0).
+- Consumes: `VectorSpringSimulator`, `RelativeSpringSimulator` from `engine/springs.ts` (Task 1);
+  `AnimPhase`, `PhaseState`, `initialPhaseState`, `advancePhase` from `games/lab/animPhase.ts`
+  (Task 2); `Game.setMoveVector(x, z, sprint?)` from Task 4; `World.updateCamera(playerPos, dt,
+  velocity?)` from Task 5.
+- Produces: `Humanoid.setSprinting(isSprinting: boolean): void` (new method); `Humanoid.faceDirection`
+  changes signature from `(x: number, z: number)` to `(angle: number)` — turn smoothing moves
+  from inside `character.ts` to the caller's `RelativeSpringSimulator`. Both the interface change
+  and every call site are updated together in this task, so no intermediate commit has a broken
+  signature/call-site pairing.
 
-- [ ] **Step 0: Confirm the only caller of `faceDirection` is `quantum-heist/index.ts`**
+Do the `character.ts` steps (1-5) before the `index.ts` steps (6-9) — the `index.ts` steps call
+`player.faceDirection`/`setSprinting` expecting `character.ts`'s new signatures to already exist.
+
+---
+
+#### `character.ts` steps
+
+- [ ] **Step 1: Confirm `faceDirection`'s only callers are in `quantum-heist/index.ts`**
 
 Run: `grep -rn "faceDirection" --include=*.ts --include=*.tsx .` (from `photon-runner/`)
 Expected: matches only in `games/lab/character.ts` (the definition) and
-`games/quantum-heist/index.ts`. Task 5 already updates two of the four call sites (player
-movement and the meeting/ended auto-walk, both now driven through `facingSpring.position`) —
-**do not re-edit those two here.** Two call sites remain untouched by Task 5 and must be updated
-in this task, since they still pass `(x, z)` and will break the moment this task's signature
-change lands:
+`games/quantum-heist/index.ts` (four call sites, all of which Steps 6-9 below update in this
+same task/commit — no external code depends on the old two-argument form).
 
-- `stepWalker`'s `w.humanoid.faceDirection(to.x, to.z)` → `w.humanoid.faceDirection(Math.atan2(to.x, to.z))`
-- the mentor orientation block's `mentor.humanoid.faceDirection(toPlayer.x, toPlayer.z)` →
-  `mentor.humanoid.faceDirection(Math.atan2(toPlayer.x, toPlayer.z))`
-
-(Task 5's player-movement and meeting/ended call sites already pass `facingSpring.position`, an
-angle — no `atan2` needed there since the spring's `.target` was set via `atan2` before
-`advance()`.)
-
-- [ ] **Step 1: Import the phase machine and add `setSprinting` + phase state**
+- [ ] **Step 2: Import the phase machine and add `setSprinting` + phase state**
 
 Add the import at the top of `character.ts`:
 
@@ -984,7 +761,7 @@ export interface Humanoid {
 }
 ```
 
-- [ ] **Step 2: Replace the `walking`/`walkPhase` booleans with phase-machine state**
+- [ ] **Step 3: Replace the `walking`/`walkPhase` booleans with phase-machine state**
 
 Replace:
 
@@ -1006,7 +783,7 @@ with:
   let blinkTimer = 2 + Math.random() * 3;
 ```
 
-- [ ] **Step 3: Update `setWalking`, add `setSprinting`, and drive the phase machine in `update(dt)`**
+- [ ] **Step 4: Update `setWalking`, add `setSprinting`, and drive the phase machine in `update(dt)`**
 
 Replace:
 
@@ -1030,7 +807,7 @@ with:
 
 At the top of `update(dt)`, right after `idleClock += dt;`, advance the phase machine and derive
 the two booleans the existing pose code branches on (`walking` for the walk-cycle branch,
-`sprint` for stride speed):
+`sprintRate` for stride speed):
 
 ```typescript
       idleClock += dt;
@@ -1040,9 +817,7 @@ the two booleans the existing pose code branches on (`walking` for the walk-cycl
       const sprintRate = phase === 'sprint' ? 1.35 : 1;
 ```
 
-- [ ] **Step 4: Use `sprintRate` to scale the walk-cycle stride and speed**
-
-In the existing `if (walking) { ... }` branch, change the stride-rate line:
+Then, in the existing `if (walking) { ... }` branch, change the stride-rate line:
 
 ```typescript
         walkPhase += dt * 8.2;
@@ -1054,8 +829,8 @@ to:
         walkPhase += dt * 8.2 * sprintRate;
 ```
 
-and scale the leg/arm/torso swing amplitudes by `sprintRate` so sprint reads as a bigger, faster
-stride rather than just a faster loop of the same small motion — change:
+and scale the leg swing amplitude by `sprintRate` so sprint reads as a bigger, faster stride
+rather than just a faster loop of the same small motion — change:
 
 ```typescript
         legs.l.hip.rotation.x = s * 0.62;
@@ -1071,13 +846,10 @@ to:
 
 (leave the knee/ankle/arm/torso lines as-is — the spec only requires the stride to read as
 faster/bigger, not a full re-tune of every joint; the hip swing amplitude change plus the faster
-`walkPhase` rate is sufficient to distinguish sprint from walk visually).
+`walkPhase` rate is sufficient to distinguish sprint from walk visually.)
 
-For the `startWalk`/`stopWalk` blend requested by the spec: multiply the walk-branch's output
-by a blend factor `t` before it's applied, computed from `phaseState.elapsed` — simplest
-implementation is to scale the whole walk branch's *effect* by blending `body.position.y` and
-`torso.rotation.y/x` (the two properties that most read as "starting/stopping") rather than
-every joint. Add right after the `walkPhase += dt * 8.2 * sprintRate;` line:
+For the `startWalk`/`stopWalk` blend requested by the spec: add a blend factor computed from
+`phaseState.elapsed`, right after the `walkPhase += dt * 8.2 * sprintRate;` line:
 
 ```typescript
         const blendT =
@@ -1089,8 +861,9 @@ every joint. Add right after the `walkPhase += dt * 8.2 * sprintRate;` line:
 ```
 
 then wrap the torso/body lines that follow (`torso.rotation.y = -s * 0.1;`, `torso.rotation.x =
-0.05;`, `body.position.y = Math.abs(c) * 0.035;`, `headPivot.rotation.y = s * 0.06;`) with the
-blend:
+0.05;`, `body.position.y = Math.abs(c) * 0.035;`, `headPivot.rotation.y = s * 0.06;`,
+`headPivot.rotation.x = -0.03;`) with the blend — these are the properties that most read as
+"starting/stopping", so blending just these (not every joint) is enough:
 
 ```typescript
         torso.rotation.y = -s * 0.1 * blendT;
@@ -1124,26 +897,229 @@ with:
     },
 ```
 
-(Turn smoothing now happens in the caller's `RelativeSpringSimulator` — see Task 5 Step 2's
-call-site updates and this task's Step 0, both of which already compute the
-shortest-path-adjusted angle before calling this.)
+(Turn smoothing now happens in the caller's `RelativeSpringSimulator` — see Steps 7-8 below,
+which compute the shortest-path-adjusted angle before calling this.)
 
-- [ ] **Step 6: Typecheck and run the full suite**
+---
 
-Run: `npm run typecheck && npm test`
-Expected: no errors; 148+ tests passing (`test/characterAppearance.test.ts` doesn't touch
-`character.ts`'s geometry/animation code, so it's unaffected).
+#### `index.ts` steps
 
-- [ ] **Step 7: Commit**
+**Context — current code being replaced** (`games/quantum-heist/index.ts`):
 
-```bash
-git add games/lab/character.ts games/quantum-heist/index.ts
-git commit -m "feat(lab): idle/start-walk/walk/sprint/stop-walk animation phases; faceDirection takes an angle"
+```typescript
+const MOVE_SPEED = 4.4;
+...
+  const playerPos = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 2);
+  let moveX = 0;
+  let moveZ = 0;
+  let hasMoved = false;
+```
+
+and, inside `update(dt)`:
+
+```typescript
+      if (canMove) {
+        const len = Math.hypot(moveX, moveZ);
+        const nx = len > 1 ? moveX / len : moveX;
+        const nz = len > 1 ? moveZ / len : moveZ;
+        if (nx !== 0 || nz !== 0) {
+          const tx = playerPos.x + nx * MOVE_SPEED * dt;
+          const tz = playerPos.z - nz * MOVE_SPEED * dt;
+          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
+          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+          player.setWalking(true);
+          player.faceDirection(nx, -nz);
+          if (!hasMoved) {
+            hasMoved = true;
+            teach('move');
+          }
+        } else {
+          player.setWalking(false);
+        }
+      } else if (g.phase === 'meeting' || g.phase === 'ended') {
+        const to = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 1.6).sub(playerPos);
+        to.y = 0;
+        if (to.length() > 0.25) {
+          to.normalize();
+          playerPos.addScaledVector(to, MOVE_SPEED * 0.7 * dt);
+          player.setWalking(true);
+          player.faceDirection(to.x, to.z);
+        } else {
+          player.setWalking(false);
+        }
+      } else {
+        player.setWalking(false);
+      }
+      player.group.position.copy(playerPos);
+      player.update(dt);
+```
+
+and `setMoveVector`:
+
+```typescript
+    setMoveVector(x, z) {
+      moveX = x;
+      moveZ = z;
+    },
+```
+
+and the final camera call:
+
+```typescript
+      world.update(dt);
+      world.updateCamera(playerPos, dt);
+```
+
+- [ ] **Step 6: Add sprint speed, the movement spring, and the facing spring**
+
+Add near the top of `games/quantum-heist/index.ts`, alongside the existing speed constants:
+
+```typescript
+const MOVE_SPEED = 4.4;
+const SPRINT_SPEED = 7.0;
+const BOT_SPEED = 3.2;
+```
+
+Add the import:
+
+```typescript
+import { VectorSpringSimulator, RelativeSpringSimulator } from '../../engine/springs';
+```
+
+Replace the `moveX`/`moveZ` declarations with a sprint flag and the two springs (kept alongside
+`playerPos`):
+
+```typescript
+  const playerPos = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 2);
+  let moveX = 0;
+  let moveZ = 0;
+  let sprinting = false;
+  let hasMoved = false;
+  const velocitySpring = new VectorSpringSimulator(0.12, 5.8);
+  const facingSpring = new RelativeSpringSimulator(0.05, 9);
+```
+
+- [ ] **Step 7: Replace the direct-write movement block with spring-integrated movement**
+
+Replace the entire `if (canMove) { ... } else if (g.phase === 'meeting' || g.phase === 'ended')
+{ ... } else { player.setWalking(false); }` chain (all three branches, verbatim as shown in
+"Context" above) with:
+
+```typescript
+      if (canMove) {
+        const len = Math.hypot(moveX, moveZ);
+        const nx = len > 1 ? moveX / len : moveX;
+        const nz = len > 1 ? moveZ / len : moveZ;
+        const speed = sprinting ? SPRINT_SPEED : MOVE_SPEED;
+        velocitySpring.target.set(nx * speed, -nz * speed);
+        velocitySpring.advance(dt);
+
+        if (nx !== 0 || nz !== 0) {
+          const tx = playerPos.x + velocitySpring.position.x * dt;
+          const tz = playerPos.z + velocitySpring.position.y * dt;
+          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
+          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+          facingSpring.target = Math.atan2(nx, -nz);
+          player.setWalking(true);
+          player.setSprinting(sprinting);
+          if (!hasMoved) {
+            hasMoved = true;
+            teach('move');
+          }
+        } else {
+          player.setWalking(false);
+          player.setSprinting(false);
+        }
+        facingSpring.advance(dt);
+        player.faceDirection(facingSpring.position);
+      } else if (g.phase === 'meeting' || g.phase === 'ended') {
+        velocitySpring.target.set(0, 0);
+        velocitySpring.position.set(0, 0);
+        player.setSprinting(false);
+        const to = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 1.6).sub(playerPos);
+        to.y = 0;
+        if (to.length() > 0.25) {
+          to.normalize();
+          playerPos.addScaledVector(to, MOVE_SPEED * 0.7 * dt);
+          player.setWalking(true);
+          facingSpring.target = Math.atan2(to.x, to.z);
+          facingSpring.advance(dt);
+          player.faceDirection(facingSpring.position);
+        } else {
+          player.setWalking(false);
+        }
+      } else {
+        player.setWalking(false);
+        player.setSprinting(false);
+      }
+```
+
+This keeps the original three-way `if`/`else if`/`else` structure and the meeting/ended branch's
+existing auto-walk-to-meeting logic completely intact (same `to`/`normalize`/`addScaledVector`
+math as before, at the same `MOVE_SPEED * 0.7` speed — not spring-integrated, per the spec's
+Non-goals) — the only additions there are resetting `velocitySpring` to zero (so it doesn't
+carry stale momentum into the *next* time the player regains control), calling
+`player.setSprinting(false)` (Shift held during a meeting shouldn't sprint), and swapping the
+old direct `player.faceDirection(to.x, to.z)` call for the new angle-based `facingSpring`-driven
+one (required by Step 5's signature change). The final `else` branch (tutorial-paused / terminal
+open) gets the same `setSprinting(false)` addition so a held Shift can't stick sprint on once
+movement resumes.
+
+Note: `velocitySpring.target` uses `(nx*speed, -nz*speed)` to match the existing sign convention
+(`tz = playerPos.z - nz * MOVE_SPEED * dt` in the old code — z decreases for forward input); the
+vector spring's `.y` field carries world-space Z velocity here, `.x` carries world X.
+`facingSpring.target` uses the same `atan2(nx, -nz)` the old `faceDirection` computed internally
+(its `Math.atan2(x, z)` called with `x, -nz` passed in) so the model still faces the direction of
+travel with matching orientation.
+
+Update `player.group.position.copy(playerPos); player.update(dt);` — unchanged, keep as-is.
+
+- [ ] **Step 8: Update `setMoveVector` to capture sprint**
+
+```typescript
+    setMoveVector(x, z, sprint = false) {
+      moveX = x;
+      moveZ = z;
+      sprinting = sprint;
+    },
+```
+
+- [ ] **Step 9: Pass velocity through to the camera**
+
+Change the final lines of `update(dt)` from:
+
+```typescript
+      world.update(dt);
+      world.updateCamera(playerPos, dt);
+```
+
+to:
+
+```typescript
+      world.update(dt);
+      world.updateCamera(playerPos, dt, velocitySpring.position);
 ```
 
 ---
 
-### Task 8: Manual playtest and final verification
+- [ ] **Step 10: Typecheck and run the full suite**
+
+Run: `npm run typecheck && npm test`
+Expected: no errors; `npm test` stays at 148+ passing (no existing test imports
+`createQuantumHeist`, so none of these changes can break an existing assertion — confirm by
+checking `test/quantum-heist/` only covers `logic.ts`/`tutorial.ts`; and
+`test/characterAppearance.test.ts` doesn't touch `character.ts`'s geometry/animation code).
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add games/lab/character.ts games/quantum-heist/index.ts
+git commit -m "feat(quantum-heist): spring-smoothed movement/facing, sprint, animation phases"
+```
+
+---
+
+### Task 7: Manual playtest and final verification
 
 **Files:** none (verification-only task).
 
@@ -1177,9 +1153,9 @@ skip or run the tutorial), and check:
   non-spring movement per the spec's Non-goals).
 
 If anything reads wrong (too floaty, too snappy, sprint too subtle), note the specific spring
-constants to retune (`mass`/`damping` in Task 5's `velocitySpring`/`facingSpring`, Task 6's
-`lookAhead`, or the sprint-rate/blend constants in Task 7) — these are the only tunable knobs
-and don't require any other code changes.
+constants to retune (`mass`/`damping` in Task 6's `velocitySpring`/`facingSpring`, Task 5's
+`lookAhead`, or the sprint-rate/blend constants in Task 6) — these are the only tunable knobs and
+don't require any other code changes.
 
 - [ ] **Step 4: Final commit (only if playtest retuning changed constants)**
 
