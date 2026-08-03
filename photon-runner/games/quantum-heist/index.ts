@@ -138,6 +138,7 @@ interface Walker {
   pos: THREE.Vector3;
   target: THREE.Vector3;
   waitFor: number;
+  facing: RelativeSpringSimulator;
 }
 
 interface Bot extends Walker {
@@ -426,7 +427,9 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
     else return true;
 
     w.humanoid.setWalking(true);
-    w.humanoid.faceDirection(Math.atan2(to.x, to.z));
+    w.facing.target = Math.atan2(to.x, to.z);
+    w.facing.advance(dt);
+    w.humanoid.faceDirection(w.facing.position);
     w.humanoid.group.position.copy(w.pos);
     w.humanoid.update(dt);
     return false;
@@ -574,7 +577,14 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         );
         humanoid.group.position.copy(pos);
         engine!.scene.add(humanoid.group);
-        return { operative, humanoid, pos, target: pos.clone(), waitFor: Math.random() * 2 };
+        return {
+          operative,
+          humanoid,
+          pos,
+          target: pos.clone(),
+          waitFor: Math.random() * 2,
+          facing: new RelativeSpringSimulator(0.05, 9),
+        };
       });
 
     if (tutorial.active) {
@@ -584,7 +594,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
       const pos = new THREE.Vector3(map.meeting.x + 1.6, 0, map.meeting.z + 1.4);
       h.group.position.copy(pos);
       engine.scene.add(h.group);
-      mentor = { humanoid: h, pos, target: pos.clone(), waitFor: 0 };
+      mentor = { humanoid: h, pos, target: pos.clone(), waitFor: 0, facing: new RelativeSpringSimulator(0.05, 9) };
     }
   }
 
@@ -766,6 +776,8 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
           player.setWalking(false);
         }
       } else {
+        velocitySpring.target.set(0, 0);
+        velocitySpring.advance(dt);
         player.setWalking(false);
         player.setSprinting(false);
       }
@@ -776,7 +788,11 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         const arrived = stepWalker(mentor, BOT_SPEED * 0.9, dt);
         if (arrived) {
           const toPlayer = new THREE.Vector3().subVectors(playerPos, mentor.pos);
-          if (toPlayer.length() > 0.1) mentor.humanoid.faceDirection(Math.atan2(toPlayer.x, toPlayer.z));
+          if (toPlayer.length() > 0.1) {
+            mentor.facing.target = Math.atan2(toPlayer.x, toPlayer.z);
+          }
+          mentor.facing.advance(dt);
+          mentor.humanoid.faceDirection(mentor.facing.position);
         }
       }
 
