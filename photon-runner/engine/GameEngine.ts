@@ -15,7 +15,7 @@ export interface Game {
   update(dt: number): void;
   dispose(): void;
   /** x: -1 (left) .. 1 (right) strafe, z: -1 (back) .. 1 (forward). */
-  setMoveVector(x: number, z: number): void;
+  setMoveVector(x: number, z: number, sprint?: boolean): void;
   interact(): void;
 }
 

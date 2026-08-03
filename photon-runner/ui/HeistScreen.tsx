@@ -63,7 +63,7 @@ export function HeistScreen({
 
     const keyboard = createKeyboardMovementInput();
     keyboard.attach(canvas, {
-      onMove: (x, z) => game.setMoveVector(x, z),
+      onMove: (x, z, sprint) => game.setMoveVector(x, z, sprint),
       onInteract: () => game.interact(),
     });
 
