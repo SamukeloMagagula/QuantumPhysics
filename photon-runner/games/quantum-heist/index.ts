@@ -4,6 +4,7 @@ import { createHumanoid, Humanoid } from '../lab/character';
 import { createWorld, World, MarkerHandle } from '../lab/world';
 import { getAppearance, randomAppearance } from '../../storage/characterAppearance';
 import { MapDef, getMap, isWalkable, roomContaining } from '../lab/maps';
+import { VectorSpringSimulator, RelativeSpringSimulator } from '../../engine/springs';
 import {
   TutorialState,
   TutorialStep,
@@ -39,6 +40,7 @@ import {
 } from './logic';
 
 const MOVE_SPEED = 4.4;
+const SPRINT_SPEED = 7.0;
 const BOT_SPEED = 3.2;
 const BODY_RADIUS = 1.7;
 const WITNESS_RADIUS = 8;
@@ -172,7 +174,10 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
   const playerPos = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 2);
   let moveX = 0;
   let moveZ = 0;
+  let sprinting = false;
   let hasMoved = false;
+  const velocitySpring = new VectorSpringSimulator(0.12, 5.8);
+  const facingSpring = new RelativeSpringSimulator(0.05, 9);
 
   let bots: Bot[] = [];
   const stationMarkers = new Map<string, MarkerHandle>();
@@ -421,7 +426,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
     else return true;
 
     w.humanoid.setWalking(true);
-    w.humanoid.faceDirection(to.x, to.z);
+    w.humanoid.faceDirection(Math.atan2(to.x, to.z));
     w.humanoid.group.position.copy(w.pos);
     w.humanoid.update(dt);
     return false;
@@ -722,33 +727,47 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         const len = Math.hypot(moveX, moveZ);
         const nx = len > 1 ? moveX / len : moveX;
         const nz = len > 1 ? moveZ / len : moveZ;
+        const speed = sprinting ? SPRINT_SPEED : MOVE_SPEED;
+        velocitySpring.target.set(nx * speed, -nz * speed);
+        velocitySpring.advance(dt);
+
         if (nx !== 0 || nz !== 0) {
-          const tx = playerPos.x + nx * MOVE_SPEED * dt;
-          const tz = playerPos.z - nz * MOVE_SPEED * dt;
+          const tx = playerPos.x + velocitySpring.position.x * dt;
+          const tz = playerPos.z + velocitySpring.position.y * dt;
           if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
           if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+          facingSpring.target = Math.atan2(nx, -nz);
           player.setWalking(true);
-          player.faceDirection(nx, -nz);
+          player.setSprinting(sprinting);
           if (!hasMoved) {
             hasMoved = true;
             teach('move');
           }
         } else {
           player.setWalking(false);
+          player.setSprinting(false);
         }
+        facingSpring.advance(dt);
+        player.faceDirection(facingSpring.position);
       } else if (g.phase === 'meeting' || g.phase === 'ended') {
+        velocitySpring.target.set(0, 0);
+        velocitySpring.position.set(0, 0);
+        player.setSprinting(false);
         const to = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 1.6).sub(playerPos);
         to.y = 0;
         if (to.length() > 0.25) {
           to.normalize();
           playerPos.addScaledVector(to, MOVE_SPEED * 0.7 * dt);
           player.setWalking(true);
-          player.faceDirection(to.x, to.z);
+          facingSpring.target = Math.atan2(to.x, to.z);
+          facingSpring.advance(dt);
+          player.faceDirection(facingSpring.position);
         } else {
           player.setWalking(false);
         }
       } else {
         player.setWalking(false);
+        player.setSprinting(false);
       }
       player.group.position.copy(playerPos);
       player.update(dt);
@@ -757,7 +776,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         const arrived = stepWalker(mentor, BOT_SPEED * 0.9, dt);
         if (arrived) {
           const toPlayer = new THREE.Vector3().subVectors(playerPos, mentor.pos);
-          if (toPlayer.length() > 0.1) mentor.humanoid.faceDirection(toPlayer.x, toPlayer.z);
+          if (toPlayer.length() > 0.1) mentor.humanoid.faceDirection(Math.atan2(toPlayer.x, toPlayer.z));
         }
       }
 
@@ -794,12 +813,13 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
       }
 
       world.update(dt);
-      world.updateCamera(playerPos, dt);
+      world.updateCamera(playerPos, dt, velocitySpring.position);
     },
 
-    setMoveVector(x, z) {
+    setMoveVector(x, z, sprint = false) {
       moveX = x;
       moveZ = z;
+      sprinting = sprint;
     },
 
     interact() {

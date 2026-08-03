@@ -9,6 +9,7 @@ import {
 } from '../../storage/characterAppearance';
 import { applySurface, fabricSurface, hairSurface, metalSurface, skinSurface } from './textures';
 import { profile } from './quality';
+import { AnimPhase, PhaseState, advancePhase, initialPhaseState } from './animPhase';
 
 /**
  * A human-proportioned articulated character built entirely from primitives —
@@ -37,8 +38,9 @@ const FOREARM_LEN = 0.28;
 export interface Humanoid {
   group: THREE.Group;
   setWalking(isWalking: boolean): void;
+  setSprinting(isSprinting: boolean): void;
   update(dt: number): void;
-  faceDirection(x: number, z: number): void;
+  faceDirection(angle: number): void;
   /** Plays a one-shot gesture (used for interactions / taps). */
   wave(): void;
   dispose(): void;
@@ -330,7 +332,9 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   // ---------------- animation ----------------
   let walkPhase = 0;
   let idleClock = 0;
-  let walking = false;
+  let moving = false;
+  let sprinting = false;
+  let phaseState: PhaseState = initialPhaseState();
   let blinkTimer = 2 + Math.random() * 3;
   let blinkT = 0;
   let waveT = 0;
@@ -341,7 +345,11 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     group: root,
 
     setWalking(isWalking) {
-      walking = isWalking;
+      moving = isWalking;
+    },
+
+    setSprinting(isSprinting) {
+      sprinting = isSprinting;
     },
 
     wave() {
@@ -350,6 +358,10 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
 
     update(dt) {
       idleClock += dt;
+      phaseState = advancePhase(phaseState, dt, moving, sprinting);
+      const phase: AnimPhase = phaseState.phase;
+      const walking = phase === 'walk' || phase === 'sprint' || phase === 'startWalk' || phase === 'stopWalk';
+      const sprintRate = phase === 'sprint' ? 1.35 : 1;
 
       // Blinking — a quick vertical squash of both eyes.
       blinkTimer -= dt;
@@ -366,13 +378,20 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
       }
 
       if (walking) {
-        walkPhase += dt * 8.2;
+        walkPhase += dt * 8.2 * sprintRate;
         const s = Math.sin(walkPhase);
         const c = Math.cos(walkPhase);
 
+        const blendT =
+          phase === 'startWalk'
+            ? Math.min(1, phaseState.elapsed / 0.15)
+            : phase === 'stopWalk'
+              ? 1 - Math.min(1, phaseState.elapsed / 0.12)
+              : 1;
+
         // Legs: hip drives the stride, knee only ever flexes backwards.
-        legs.l.hip.rotation.x = s * 0.62;
-        legs.r.hip.rotation.x = -s * 0.62;
+        legs.l.hip.rotation.x = s * 0.62 * sprintRate;
+        legs.r.hip.rotation.x = -s * 0.62 * sprintRate;
         legs.l.knee.rotation.x = -Math.max(0, -s) * 0.95 - 0.06;
         legs.r.knee.rotation.x = -Math.max(0, s) * 0.95 - 0.06;
         legs.l.ankle.rotation.x = s * 0.18;
@@ -387,11 +406,11 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
         arms.r.elbow.rotation.x = -0.3 - Math.max(0, s) * 0.35;
 
         // Torso counter-rotates and the whole body bobs twice per stride.
-        torso.rotation.y = -s * 0.1;
-        torso.rotation.x = 0.05;
-        body.position.y = Math.abs(c) * 0.035;
-        headPivot.rotation.y = s * 0.06;
-        headPivot.rotation.x = -0.03;
+        torso.rotation.y = -s * 0.1 * blendT;
+        torso.rotation.x = 0.05 * blendT;
+        body.position.y = Math.abs(c) * 0.035 * blendT;
+        headPivot.rotation.y = s * 0.06 * blendT;
+        headPivot.rotation.x = -0.03 * blendT;
       } else {
         walkPhase = 0;
         const breath = Math.sin(idleClock * 1.6);
@@ -429,14 +448,8 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
       }
     },
 
-    faceDirection(x, z) {
-      if (x === 0 && z === 0) return;
-      const target = Math.atan2(x, z);
-      // Shortest-path turn so the figure never spins the long way round.
-      let delta = target - root.rotation.y;
-      while (delta > Math.PI) delta -= Math.PI * 2;
-      while (delta < -Math.PI) delta += Math.PI * 2;
-      root.rotation.y += delta * 0.25;
+    faceDirection(angle) {
+      root.rotation.y = angle;
     },
 
     dispose() {
