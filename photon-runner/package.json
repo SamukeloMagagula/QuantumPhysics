@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently -n client,api -c blue,green \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "vite",
-    "dev:server": "tsx watch server/src/index.ts",
+    "dev:server": "tsx watch src/serverIndex.ts",
     "build": "vite build",
-    "start": "cross-env NODE_ENV=production tsx server/src/index.ts",
+    "start": "cross-env NODE_ENV=production tsx src/serverIndex.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
