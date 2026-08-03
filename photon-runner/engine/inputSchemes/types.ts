@@ -1,6 +1,11 @@
 export interface MovementCallbacks {
-  /** x: -1 (left) .. 1 (right) strafe, z: -1 (back) .. 1 (forward). */
-  onMove: (x: number, z: number) => void;
+  /**
+   * x: -1 (left) .. 1 (right) strafe, z: -1 (back) .. 1 (forward).
+   * sprint: true while a sprint modifier (e.g. Shift) is held alongside
+   * movement. Schemes that have no sprint concept (touch joystick) omit it,
+   * which callers must treat the same as `false`.
+   */
+  onMove: (x: number, z: number, sprint?: boolean) => void;
   onInteract: () => void;
 }
 

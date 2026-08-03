@@ -2,8 +2,9 @@ import { InputScheme, MovementCallbacks } from './types';
 
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 const INTERACT_KEYS = new Set(['e', 'enter', ' ']);
+const SPRINT_KEYS = new Set(['shift']);
 
-/** Laptop control scheme: WASD/arrow keys for movement, E/Enter/Space to interact. */
+/** Laptop control scheme: WASD/arrow keys for movement, E/Enter/Space to interact, Shift to sprint. */
 export function createKeyboardMovementInput(): InputScheme {
   let callbacks: MovementCallbacks | null = null;
   const held = new Set<string>();
@@ -16,7 +17,8 @@ export function createKeyboardMovementInput(): InputScheme {
     if (held.has('d') || held.has('arrowright')) x += 1;
     if (held.has('w') || held.has('arrowup')) z += 1;
     if (held.has('s') || held.has('arrowdown')) z -= 1;
-    callbacks.onMove(x, z);
+    const sprint = held.has('shift');
+    callbacks.onMove(x, z, sprint);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -26,7 +28,7 @@ export function createKeyboardMovementInput(): InputScheme {
       callbacks?.onInteract();
       return;
     }
-    if (!MOVE_KEYS.has(key)) return;
+    if (!MOVE_KEYS.has(key) && !SPRINT_KEYS.has(key)) return;
     e.preventDefault();
     if (!held.has(key)) {
       held.add(key);
