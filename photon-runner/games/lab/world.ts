@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CorridorDef, MapDef, RoomDef } from './maps';
 import { applySurface, groundSurface, metalSurface, wallSurface } from './textures';
 import { profile } from './quality';
+import { VectorSpringSimulator } from '../../engine/springs';
 
 export interface MarkerHandle {
   group: THREE.Group;
@@ -11,7 +12,7 @@ export interface World {
   spawnMarker(position: THREE.Vector3, color: number, kind?: 'task' | 'hostile'): MarkerHandle;
   removeMarker(handle: MarkerHandle): void;
   update(dt: number): void;
-  updateCamera(playerPos: THREE.Vector3, dt: number): void;
+  updateCamera(playerPos: THREE.Vector3, dt: number, velocity?: THREE.Vector2): void;
   pingSensor(id: string): void;
   popVent(ventId: string): void;
   dispose(): void;
@@ -324,6 +325,7 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
 
   const markers = new Set<THREE.Group>();
   let clock = 0;
+  const lookAhead = new VectorSpringSimulator(0.35, 3.4);
 
   function buildMarker(color: number, kind: 'task' | 'hostile'): THREE.Group {
     const g = new THREE.Group();
@@ -411,10 +413,19 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
       });
     },
 
-    updateCamera(playerPos, dt) {
-      const desired = new THREE.Vector3(playerPos.x * 0.6, 13.5, playerPos.z + 10);
+    updateCamera(playerPos, dt, velocity) {
+      // Look slightly ahead of travel direction — more pronounced at higher
+      // speed (sprinting), settles back to zero at rest.
+      const vx = velocity?.x ?? 0;
+      const vz = velocity?.y ?? 0;
+      lookAhead.target.set(vx * 0.18, vz * 0.18);
+      lookAhead.advance(dt);
+
+      const anchorX = playerPos.x + lookAhead.position.x;
+      const anchorZ = playerPos.z + lookAhead.position.y;
+      const desired = new THREE.Vector3(anchorX * 0.6, 13.5, anchorZ + 10);
       camera.position.lerp(desired, Math.min(dt * 3.2, 1));
-      camera.lookAt(playerPos.x * 0.6, 0.8, playerPos.z + 0.5);
+      camera.lookAt(anchorX * 0.6, 0.8, anchorZ + 0.5);
     },
 
     dispose() {
