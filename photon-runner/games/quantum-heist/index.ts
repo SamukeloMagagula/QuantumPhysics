@@ -741,11 +741,14 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         velocitySpring.target.set(nx * speed, -nz * speed);
         velocitySpring.advance(dt);
 
-        if (nx !== 0 || nz !== 0) {
+        if (velocitySpring.position.lengthSq() > 1e-4) {
           const tx = playerPos.x + velocitySpring.position.x * dt;
           const tz = playerPos.z + velocitySpring.position.y * dt;
           if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
           if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+        }
+
+        if (nx !== 0 || nz !== 0) {
           facingSpring.target = Math.atan2(nx, -nz);
           player.setWalking(true);
           player.setSprinting(sprinting);
@@ -761,7 +764,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         player.faceDirection(facingSpring.position);
       } else if (g.phase === 'meeting' || g.phase === 'ended') {
         velocitySpring.target.set(0, 0);
-        velocitySpring.position.set(0, 0);
+        velocitySpring.advance(dt);
         player.setSprinting(false);
         const to = new THREE.Vector3(map.meeting.x, 0, map.meeting.z + 1.6).sub(playerPos);
         to.y = 0;
