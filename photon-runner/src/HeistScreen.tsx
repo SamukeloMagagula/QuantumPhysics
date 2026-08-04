@@ -9,6 +9,8 @@ import {
   Eye,
   Ghost,
   KeyRound,
+  Mic,
+  MicOff,
   Radio,
   Siren,
   Skull,
@@ -192,6 +194,23 @@ export function HeistScreen({
               >
                 <Camera size={16} />
               </button>
+
+              {ui.voiceStatus && ui.voiceStatus !== 'unsupported' && (
+                <button
+                  onClick={() => gameRef.current?.toggleMic?.()}
+                  title={
+                    ui.voiceStatus === 'denied'
+                      ? 'Mic permission denied'
+                      : ui.micMuted
+                        ? 'Unmute proximity voice'
+                        : 'Mute proximity voice'
+                  }
+                  className="glass rounded-2xl w-11 h-11 grid place-items-center shrink-0"
+                  style={ui.micMuted || ui.voiceStatus === 'denied' ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : undefined}
+                >
+                  {ui.micMuted || ui.voiceStatus === 'denied' ? <MicOff size={16} /> : <Mic size={16} />}
+                </button>
+              )}
             </div>
           </div>
 

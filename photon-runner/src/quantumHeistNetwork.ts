@@ -20,6 +20,7 @@ import { VectorSpringSimulator, RelativeSpringSimulator } from './springs';
 import { INTERACT_RADIUS, REPEATABLE, StationDef, TerminalKind, scoredStations, stationsFor } from './quantumHeistStations';
 import { CRISIS_INFO, CrisisKind, REACH } from './quantumHeistLogic';
 import type { CameraMode, HeistGame, HeistUiState, TaskView, ActiveTerminal, CommsMessage } from './quantumHeist';
+import { createHeistVoice, HeistVoice } from './heistVoice';
 
 const MOVE_SPEED = 4.4;
 const SPRINT_SPEED = 7.0;
@@ -30,6 +31,7 @@ const POSITION_POST_MS = 220;
 const TICK_MS = 1000;
 
 interface RemoteSeat {
+  seatIndex: number;
   codename: string;
   kind: 'human' | 'computer';
   alive: boolean;
@@ -117,6 +119,8 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
   let mapReady = false;
   let error: string | null = null;
   let pollTimer: number | null = null;
+  let voice: HeistVoice | null = null;
+  let micMuted = false;
 
   const subscribers = new Set<(s: HeistUiState) => void>();
 
@@ -234,6 +238,8 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
       objectives: scored.map((s) => ({ x: s.x, z: s.z, done: false, color: `#${s.color.toString(16).padStart(6, '0')}` })),
       tutorial: null,
       cameraMode,
+      voiceStatus: voice?.status ?? 'idle',
+      micMuted,
     };
   }
 
@@ -324,6 +330,10 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
       }
       syncRemotes();
       if (before?.phase !== data.phase || before?.crisis !== data.crisis) refreshMarkers();
+      if (!voice && data.yourSeatIndex != null) {
+        voice = createHeistVoice(code, data.yourSeatIndex);
+        void voice.start();
+      }
       emit();
     } catch (e) {
       error = e instanceof Error ? e.message : 'Connection lost — retrying…';
@@ -414,6 +424,12 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
       emit();
     },
 
+    toggleMic() {
+      if (!voice) return;
+      micMuted = voice.toggleMute();
+      emit();
+    },
+
     restart() {
       // Multiplayer rooms don't restart in place — leave via onExit and host a new one.
     },
@@ -478,6 +494,11 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
 
       stepRemotes(dt);
 
+      if (voice && room) {
+        const others = room.seats.filter((s) => !s.isYou && s.kind === 'human');
+        voice.updateSeats(others, playerPos.x, playerPos.z, you?.role === 'eve');
+      }
+
       // Standing on a crisis console repairs it — throttled to avoid a POST every frame.
       const here = crisisConsoleHere();
       if (here && you?.alive) void act({ type: 'holdConsole', consoleId: here });
@@ -541,6 +562,8 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
     dispose() {
       if (pollTimer !== null) window.clearInterval(pollTimer);
       pollTimer = null;
+      voice?.dispose();
+      voice = null;
       player?.dispose();
       remotes.forEach((w) => w.humanoid.dispose());
       remotes.clear();

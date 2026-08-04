@@ -1,6 +1,17 @@
 import type { Express } from 'express';
 import type { Db } from './serverDb';
-import { HeistError, createRoom, joinRoom, setMap, startRoom, getState, updatePosition, submitAction } from './heistService';
+import {
+  HeistError,
+  createRoom,
+  joinRoom,
+  setMap,
+  startRoom,
+  getState,
+  updatePosition,
+  submitAction,
+  postSignal,
+  pullSignals,
+} from './heistService';
 import { stationsFor, scoredStations } from './quantumHeistStations';
 import { getMap } from './sceneMaps';
 
@@ -68,5 +79,23 @@ export function mountHeistRoutes(app: Express, db: Db): void {
       const room = getState(db, req.params.code, req.user!);
       return submitAction(db, req.params.code, req.user!, req.body?.action ?? {}, totalTasksFor(room.mapId));
     }, (s, b) => res.status(s).json(b));
+  });
+
+  // WebRTC signaling relay for proximity voice — see heistService.ts's postSignal/pullSignals.
+  app.post('/api/heist/room/:code/signal', (req, res) => {
+    withApiErrors(
+      () => {
+        postSignal(db, req.params.code, req.user!, req.body?.to, req.body?.data);
+        return { ok: true };
+      },
+      (s, b) => res.status(s).json(b)
+    );
+  });
+
+  app.get('/api/heist/room/:code/signal', (req, res) => {
+    withApiErrors(
+      () => ({ messages: pullSignals(db, req.params.code, req.user!) }),
+      (s, b) => res.status(s).json(b)
+    );
   });
 }

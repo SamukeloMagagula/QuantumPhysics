@@ -230,6 +230,36 @@ describe('quantum heist multiplayer API', () => {
     expect(otherView.body.comms).toHaveLength(1);
   });
 
+  it('relays WebRTC signaling messages between seats, addressed by seat index', async () => {
+    const hostCookie = await guestCookie(app);
+    const create = await request(app).post('/api/heist/room').set('Cookie', hostCookie).send({ mapId: 'relay' });
+    const code = create.body.code;
+    const otherCookie = await guestCookie(app);
+    await request(app).post(`/api/heist/room/${code}/join`).set('Cookie', otherCookie);
+    await request(app).post(`/api/heist/room/${code}/start`).set('Cookie', hostCookie);
+
+    const send = await request(app)
+      .post(`/api/heist/room/${code}/signal`)
+      .set('Cookie', hostCookie)
+      .send({ to: 1, data: { type: 'offer', sdp: 'fake-sdp' } });
+    expect(send.status).toBe(200);
+
+    const pulled = await request(app).get(`/api/heist/room/${code}/signal`).set('Cookie', otherCookie);
+    expect(pulled.body.messages).toEqual([{ from: 0, data: { type: 'offer', sdp: 'fake-sdp' } }]);
+
+    // Pulling again drains the queue — messages are one-shot.
+    const drained = await request(app).get(`/api/heist/room/${code}/signal`).set('Cookie', otherCookie);
+    expect(drained.body.messages).toEqual([]);
+
+    // A seat-less user cannot send or receive signals.
+    const outsider = await guestCookie(app);
+    const rejected = await request(app)
+      .post(`/api/heist/room/${code}/signal`)
+      .set('Cookie', outsider)
+      .send({ to: 0, data: {} });
+    expect(rejected.status).toBe(403);
+  });
+
   it('404s for an unknown room code', async () => {
     const cookie = await guestCookie(app);
     const res = await request(app).get('/api/heist/room/ZZZZ').set('Cookie', cookie);

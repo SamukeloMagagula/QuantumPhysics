@@ -193,6 +193,7 @@ export function startRoom(db: Db, code: string, user: UserRow): void {
 }
 
 export interface SeatView {
+  seatIndex: number;
   codename: string;
   kind: 'human' | 'computer';
   alive: boolean;
@@ -235,6 +236,7 @@ export function getState(db: Db, code: string, user: UserRow): RoomStateView {
   const isHost = g.host_user_id === user.id;
 
   const seatViews: SeatView[] = seats.map((s) => ({
+    seatIndex: s.seat_index,
     codename: s.codename,
     kind: s.kind,
     // Alive/role come from game state once play has started; lobby seats are trivially "alive".
@@ -385,6 +387,43 @@ export function submitAction(db: Db, code: string, user: UserRow, action: HeistA
     db.prepare("UPDATE heist_games SET phase = 'ended', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(g.id);
   }
   return getState(db, code, user);
+}
+
+/**
+ * WebRTC signaling relay for proximity voice chat. Deliberately not
+ * persisted: offers/answers/ICE candidates are only ever useful in the
+ * seconds after they're sent, and every other piece of room state already
+ * assumes a single server process — same as the rest of this module.
+ */
+const signalQueues = new Map<string, Map<number, { from: number; data: unknown }[]>>();
+
+function queueFor(code: string): Map<number, { from: number; data: unknown }[]> {
+  let q = signalQueues.get(code);
+  if (!q) {
+    q = new Map();
+    signalQueues.set(code, q);
+  }
+  return q;
+}
+
+export function postSignal(db: Db, code: string, user: UserRow, toSeatIndex: number, data: unknown): void {
+  const g = getGame(db, code);
+  const mySeat = seatForUser(db, g.id, user.id);
+  if (!mySeat) throw new HeistError('not seated in this room', 403);
+  const q = queueFor(g.code);
+  const list = q.get(toSeatIndex) ?? [];
+  list.push({ from: mySeat.seat_index, data });
+  q.set(toSeatIndex, list);
+}
+
+export function pullSignals(db: Db, code: string, user: UserRow): { from: number; data: unknown }[] {
+  const g = getGame(db, code);
+  const mySeat = seatForUser(db, g.id, user.id);
+  if (!mySeat) throw new HeistError('not seated in this room', 403);
+  const q = queueFor(g.code);
+  const list = q.get(mySeat.seat_index) ?? [];
+  q.set(mySeat.seat_index, []);
+  return list;
 }
 
 export function aliveCodenames(db: Db, code: string): string[] {

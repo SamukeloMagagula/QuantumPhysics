@@ -120,6 +120,9 @@ export interface HeistUiState {
   objectives: { x: number; z: number; done: boolean; color: string }[];
   tutorial: TutorialView | null;
   cameraMode: CameraMode;
+  /** Multiplayer only — proximity voice chat status/mute state. Absent in solo. */
+  voiceStatus?: 'idle' | 'connecting' | 'live' | 'denied' | 'unsupported';
+  micMuted?: boolean;
 }
 
 export type CameraMode = 'third' | 'first';
@@ -139,6 +142,8 @@ export interface HeistGame extends Game {
   skipTutorial(): void;
   restart(): void;
   toggleCameraMode(): void;
+  /** Multiplayer only — mutes/unmutes the local mic. Absent in solo. */
+  toggleMic?(): void;
 }
 
 interface Walker {
