@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ArrowLeft,
+  BookOpen,
   Eye,
   FlaskConical,
   Home,
@@ -26,6 +27,7 @@ interface TopNavProps {
 const ITEMS: { id: Section; label: string; Icon: React.ComponentType<{ size?: number }>; glow: string }[] = [
   { id: 'home', label: 'Home', Icon: Home, glow: '#94a3b8' },
   { id: 'heist', label: 'Heist', Icon: Eye, glow: '#fb7185' },
+  { id: 'rooms', label: 'Rooms', Icon: BookOpen, glow: '#22d3ee' },
   { id: 'quantum', label: '3D Lab', Icon: Sparkles, glow: '#fbbf24' },
   { id: 'labs', label: 'Labs', Icon: FlaskConical, glow: '#a78bfa' },
   { id: 'defender', label: 'Defender', Icon: Shield, glow: '#34d399' },

@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import cookieParser from 'cookie-parser';
 import type { Db } from './serverDb';
 import { COOKIE, resolveUser, renameUser } from './serverIdentity';
+import { mountRoomsRoutes } from './roomsRoutes';
 
 export interface AppOptions {
   db: Db;
@@ -50,6 +51,8 @@ export function createApp({ db, secret }: AppOptions): Express {
     }
     res.json({ displayName: name });
   });
+
+  mountRoomsRoutes(app, db);
 
   return app;
 }

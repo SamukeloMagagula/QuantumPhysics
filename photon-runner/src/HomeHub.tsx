@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ArrowRight,
+  BookOpen,
   Eye,
   FlaskConical,
   Palette,
@@ -10,7 +11,7 @@ import {
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 
-export type ModeId = 'heist' | 'labs' | 'quantum' | 'defender' | 'customize';
+export type ModeId = 'heist' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms';
 
 interface HomeHubProps {
   onOpen: (mode: ModeId) => void;
@@ -36,6 +37,14 @@ const FEATURED: ModeCard = {
 };
 
 const MODES: ModeCard[] = [
+  {
+    id: 'rooms',
+    title: 'Symmetric Cryptography',
+    tag: '4-room learning path',
+    blurb: 'Content-driven rooms that build on each other — Caesar, brute force, frequency analysis, XOR/OTP. Points, badges, leaderboard.',
+    Icon: BookOpen,
+    glow: '#22d3ee',
+  },
   {
     id: 'quantum',
     title: 'Quantum 3D Lab',

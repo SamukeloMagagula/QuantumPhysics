@@ -8,6 +8,9 @@ import { NetworkDefenderScreen } from './NetworkDefenderScreen';
 import { QuantumPhenomenaLab } from './QuantumPhenomenaLab';
 import { HeistScreen } from './HeistScreen';
 import { HeistLobby } from './HeistLobby';
+import { RoomsHub } from './RoomsHub';
+import { RoomRunner } from './RoomRunner';
+import { Leaderboard } from './Leaderboard';
 import { useTheme } from './theme';
 
 type Screen =
@@ -18,7 +21,10 @@ type Screen =
   | { name: 'labs' }
   | { name: 'lab'; labId: string }
   | { name: 'network-defender' }
-  | { name: 'quantum-scene' };
+  | { name: 'quantum-scene' }
+  | { name: 'rooms' }
+  | { name: 'room'; roomId: string }
+  | { name: 'leaderboard' };
 
 function sectionOf(screen: Screen): Section {
   switch (screen.name) {
@@ -36,6 +42,10 @@ function sectionOf(screen: Screen): Section {
       return 'quantum';
     case 'customize':
       return 'customize';
+    case 'rooms':
+    case 'room':
+    case 'leaderboard':
+      return 'rooms';
   }
 }
 
@@ -48,6 +58,9 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   lab: 'Security labs · running',
   'network-defender': 'Network defender',
   'quantum-scene': 'Quantum 3D lab',
+  rooms: 'Symmetric Cryptography',
+  room: 'Symmetric Cryptography · room',
+  leaderboard: 'Leaderboard',
 };
 
 export default function App() {
@@ -72,6 +85,9 @@ export default function App() {
         break;
       case 'customize':
         setScreen({ name: 'customize' });
+        break;
+      case 'rooms':
+        setScreen({ name: 'rooms' });
         break;
     }
   }, []);
@@ -128,6 +144,16 @@ export default function App() {
         {screen.name === 'lab' && <LabRunner labId={screen.labId} />}
         {screen.name === 'network-defender' && <NetworkDefenderScreen />}
         {screen.name === 'quantum-scene' && <QuantumPhenomenaLab />}
+        {screen.name === 'rooms' && (
+          <RoomsHub
+            onOpenRoom={(roomId) => setScreen({ name: 'room', roomId })}
+            onOpenLeaderboard={() => setScreen({ name: 'leaderboard' })}
+          />
+        )}
+        {screen.name === 'room' && (
+          <RoomRunner roomId={screen.roomId} onExit={() => setScreen({ name: 'rooms' })} />
+        )}
+        {screen.name === 'leaderboard' && <Leaderboard />}
       </main>
     </div>
   );
