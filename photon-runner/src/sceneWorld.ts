@@ -76,6 +76,72 @@ function solidRuns(a: number, b: number, holes: [number, number][]): [number, nu
   return runs.filter(([r0, r1]) => r1 - r0 > 0.05);
 }
 
+/** Deterministic per-room PRNG (mulberry32) so clutter placement is stable
+ * across remounts instead of reshuffling every time the scene rebuilds. */
+function seededRandom(seed: string): () => number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
+
+/** Small crates and a coiled cable near two room corners — clutter that
+ * breaks up an otherwise flat floor/wall silhouette without adding
+ * collision or interaction surface (purely decorative). */
+function scatterProps(
+  room: RoomDef,
+  res: Res,
+  scene: THREE.Scene,
+  crateMat: THREE.Material,
+  cableMat: THREE.Material
+): void {
+  const rand = seededRandom(room.id);
+  const inset = 0.55;
+  const corners: [number, number][] = [
+    [-1, -1],
+    [1, 1],
+  ];
+
+  for (const [sx, sz] of corners) {
+    if (rand() < 0.15) continue; // not every corner in every room — avoids visual monotony
+
+    const cx = room.center.x + sx * (room.size.w / 2 - inset);
+    const cz = room.center.z + sz * (room.size.d / 2 - inset);
+
+    if (rand() < 0.6) {
+      const size = 0.32 + rand() * 0.14;
+      const crate = new THREE.Mesh(res.g(new THREE.BoxGeometry(size, size, size)), crateMat);
+      crate.position.set(cx, size / 2, cz);
+      crate.rotation.y = rand() * Math.PI * 2;
+      crate.castShadow = true;
+      crate.receiveShadow = true;
+      scene.add(crate);
+      if (rand() < 0.4) {
+        const stackSize = size * (0.7 + rand() * 0.2);
+        const stack = new THREE.Mesh(res.g(new THREE.BoxGeometry(stackSize, stackSize, stackSize)), crateMat);
+        stack.position.set(cx + (rand() - 0.5) * 0.1, size + stackSize / 2, cz + (rand() - 0.5) * 0.1);
+        stack.rotation.y = rand() * Math.PI * 2;
+        stack.castShadow = true;
+        stack.receiveShadow = true;
+        scene.add(stack);
+      }
+    } else {
+      const coil = new THREE.Mesh(res.g(new THREE.TorusGeometry(0.16, 0.035, 8, 20)), cableMat);
+      coil.position.set(cx, 0.035, cz);
+      coil.rotation.x = -Math.PI / 2;
+      coil.receiveShadow = true;
+      scene.add(coil);
+    }
+  }
+}
+
 function nameplate(text: string, color: string, res: Res): THREE.Sprite {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
@@ -170,6 +236,10 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
   );
   applySurface(capMat, metalSurface(p.wallTop), 3, 1.0);
 
+  const crateMat = res.m(new THREE.MeshStandardMaterial({ color: 0x5a4a36, roughness: 0.82, metalness: 0.08 }));
+  applySurface(crateMat, metalSurface(0x5a4a36), 1.5, 0.7);
+  const cableMat = res.m(new THREE.MeshStandardMaterial({ color: 0x1a1815, roughness: 0.75, metalness: 0.1 }));
+
   function buildWalls(room: RoomDef, corridors: CorridorDef[]): void {
     const halfW = room.size.w / 2;
     const halfD = room.size.d / 2;
@@ -260,6 +330,10 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
         );
         scene.add(fill);
       }
+      // Small clutter breaks up a flat floor the way real facilities never are —
+      // same tier gate as the bounce lights, since neither changes gameplay,
+      // only how grounded the room reads.
+      scatterProps(room, res, scene, crateMat, cableMat);
     }
   }
 

@@ -108,7 +108,25 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   // Every surface gets albedo + normal + roughness maps. The normal maps are
   // what stop these reading as flat primitives — skin gets pores, cloth gets
   // weave, hair gets strands that actually catch the key light.
-  const skinMat = res.mat(new THREE.MeshStandardMaterial({ color: skinCol, roughness: 0.68, metalness: 0.02 }));
+  //
+  // Skin specifically uses MeshPhysicalMaterial for two extra terms real skin
+  // has and cloth/metal don't: `sheen` (the soft peach-fuzz micro-fringe that
+  // catches grazing light at a silhouette's edge) and a faint `clearcoat`
+  // (the thin oily highlight on a forehead/nose under a key light). Both are
+  // native three.js PBR terms — no custom shader — so this is a drop-in
+  // replacement for the plain MeshStandardMaterial that was here before.
+  const skinMat = res.mat(
+    new THREE.MeshPhysicalMaterial({
+      color: skinCol,
+      roughness: 0.68,
+      metalness: 0.02,
+      sheen: 0.35,
+      sheenRoughness: 0.8,
+      sheenColor: new THREE.Color(skinCol).lerp(new THREE.Color(0xffe4c4), 0.5),
+      clearcoat: 0.06,
+      clearcoatRoughness: 0.6,
+    })
+  );
   applySurface(skinMat, skinSurface(skinCol), 1, 0.7);
 
   const hairMat = res.mat(new THREE.MeshStandardMaterial({ color: hairCol, roughness: 0.74, metalness: 0.06 }));
