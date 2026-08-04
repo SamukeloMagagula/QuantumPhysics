@@ -83,4 +83,32 @@ CREATE TABLE IF NOT EXISTS qkd_game_seats (
     PRIMARY KEY (game_id, role),
     FOREIGN KEY (game_id) REFERENCES qkd_games(id)
 );
+
+CREATE TABLE IF NOT EXISTS heist_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    phase TEXT NOT NULL DEFAULT 'lobby',
+    map_id TEXT NOT NULL DEFAULT 'relay',
+    host_user_id INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (host_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS heist_game_seats (
+    game_id INTEGER NOT NULL,
+    seat_index INTEGER NOT NULL,
+    codename TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'computer',
+    user_id INTEGER,
+    display_name TEXT,
+    x REAL NOT NULL DEFAULT 0,
+    z REAL NOT NULL DEFAULT 0,
+    facing REAL NOT NULL DEFAULT 0,
+    walking INTEGER NOT NULL DEFAULT 0,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (game_id, seat_index),
+    FOREIGN KEY (game_id) REFERENCES heist_games(id)
+);
 `;
