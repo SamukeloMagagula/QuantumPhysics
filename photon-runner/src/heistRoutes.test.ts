@@ -208,6 +208,28 @@ describe('quantum heist multiplayer API', () => {
     expect(notSeated.status).toBe(403);
   });
 
+  it('broadcasts comms messages, capped and attributed by codename', async () => {
+    const hostCookie = await guestCookie(app);
+    const create = await request(app).post('/api/heist/room').set('Cookie', hostCookie).send({ mapId: 'relay' });
+    const code = create.body.code;
+    const otherCookie = await guestCookie(app);
+    await request(app).post(`/api/heist/room/${code}/join`).set('Cookie', otherCookie);
+    await request(app).post(`/api/heist/room/${code}/start`).set('Cookie', hostCookie);
+
+    const hostState = await request(app).get(`/api/heist/room/${code}`).set('Cookie', hostCookie);
+    const send = await request(app)
+      .post(`/api/heist/room/${code}/act`)
+      .set('Cookie', hostCookie)
+      .send({ action: { type: 'comms', text: 'Power bay is clear.' } });
+    expect(send.status).toBe(200);
+    expect(send.body.comms).toHaveLength(1);
+    expect(send.body.comms[0]).toEqual({ from: hostState.body.seats[0].codename, text: 'Power bay is clear.' });
+
+    // Visible to the other seated player too — comms is room-wide, not per-viewer.
+    const otherView = await request(app).get(`/api/heist/room/${code}`).set('Cookie', otherCookie);
+    expect(otherView.body.comms).toHaveLength(1);
+  });
+
   it('404s for an unknown room code', async () => {
     const cookie = await guestCookie(app);
     const res = await request(app).get('/api/heist/room/ZZZZ').set('Cookie', cookie);

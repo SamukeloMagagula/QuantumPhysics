@@ -51,8 +51,14 @@ interface GameRow {
   map_id: string;
   host_user_id: number;
   state: string;
+  comms: string;
   created_at: string;
   updated_at: string;
+}
+
+interface CommsMessage {
+  from: string;
+  text: string;
 }
 
 interface SeatRow {
@@ -219,6 +225,7 @@ export interface RoomStateView {
     result: { ejected: string | null; wasEve: boolean } | null;
   } | null;
   outcome: (GameState['outcome'] & { youWon: boolean }) | null;
+  comms: CommsMessage[];
 }
 
 export function getState(db: Db, code: string, user: UserRow): RoomStateView {
@@ -255,6 +262,7 @@ export function getState(db: Db, code: string, user: UserRow): RoomStateView {
     crisis: null,
     meeting: null,
     outcome: null,
+    comms: JSON.parse(g.comms),
   };
 
   if (g.phase === 'lobby' || !mySeat) return base;
@@ -323,7 +331,8 @@ export type HeistAction =
   | { type: 'vote'; accused: string }
   | { type: 'sabotage'; kind: CrisisKind; consoleIds: string[] }
   | { type: 'holdConsole'; consoleId: string }
-  | { type: 'tick'; dt: number };
+  | { type: 'tick'; dt: number }
+  | { type: 'comms'; text: string };
 
 export function submitAction(db: Db, code: string, user: UserRow, action: HeistAction, totalTasks: number): RoomStateView {
   const g = getGame(db, code);
@@ -361,6 +370,14 @@ export function submitAction(db: Db, code: string, user: UserRow, action: HeistA
       s = tickCrisis(s, action.dt);
       s = tickCooldown(s, action.dt);
       break;
+    case 'comms': {
+      const text = action.text.trim().slice(0, 90);
+      if (text) {
+        const comms: CommsMessage[] = [...JSON.parse(g.comms), { from: mySeat.codename, text }].slice(-40);
+        db.prepare('UPDATE heist_games SET comms = ? WHERE id = ?').run(JSON.stringify(comms), g.id);
+      }
+      break;
+    }
   }
 
   setState(db, g.id, s);

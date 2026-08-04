@@ -122,6 +122,8 @@ export default function App() {
 
   const showBack = screen.name !== 'home';
   // The heist owns the viewport (3D canvas + overlays); everything else scrolls.
+  // heist-mp's own <main> is sized by flexbox regardless of overflow, so its
+  // lobby (scrollable) and in-scene HeistScreen (already viewport-sized) both work unmarked.
   const immersive = screen.name === 'heist';
 
   return (
@@ -155,7 +157,7 @@ export default function App() {
             tutorial={screen.tutorial}
           />
         )}
-        {screen.name === 'heist-mp' && <HeistMultiplayerLobby onExit={goHome} />}
+        {screen.name === 'heist-mp' && <HeistMultiplayerLobby onExit={goHome} theme={theme} />}
         {screen.name === 'labs' && (
           <LabsHub
             onOpenLab={(labId) => setScreen({ name: 'lab', labId })}

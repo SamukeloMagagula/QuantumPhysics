@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Check, Crown, Eye, KeyRound, Loader2, Play, Radio, ShieldCheck, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Crown, KeyRound, Loader2, Play, Radio, Users } from 'lucide-react';
 import { MAPS, getMap } from './sceneMaps';
 import { MapThumb } from './HeistLobby';
+import { HeistScreen } from './HeistScreen';
+import { createQuantumHeistNetwork } from './quantumHeistNetwork';
+import type { ThemeMode } from './theme';
 
 const POLL_MS = 1500;
 
@@ -35,8 +38,8 @@ async function getJSON(url: string, init?: RequestInit): Promise<RoomState> {
   return body;
 }
 
-/** Create-or-join a room by code, then a live waiting room / role-reveal screen. */
-export function HeistMultiplayerLobby({ onExit }: { onExit: () => void }) {
+/** Create-or-join a room by code, a live waiting room, then the actual networked 3D heist. */
+export function HeistMultiplayerLobby({ onExit, theme }: { onExit: () => void; theme: ThemeMode }) {
   const [code, setCode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
@@ -52,7 +55,14 @@ export function HeistMultiplayerLobby({ onExit }: { onExit: () => void }) {
     const poll = async () => {
       try {
         const data = await getJSON(`/api/heist/room/${code}`);
-        if (!cancelled) setRoom(data);
+        if (cancelled) return;
+        setRoom(data);
+        // Once play starts, HeistScreen's own network game object takes over
+        // polling at its own (faster) cadence — stop double-polling here.
+        if (data.phase !== 'lobby' && pollRef.current) {
+          window.clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
       } catch {
         if (!cancelled) setError('Connection lost — retrying…');
       }
@@ -64,6 +74,8 @@ export function HeistMultiplayerLobby({ onExit }: { onExit: () => void }) {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
   }, [code]);
+
+  const gameFactory = useCallback(() => createQuantumHeistNetwork({ code: code! }), [code]);
 
   const create = async () => {
     setBusy(true);
@@ -212,7 +224,12 @@ export function HeistMultiplayerLobby({ onExit }: { onExit: () => void }) {
     );
   }
 
-  // -------- waiting room / role reveal --------
+  // -------- live scene, once the host has started the room --------
+  if (room && room.phase !== 'lobby') {
+    return <HeistScreen theme={theme} gameFactory={gameFactory} onExit={onExit} />;
+  }
+
+  // -------- waiting room --------
   const map = getMap(room?.mapId ?? mapId);
   const humanCount = room?.seats.filter((s) => s.kind === 'human').length ?? 0;
 
@@ -290,37 +307,6 @@ export function HeistMultiplayerLobby({ onExit }: { onExit: () => void }) {
               <p className="text-xs ink-3">Waiting for the host to start… ({humanCount} connected)</p>
             )}
           </>
-        )}
-
-        {room?.phase !== 'lobby' && room?.you && (
-          <div className="glass rounded-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <span
-                className="grid place-items-center w-12 h-12 rounded-2xl"
-                style={{
-                  background: room.you.role === 'eve' ? 'color-mix(in oklab, var(--danger) 18%, transparent)' : 'color-mix(in oklab, var(--accent) 18%, transparent)',
-                  color: room.you.role === 'eve' ? 'var(--danger)' : 'var(--accent)',
-                }}
-              >
-                {room.you.role === 'eve' ? <Eye size={22} /> : <ShieldCheck size={22} />}
-              </span>
-              <div>
-                <div className="text-xs ink-3">You are</div>
-                <div className="h-section text-xl ink-1">
-                  {room.you.codename} — {room.you.role === 'eve' ? 'the Eavesdropper' : 'Crew'}
-                </div>
-              </div>
-            </div>
-            <p className="text-xs ink-3 leading-relaxed">
-              Nobody else can see your role. {room.seats.length} operatives are in the facility with you,
-              known only by codename.
-            </p>
-            {room.outcome && (
-              <p className="text-sm font-semibold" style={{ color: room.outcome.youWon ? 'var(--accent)' : 'var(--danger)' }}>
-                {room.outcome.winner === 'crew' ? 'Crew wins.' : 'The Eavesdropper wins.'} {room.outcome.youWon ? 'You won.' : 'You lost.'}
-              </p>
-            )}
-          </div>
         )}
 
         <button onClick={onExit} className="btn btn-ghost px-4 py-2.5 text-xs">

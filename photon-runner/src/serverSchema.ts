@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS heist_games (
     map_id TEXT NOT NULL DEFAULT 'relay',
     host_user_id INTEGER NOT NULL,
     state TEXT NOT NULL DEFAULT '{}',
+    comms TEXT NOT NULL DEFAULT '[]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (host_user_id) REFERENCES users(id)

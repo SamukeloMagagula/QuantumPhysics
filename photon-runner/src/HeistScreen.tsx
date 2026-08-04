@@ -36,11 +36,15 @@ export function HeistScreen({
   theme,
   mapId,
   tutorial,
+  gameFactory,
 }: {
   onExit: () => void;
   theme: ThemeMode;
-  mapId: string;
-  tutorial: boolean;
+  mapId?: string;
+  tutorial?: boolean;
+  /** Multiplayer entry point: build a HeistGame (e.g. quantumHeistNetwork.ts)
+   * instead of the solo createQuantumHeist(mapId, tutorial) path. */
+  gameFactory?: () => HeistGame;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<HeistGame | null>(null);
@@ -57,7 +61,7 @@ export function HeistScreen({
       setUnsupported(true);
       return;
     }
-    const game = createQuantumHeist({ mapId, tutorial });
+    const game = gameFactory ? gameFactory() : createQuantumHeist({ mapId, tutorial });
     gameRef.current = game;
     engine.setGame(game);
     const unsub = game.subscribe(setUi);
@@ -74,9 +78,11 @@ export function HeistScreen({
       engine.dispose();
       gameRef.current = null;
     };
-    // Remounting on map/tutorial change is intentional — it rebuilds the scene.
+    // Remounting on map/tutorial/gameFactory change is intentional — it rebuilds the
+    // scene. Callers passing gameFactory must memoize it (e.g. useCallback keyed on
+    // the room code) so this doesn't remount every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapId, tutorial]);
+  }, [mapId, tutorial, gameFactory]);
 
   // 'V' quick-toggles the camera mode, mirroring the on-screen button —
   // skipped while typing (comms, sabotage picker, etc. all use text inputs).
