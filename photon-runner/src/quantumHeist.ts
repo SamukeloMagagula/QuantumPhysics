@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameEngine, Game } from './GameEngine';
 import { createHumanoid, Humanoid } from './sceneCharacter';
-import { createWorld, World, MarkerHandle } from './sceneWorld';
+import { createWorld, World, MarkerHandle, FirstPersonView } from './sceneWorld';
 import { getAppearance, randomAppearance } from './characterAppearance';
 import { MapDef, getMap, isWalkable, roomContaining } from './sceneMaps';
 import { VectorSpringSimulator, RelativeSpringSimulator } from './springs';
@@ -42,6 +42,10 @@ import {
 const MOVE_SPEED = 4.4;
 const SPRINT_SPEED = 7.0;
 const BOT_SPEED = 3.2;
+/** Approximate eye height above ground — the character's own HEAD_Y at default
+ * proportions; close enough for camera placement without threading appearance
+ * scale through from character.ts. */
+const EYE_HEIGHT = 1.6;
 const BODY_RADIUS = 1.7;
 const WITNESS_RADIUS = 8;
 
@@ -115,7 +119,10 @@ export interface HeistUiState {
   blips: { id: string; x: number; z: number; isYou: boolean; kind: 'operative' | 'body' | 'mentor' }[];
   objectives: { x: number; z: number; done: boolean; color: string }[];
   tutorial: TutorialView | null;
+  cameraMode: CameraMode;
 }
+
+export type CameraMode = 'third' | 'first';
 
 export interface HeistGame extends Game {
   subscribe(cb: (s: HeistUiState) => void): () => void;
@@ -131,6 +138,7 @@ export interface HeistGame extends Game {
   nextTutorialStep(): void;
   skipTutorial(): void;
   restart(): void;
+  toggleCameraMode(): void;
 }
 
 interface Walker {
@@ -179,6 +187,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
   let hasMoved = false;
   const velocitySpring = new VectorSpringSimulator(0.12, 5.8);
   const facingSpring = new RelativeSpringSimulator(0.05, 9);
+  let cameraMode: CameraMode = 'third';
 
   let bots: Bot[] = [];
   const stationMarkers = new Map<string, MarkerHandle>();
@@ -361,6 +370,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         const { total } = tutorialProgress(tutorial);
         return { step, index: tutorial.index, total, manual: step.trigger.kind === 'continue' };
       })(),
+      cameraMode,
     };
   }
 
@@ -393,9 +403,15 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
     }
   }
 
+  function firstPersonView(): FirstPersonView | undefined {
+    return cameraMode === 'first' ? { eyeHeight: EYE_HEIGHT, facing: facingSpring.position } : undefined;
+  }
+
   function syncBotVisibility(): void {
     for (const b of bots) b.humanoid.group.visible = b.operative.alive;
-    if (player) player.group.visible = youAlive();
+    // In first-person the camera sits at the player's own eye height — hide
+    // their model so it isn't rendered from the inside.
+    if (player) player.group.visible = youAlive() && cameraMode !== 'first';
   }
 
   function apply(next: GameState): void {
@@ -682,6 +698,12 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
       emit();
     },
 
+    toggleCameraMode() {
+      cameraMode = cameraMode === 'third' ? 'first' : 'third';
+      syncBotVisibility();
+      emit();
+    },
+
     restart() {
       g = createGame();
       tutorial = initialTutorial(false);
@@ -832,7 +854,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
       }
 
       world.update(dt);
-      world.updateCamera(playerPos, dt, velocitySpring.position);
+      world.updateCamera(playerPos, dt, velocitySpring.position, firstPersonView());
     },
 
     setMoveVector(x, z, sprint = false) {

@@ -8,11 +8,18 @@ export interface MarkerHandle {
   group: THREE.Group;
 }
 
+export interface FirstPersonView {
+  /** World-space height above `playerPos` to plant the camera — roughly eye level. */
+  eyeHeight: number;
+  /** Y-axis facing angle in radians, same convention as the character's own rotation.y. */
+  facing: number;
+}
+
 export interface World {
   spawnMarker(position: THREE.Vector3, color: number, kind?: 'task' | 'hostile'): MarkerHandle;
   removeMarker(handle: MarkerHandle): void;
   update(dt: number): void;
-  updateCamera(playerPos: THREE.Vector3, dt: number, velocity?: THREE.Vector2): void;
+  updateCamera(playerPos: THREE.Vector3, dt: number, velocity?: THREE.Vector2, firstPerson?: FirstPersonView): void;
   pingSensor(id: string): void;
   popVent(ventId: string): void;
   dispose(): void;
@@ -413,7 +420,21 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
       });
     },
 
-    updateCamera(playerPos, dt, velocity) {
+    updateCamera(playerPos, dt, velocity, firstPerson) {
+      if (firstPerson) {
+        // Plant the camera at eye height and snap to facing — no lag, no
+        // spring: it's supposed to feel like your own head, not a chase cam.
+        camera.position.set(playerPos.x, firstPerson.eyeHeight, playerPos.z);
+        const lookX = playerPos.x + Math.sin(firstPerson.facing);
+        const lookZ = playerPos.z + Math.cos(firstPerson.facing);
+        camera.lookAt(lookX, firstPerson.eyeHeight, lookZ);
+        // The third-person look-ahead spring keeps decaying toward zero while
+        // unused, so switching back doesn't inherit a stale offset.
+        lookAhead.target.set(0, 0);
+        lookAhead.advance(dt);
+        return;
+      }
+
       // Look slightly ahead of travel direction — more pronounced at higher
       // speed (sprinting), settles back to zero at rest.
       const vx = velocity?.x ?? 0;

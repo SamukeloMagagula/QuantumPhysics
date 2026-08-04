@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   Bell,
+  Camera,
   Check,
   Crosshair,
   Eye,
@@ -77,6 +78,19 @@ export function HeistScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapId, tutorial]);
 
+  // 'V' quick-toggles the camera mode, mirroring the on-screen button —
+  // skipped while typing (comms, sabotage picker, etc. all use text inputs).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'v') return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      gameRef.current?.toggleCameraMode();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   // Theme currently only affects the DOM HUD; the world keeps its own palette.
   void theme;
 
@@ -146,21 +160,32 @@ export function HeistScreen({
               )}
             </div>
 
-            <div className="glass rounded-2xl px-3 py-2.5 pointer-events-auto">
-              <div className="label-mono mb-1.5">Operatives</div>
-              <div className="flex gap-1.5">
-                {ui.operatives.map((o) => (
-                  <span
-                    key={o.codename}
-                    title={`${o.codename}${o.alive ? '' : ' — compromised'}`}
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{
-                      background: o.alive ? (o.isYou ? accent : 'var(--ink-3)') : 'transparent',
-                      border: o.alive ? 'none' : '1.5px solid var(--danger)',
-                    }}
-                  />
-                ))}
+            <div className="flex items-start gap-2 pointer-events-auto">
+              <div className="glass rounded-2xl px-3 py-2.5">
+                <div className="label-mono mb-1.5">Operatives</div>
+                <div className="flex gap-1.5">
+                  {ui.operatives.map((o) => (
+                    <span
+                      key={o.codename}
+                      title={`${o.codename}${o.alive ? '' : ' — compromised'}`}
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{
+                        background: o.alive ? (o.isYou ? accent : 'var(--ink-3)') : 'transparent',
+                        border: o.alive ? 'none' : '1.5px solid var(--danger)',
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
+
+              <button
+                onClick={() => gameRef.current?.toggleCameraMode()}
+                title={`Switch to ${ui.cameraMode === 'first' ? 'third' : 'first'}-person (V)`}
+                className="glass rounded-2xl w-11 h-11 grid place-items-center shrink-0"
+                style={ui.cameraMode === 'first' ? { color: accent, borderColor: accent } : undefined}
+              >
+                <Camera size={16} />
+              </button>
             </div>
           </div>
 
