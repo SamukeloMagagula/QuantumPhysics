@@ -98,6 +98,14 @@ export function QuantumPhenomenaLab() {
   const bobFilterRef = useRef<THREE.Group | null>(null);
   const collapseCloudRef = useRef<THREE.Points | null>(null);
   const eveMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const eveEyeMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const eveLabelRef = useRef<THREE.Sprite | null>(null);
+  const captureRingRef = useRef<THREE.Mesh | null>(null);
+  const captureRingMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  /** { start, disturbed } while the just-crossed-Eve flash/ring is playing; null when idle. */
+  const captureBurstRef = useRef<{ start: number; disturbed: boolean } | null>(null);
+  /** So the crossing-Eve's-station detector fires exactly once per shot, not every frame. */
+  const capturedThisShotRef = useRef(false);
 
   const getPolarizationFromBitAndBasis = (bit: 0 | 1, basis: 'plus' | 'cross'): 0 | 1 | 2 | 3 => {
     if (basis === 'plus') {
@@ -330,15 +338,62 @@ export function QuantumPhenomenaLab() {
     eveMast.position.set(0, 1.4, 0);
     eveGroup.add(eveMast);
 
-    const eveEye = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf43f5e, emissiveIntensity: 1.2 })
-    );
+    const eveEyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf43f5e, emissiveIntensity: 1.2 });
+    eveEyeMatRef.current = eveEyeMat;
+    const eveEye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), eveEyeMat);
     eveEye.position.set(0, 2.2, 0);
     eveGroup.add(eveEye);
 
     eveGroup.add(new THREE.PointLight(0xf43f5e, 1.2, 5));
     scene.add(eveGroup);
+
+    // A quick expanding ring flashed at Eve's tap point the instant the photon
+    // reaches her — the "she's grabbing this one" beat. Starts invisible
+    // (opacity 0, scale 1); driven entirely by captureBurstRef in animate().
+    const captureRingMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0 });
+    captureRingMatRef.current = captureRingMat;
+    const captureRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), captureRingMat);
+    captureRing.position.set(0, 0, 0);
+    captureRing.rotation.x = Math.PI / 2;
+    scene.add(captureRing);
+    captureRingRef.current = captureRing;
+
+    // ---- Alice / Bob / Eve nameplates — small canvas-texture sprites so
+    // each station reads at a glance instead of relying on the camera-preset
+    // button labels alone.
+    const makeLabel = (text: string, color: string): THREE.Sprite => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d')!;
+      ctx.font = '700 64px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,.9)';
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = color;
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 8;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(2.6, 0.65, 1);
+      return sprite;
+    };
+
+    const aliceLabel = makeLabel('ALICE', '#38bdf8');
+    aliceLabel.position.set(-6, 3, 0);
+    scene.add(aliceLabel);
+
+    const bobLabel = makeLabel('BOB', '#10b981');
+    bobLabel.position.set(6, 3, 0);
+    scene.add(bobLabel);
+
+    const eveLabel = makeLabel('EVE', '#f43f5e');
+    eveLabel.position.set(0, 3.1, 0);
+    (eveLabel.material as THREE.SpriteMaterial).opacity = 0.25; // dim until she's on the line
+    scene.add(eveLabel);
+    eveLabelRef.current = eveLabel;
 
     // Single Photon Particle as Elongated Rotating Oval (Electric Field Vector)
     const photonGroup = new THREE.Group();
@@ -392,12 +447,34 @@ export function QuantumPhenomenaLab() {
     let animFrameId: number;
     const clock = new THREE.Clock();
 
+    const CAPTURE_BURST_MS = 380;
+
     const animate = () => {
       animFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
       if (collapseCloudRef.current && collapseCloudRef.current.material) {
         collapseCloudRef.current.rotation.y = elapsedTime * 1.5;
+      }
+
+      // Drive Eve's "she's grabbing this one" ring + eye flash purely off
+      // captureBurstRef, set once per shot by the flight-progress loop below
+      // the instant the photon reaches her tap point.
+      const burst = captureBurstRef.current;
+      if (burst) {
+        // performance.now()-based, deliberately independent of `clock` (which
+        // is relative to scene-mount time, not the capture timestamp below).
+        const t = Math.min(1, (performance.now() - burst.start) / CAPTURE_BURST_MS);
+        if (captureRingMatRef.current && captureRingRef.current) {
+          captureRingMatRef.current.opacity = (1 - t) * 0.9;
+          captureRingMatRef.current.color.set(burst.disturbed ? 0xf43f5e : 0xf59e0b);
+          const scale = 1 + t * 2.2;
+          captureRingRef.current.scale.set(scale, scale, scale);
+        }
+        if (eveEyeMatRef.current) {
+          eveEyeMatRef.current.emissiveIntensity = 1.2 + (1 - t) * 3.5;
+        }
+        if (t >= 1) captureBurstRef.current = null;
       }
 
       controls.update();
@@ -442,6 +519,12 @@ export function QuantumPhenomenaLab() {
       bobFilterRef.current.rotation.x = bobAngleRad;
     }
   }, [alicePolarization, bobBasis]);
+
+  // Eve's nameplate is dim while she's off the line, bright the instant she's tapped in.
+  useEffect(() => {
+    if (!eveLabelRef.current) return;
+    (eveLabelRef.current.material as THREE.SpriteMaterial).opacity = eveEnabled ? 1 : 0.25;
+  }, [eveEnabled]);
 
   // Update Camera View Preset
   useEffect(() => {
@@ -511,6 +594,7 @@ export function QuantumPhenomenaLab() {
     setPhotonProgress(0);
     setMeasuredBit(null);
     setEveIntercepted(false);
+    capturedThisShotRef.current = false;
 
     // If Eve is enabled, she measures the photon at her tap point (X = 0) in
     // a random basis. Guessing Alice's basis right: she learns the bit and
@@ -582,6 +666,14 @@ export function QuantumPhenomenaLab() {
       if (photonParticleRef.current) {
         const currentX = THREE.MathUtils.lerp(-5.4, 5.5, progress);
         photonParticleRef.current.position.x = currentX;
+
+        // The instant the photon reaches Eve's tap point (X=0), flash the
+        // capture ring + her eye once — this is the "watch her take it"
+        // moment the dossier/report panels describe in numbers.
+        if (eveEnabled && !capturedThisShotRef.current && currentX >= 0) {
+          capturedThisShotRef.current = true;
+          captureBurstRef.current = { start: performance.now(), disturbed: intercepted };
+        }
 
         // Before Eve's station (X < 0) the photon shows Alice's true state;
         // after it, whatever Eve actually resent (unchanged if she guessed
