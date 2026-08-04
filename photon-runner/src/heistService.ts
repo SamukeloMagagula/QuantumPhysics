@@ -168,7 +168,9 @@ export function startRoom(db: Db, code: string, user: UserRow): void {
   const g = getGame(db, code);
   if (g.host_user_id !== user.id) throw new HeistError('only the host can start the room', 403);
   if (g.phase !== 'lobby') return; // idempotent: already started
-  const initial = createGame(Math.random);
+  // createGame() starts at phase 'briefing' (the solo pre-game beat); the room's
+  // own lobby already served that purpose, so jump straight into 'play'.
+  const initial = { ...createGame(Math.random), phase: 'play' as const };
   const map = getMap(g.map_id);
   const seats = getSeats(db, g.id);
   const updateSeat = db.prepare('UPDATE heist_game_seats SET x = ?, z = ?, facing = 0 WHERE game_id = ? AND seat_index = ?');

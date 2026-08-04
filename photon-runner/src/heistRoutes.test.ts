@@ -170,14 +170,16 @@ describe('quantum heist multiplayer API', () => {
     const code = create.body.code;
     await request(app).post(`/api/heist/room/${code}/start`).set('Cookie', hostCookie);
 
-    let state = await request(app).get(`/api/heist/room/${code}`).set('Cookie', hostCookie);
-    // Only drive tasks if the host landed on the crew team; otherwise this is a no-op path we still exercise.
+    const state = await request(app).get(`/api/heist/room/${code}`).set('Cookie', hostCookie);
+    expect(state.body.keyProgress).toBe(0);
+    // completeTask doesn't gate on role, so this must always land — regardless
+    // of whether the host happened to draw crew or eve this game.
     const act = await request(app)
       .post(`/api/heist/room/${code}/act`)
       .set('Cookie', hostCookie)
       .send({ action: { type: 'completeTask' } });
     expect(act.status).toBe(200);
-    expect(act.body.keyProgress).toBeGreaterThanOrEqual(state.body.keyProgress);
+    expect(act.body.keyProgress).toBeGreaterThan(0);
 
     const tick = await request(app)
       .post(`/api/heist/room/${code}/act`)
