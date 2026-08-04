@@ -1,0 +1,50 @@
+{
+  "name": "photon-runner",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n client,api -c blue,green \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch src/serverIndex.ts",
+    "build": "vite build",
+    "start": "cross-env NODE_ENV=production tsx src/serverIndex.ts",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "better-sqlite3": "^13.0.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "lucide-react": "0.460.0",
+    "marked": "^18.0.7",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.2.4",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/supertest": "^7.2.1",
+    "@types/three": "^0.185.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^10.0.4",
+    "cross-env": "^10.1.0",
+    "jsdom": "^25.0.0",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.2": true
+  }
+}

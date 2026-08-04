@@ -1,54 +1,49 @@
-# PhantomQ
+# Quantum Lab
 
-A self-hosted, browser-based cryptography learning platform — TryHackMe-style
-**rooms** where you learn by encrypting, attacking, and capturing flags. Covers
-symmetric crypto now; asymmetric and quantum key distribution are on the way.
+A browser-based cybersecurity/crypto learning platform, entirely in
+TypeScript: a Three.js third-person game (**Quantum Heist** — an Among-Us-style
+social-deduction game built around a real BB84 quantum key exchange) plus a
+set of standalone interactive **labs** (SQL injection, XSS, phishing,
+password cracking, Wi-Fi evil twin, Caesar cipher, RSA factoring, BB84 QKD)
+and a small network-defense mini-game.
 
-## Run it (Windows)
+## Run it
 
 ```
-pip install -r requirements.txt
-python app.py
+cd photon-runner
+npm install
+npm run dev
 ```
 
-Then open http://localhost:8000 — a guest identity is auto-provisioned, no
-sign up needed — and start the **Symmetric Cryptography** path.
+Then open http://localhost:3100 — a guest identity is auto-provisioned, no
+sign up needed.
+
+`npm run dev` runs the Vite client and the Express API concurrently. To run
+them separately: `npm run dev:client` / `npm run dev:server`.
 
 ## What's here
 
-- **Rooms engine** — rooms are authored as content (`content/rooms/<id>/`), not
-  code. See `docs/AUTHORING_ROOMS.md`.
-- **Symmetric path** — The Shift, Brute Force, Frequency Analysis, XOR & the
-  One-Time Pad.
-- **Gamification** — points, ranks (Script Kiddie → Quantum Operative), badges,
-  leaderboard.
-- **Auth** — no login required; see `docs/AUTH_CONTRACT.md` for the guest
-  identity model and how a real login could layer on top later.
+Everything lives under `photon-runner/`:
 
-## v2
-
-- **Guest identity** — visiting the site auto-provisions a guest handle
-  (rename anytime); no login or signup.
-- **Ghost Protocol theme** — a redesigned terminal/hacker aesthetic with an
-  effects toggle for reduced-motion / low-fx preferences.
-- **GHOST chatbot** — an in-page assistant that answers questions about the
-  content and points you toward what to try next.
-- **PhantomShell terminal** (`/terminal`) — a command-line crypto sandbox
-  (`caesar`, `xor`, etc.) with `lab` authoring for saving and exporting
-  custom exercises.
-- **Quantum Intercept** (`/qkd`) — a BB84 quantum-key-distribution
-  mini-game with its own score and leaderboard. Quantum Intercept now
-  supports **role-based play** (be Alice, Bob, or Eve) in **Solo** (vs
-  computer) and **same-network Multiplayer** (up to 3 students via a game
-  code). See `docs/QKD_MULTIPLAYER.md`.
+- **`src/`** — every TypeScript/TSX source file (client, server, and tests),
+  one flat directory. `GameEngine.ts` owns the Three.js scene/render loop;
+  `quantumHeist*.ts` is the Quantum Heist game; `scene*.ts` builds its 3D
+  world (character models, maps, materials); `springs.ts` +
+  `sceneAnimPhase.ts` drive movement/animation feel; `lab*.ts`/`labRegistry.ts`
+  + the individual challenge files (`xss.ts`, `sql-injection.ts`, etc.) are
+  the standalone security labs; `server*.ts` is the Express + better-sqlite3
+  API (guest identity).
+- **`data/`** — the server's SQLite database (gitignored, created on first run).
 
 ## Develop
 
 ```
-python -m pytest -v
+cd photon-runner
+npm run typecheck
+npm test
+npm run build
 ```
 
 ## Tech
 
-Python 3.10+ · Flask · Waitress · SQLite · Jinja · vanilla JS. No build step,
-no npm.
+TypeScript · React · Three.js · Vite · Express · better-sqlite3 · Vitest.
