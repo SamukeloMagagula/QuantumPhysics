@@ -10,6 +10,7 @@ import {
   Shield,
   Sparkles,
   Sun,
+  Users,
 } from 'lucide-react';
 import type { ModeId } from './HomeHub';
 import type { ThemeMode } from './theme';
@@ -28,6 +29,7 @@ interface TopNavProps {
 const ITEMS: { id: Section; label: string; Icon: React.ComponentType<{ size?: number }>; glow: string }[] = [
   { id: 'home', label: 'Home', Icon: Home, glow: '#94a3b8' },
   { id: 'heist', label: 'Heist', Icon: Eye, glow: '#fb7185' },
+  { id: 'heist-mp', label: 'Heist Online', Icon: Users, glow: '#fb7185' },
   { id: 'rooms', label: 'Rooms', Icon: BookOpen, glow: '#22d3ee' },
   { id: 'qkd-multiplayer', label: 'Intercept', Icon: Radio, glow: '#60a5fa' },
   { id: 'quantum', label: '3D Lab', Icon: Sparkles, glow: '#fbbf24' },

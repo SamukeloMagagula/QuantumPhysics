@@ -9,10 +9,11 @@ import {
   Shield,
   Sparkles,
   UserRound,
+  Users,
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 
-export type ModeId = 'heist' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms' | 'qkd-multiplayer';
+export type ModeId = 'heist' | 'heist-mp' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms' | 'qkd-multiplayer';
 
 interface HomeHubProps {
   onOpen: (mode: ModeId) => void;
@@ -38,6 +39,14 @@ const FEATURED: ModeCard = {
 };
 
 const MODES: ModeCard[] = [
+  {
+    id: 'heist-mp',
+    title: 'Quantum Heist · Online',
+    tag: 'Multiplayer · room codes',
+    blurb: 'Host or join a facility with a 4-letter code. The host picks the map — every operative only ever learns their own role.',
+    Icon: Users,
+    glow: '#fb7185',
+  },
   {
     id: 'qkd-multiplayer',
     title: 'Quantum Intercept',

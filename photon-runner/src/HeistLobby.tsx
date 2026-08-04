@@ -89,7 +89,7 @@ export function TutorialPanel({
 }
 
 /** Top-down schematic of a map, drawn straight from its own geometry. */
-function MapThumb({ map }: { map: MapDef }) {
+export function MapThumb({ map }: { map: MapDef }) {
   const pf = map.playfield;
   const worldW = pf.xMax - pf.xMin;
   const worldH = pf.zMax - pf.zMin;

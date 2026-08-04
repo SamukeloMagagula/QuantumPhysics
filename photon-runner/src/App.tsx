@@ -8,6 +8,7 @@ import { NetworkDefenderScreen } from './NetworkDefenderScreen';
 import { QuantumPhenomenaLab } from './QuantumPhenomenaLab';
 import { HeistScreen } from './HeistScreen';
 import { HeistLobby } from './HeistLobby';
+import { HeistMultiplayerLobby } from './HeistMultiplayerLobby';
 import { RoomsHub } from './RoomsHub';
 import { RoomRunner } from './RoomRunner';
 import { Leaderboard } from './Leaderboard';
@@ -20,6 +21,7 @@ type Screen =
   | { name: 'customize' }
   | { name: 'heist-lobby' }
   | { name: 'heist'; mapId: string; tutorial: boolean }
+  | { name: 'heist-mp' }
   | { name: 'labs' }
   | { name: 'lab'; labId: string }
   | { name: 'network-defender' }
@@ -37,6 +39,8 @@ function sectionOf(screen: Screen): Section {
     case 'heist':
     case 'heist-lobby':
       return 'heist';
+    case 'heist-mp':
+      return 'heist-mp';
     case 'labs':
     case 'lab':
       return 'labs';
@@ -61,6 +65,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   customize: 'Character creator',
   'heist-lobby': 'Quantum Heist · choose a facility',
   heist: 'Quantum Heist',
+  'heist-mp': 'Quantum Heist · Online',
   labs: 'Security labs',
   lab: 'Security labs · running',
   'network-defender': 'Network defender',
@@ -82,6 +87,9 @@ export default function App() {
     switch (mode) {
       case 'heist':
         setScreen({ name: 'heist-lobby' });
+        break;
+      case 'heist-mp':
+        setScreen({ name: 'heist-mp' });
         break;
       case 'labs':
         setScreen({ name: 'labs' });
@@ -147,6 +155,7 @@ export default function App() {
             tutorial={screen.tutorial}
           />
         )}
+        {screen.name === 'heist-mp' && <HeistMultiplayerLobby onExit={goHome} />}
         {screen.name === 'labs' && (
           <LabsHub
             onOpenLab={(labId) => setScreen({ name: 'lab', labId })}
