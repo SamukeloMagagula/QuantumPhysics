@@ -5,13 +5,14 @@ import {
   Eye,
   FlaskConical,
   Palette,
+  Radio,
   Shield,
   Sparkles,
   UserRound,
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 
-export type ModeId = 'heist' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms';
+export type ModeId = 'heist' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms' | 'qkd-multiplayer';
 
 interface HomeHubProps {
   onOpen: (mode: ModeId) => void;
@@ -37,6 +38,14 @@ const FEATURED: ModeCard = {
 };
 
 const MODES: ModeCard[] = [
+  {
+    id: 'qkd-multiplayer',
+    title: 'Quantum Intercept',
+    tag: 'Multiplayer · 2-3 players',
+    blurb: 'A real BB84 key exchange over the network — Alice sends, Bob receives, Eve secretly taps the line.',
+    Icon: Radio,
+    glow: '#60a5fa',
+  },
   {
     id: 'rooms',
     title: 'Symmetric Cryptography',

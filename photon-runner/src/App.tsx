@@ -11,6 +11,8 @@ import { HeistLobby } from './HeistLobby';
 import { RoomsHub } from './RoomsHub';
 import { RoomRunner } from './RoomRunner';
 import { Leaderboard } from './Leaderboard';
+import { QkdLobby, type QkdRole } from './QkdLobby';
+import { QkdGameScreen } from './QkdGameScreen';
 import { useTheme } from './theme';
 
 type Screen =
@@ -24,7 +26,9 @@ type Screen =
   | { name: 'quantum-scene' }
   | { name: 'rooms' }
   | { name: 'room'; roomId: string }
-  | { name: 'leaderboard' };
+  | { name: 'leaderboard' }
+  | { name: 'qkd-lobby' }
+  | { name: 'qkd-game'; code: string };
 
 function sectionOf(screen: Screen): Section {
   switch (screen.name) {
@@ -46,6 +50,9 @@ function sectionOf(screen: Screen): Section {
     case 'room':
     case 'leaderboard':
       return 'rooms';
+    case 'qkd-lobby':
+    case 'qkd-game':
+      return 'qkd-multiplayer';
   }
 }
 
@@ -61,6 +68,8 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   rooms: 'Symmetric Cryptography',
   room: 'Symmetric Cryptography · room',
   leaderboard: 'Leaderboard',
+  'qkd-lobby': 'Quantum Intercept',
+  'qkd-game': 'Quantum Intercept · in progress',
 };
 
 export default function App() {
@@ -88,6 +97,9 @@ export default function App() {
         break;
       case 'rooms':
         setScreen({ name: 'rooms' });
+        break;
+      case 'qkd-multiplayer':
+        setScreen({ name: 'qkd-lobby' });
         break;
     }
   }, []);
@@ -154,6 +166,15 @@ export default function App() {
           <RoomRunner roomId={screen.roomId} onExit={() => setScreen({ name: 'rooms' })} />
         )}
         {screen.name === 'leaderboard' && <Leaderboard />}
+        {screen.name === 'qkd-lobby' && (
+          <QkdLobby
+            onEnterGame={(code: string, _role: QkdRole) => setScreen({ name: 'qkd-game', code })}
+            onExit={goHome}
+          />
+        )}
+        {screen.name === 'qkd-game' && (
+          <QkdGameScreen code={screen.code} onExit={() => setScreen({ name: 'qkd-lobby' })} />
+        )}
       </main>
     </div>
   );

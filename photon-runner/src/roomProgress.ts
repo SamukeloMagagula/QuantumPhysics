@@ -33,7 +33,9 @@ function roomComplete(db: Db, userId: number, room: Room): boolean {
   return ids.length > 0 && ids.every((id) => answered.has(id));
 }
 
-function awardBadge(db: Db, userId: number, badgeId: string): Badge | null {
+/** Also used by qkdService.ts to award 'qkd-operative' at game end (matches
+ * the original's cross-module `from ..progress.service import _award_badge`). */
+export function awardBadge(db: Db, userId: number, badgeId: string): Badge | null {
   const exists = db.prepare('SELECT 1 FROM user_badges WHERE user_id = ? AND badge_id = ?').get(userId, badgeId);
   if (exists) return null;
   db.prepare('INSERT INTO user_badges (user_id, badge_id) VALUES (?, ?)').run(userId, badgeId);
