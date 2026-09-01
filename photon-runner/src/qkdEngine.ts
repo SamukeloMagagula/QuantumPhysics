@@ -14,6 +14,9 @@
 export const ABORT = 0.11;
 export const DETECT = 25;
 export const HEIST_BONUS = 20;
+/** A sampled error rate at/above this is high enough to call a forced abort a deliberate sabotage, not noise. */
+export const SABOTAGE_THRESHOLD = 0.1;
+export const SABOTAGE_BONUS = 15;
 
 export type Basis = '+' | 'x';
 export type Bit = 0 | 1;
@@ -186,12 +189,28 @@ export interface ScoreResult {
   youWon: boolean;
 }
 
+/**
+ * True when an abort was forced by a deliberately high sampled error rate —
+ * the "saboteur" strategy: Eve isn't trying to read the key, she's trying to
+ * deny Alice and Bob a working one. Distinct from getting caught tapping for
+ * information (which just costs her nothing on abort, same as before).
+ */
+export function isSabotage(result: RoundResult, decision: Decision): boolean {
+  return decision === 'abort' && Boolean(result.eveHit) && result.sampleQBER >= SABOTAGE_THRESHOLD;
+}
+
 export function scoreRound(role: Role, result: RoundResult, decision: Decision): ScoreResult {
   const eve = Boolean(result.eveHit);
   let defender = 0;
   let eveDelta = 0;
   if (decision === 'abort') {
-    if (eve) defender = DETECT;
+    if (eve) {
+      defender = DETECT;
+      // Both can be true at once: the crew genuinely detected tampering
+      // (still worth DETECT), and Eve genuinely denied them a working key
+      // this round (a separate success on her side).
+      if (isSabotage(result, decision)) eveDelta = SABOTAGE_BONUS;
+    }
   } else {
     if (eve) {
       eveDelta = result.stolen || 0;

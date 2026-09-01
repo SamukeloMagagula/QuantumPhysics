@@ -276,6 +276,19 @@ canvas { touch-action: none; }
 }
 .a-streak { animation: streak 2.8s linear infinite; }
 
+@keyframes intercept-travel {
+  0%   { transform: translateX(0) scale(1); opacity: 1; }
+  60%  { transform: translateX(18px) scale(.85); opacity: .6; }
+  100% { transform: translateX(30px) scale(.5); opacity: 0; }
+}
+.a-intercept-key { animation: intercept-travel .9s cubic-bezier(.2,.9,.25,1) forwards; }
+
+@keyframes intercept-flash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  30%, 70% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--danger) 45%, transparent); }
+}
+.a-intercept-flash { animation: intercept-flash .9s ease-in-out; }
+
 @keyframes shimmer { to { background-position: 200% 0; } }
 .a-skeleton {
   background: linear-gradient(90deg,

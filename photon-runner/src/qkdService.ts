@@ -16,6 +16,7 @@ import { awardBadge } from './roomProgress';
 import {
   classifyErrorShape,
   computerStrategy,
+  isSabotage,
   resolveRound,
   scoreRound,
   type Decision,
@@ -88,6 +89,8 @@ interface GameConfig {
     perRole: Record<Role, number>;
     round: number;
     errorShape: ErrorShape;
+    /** True when Bob's abort was forced by a deliberately high QBER — the "saboteur" strategy. */
+    sabotage: boolean;
     replay: {
       n: number;
       aBases: string[];
@@ -97,7 +100,14 @@ interface GameConfig {
       sampleErrors: boolean[];
     };
   };
-  history?: { round: number; sampleQBER: number; errorShape: ErrorShape; eveHit: boolean; method: string }[];
+  history?: {
+    round: number;
+    sampleQBER: number;
+    errorShape: ErrorShape;
+    eveHit: boolean;
+    method: string;
+    sabotage: boolean;
+  }[];
   accusationResult?: { aliceAccused: string; bobAccused: string; eveCodename: string; crewWon: boolean };
   reveal?: Record<Role, { name: string | null; kind: string; codename?: string }>;
 }
@@ -495,6 +505,7 @@ function resolveScoring(db: Db, g: GameRow, cfg: GameConfig, decision: Decision)
     perRole,
     round: g.round,
     errorShape: result.errorShape ?? 'none',
+    sabotage: isSabotage(result, decision),
     // secrecy-safe replay: public BB84 info only (all bases + sampled errors + Eve's
     // taps). Raw key bits are never included (resolveRound never returns bit arrays).
     replay: {
@@ -513,6 +524,7 @@ function resolveScoring(db: Db, g: GameRow, cfg: GameConfig, decision: Decision)
     errorShape: result.errorShape ?? 'none',
     eveHit: result.eveHit,
     method: cfg.eve?.method ?? 'bruteforce',
+    sabotage: isSabotage(result, decision),
   });
   setConfig(db, gid, cfg);
 }

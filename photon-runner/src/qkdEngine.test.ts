@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { classifyErrorShape, computerStrategy, resolveRound, scoreRound } from './qkdEngine';
+import {
+  SABOTAGE_BONUS,
+  SABOTAGE_THRESHOLD,
+  classifyErrorShape,
+  computerStrategy,
+  isSabotage,
+  resolveRound,
+  scoreRound,
+} from './qkdEngine';
 
 /** Deterministic rng that replays a fixed sequence of [0,1) values, cycling if exhausted. */
 function seq(values: number[]) {
@@ -119,6 +127,51 @@ describe('scoreRound', () => {
   it('ABORT with no eavesdropping awards nobody (a wasted abort)', () => {
     expect(scoreRound('alice', base, 'abort').delta).toBe(0);
     expect(scoreRound('eve', base, 'abort').delta).toBe(0);
+  });
+
+  it('ABORT with a deliberately high QBER also pays Eve the sabotage bonus, on top of the defenders\' detection bonus', () => {
+    const r = { ...base, eveHit: true, sampleQBER: SABOTAGE_THRESHOLD };
+    expect(scoreRound('eve', r, 'abort').delta).toBe(SABOTAGE_BONUS);
+    expect(scoreRound('alice', r, 'abort').delta).toBe(25); // defenders still get DETECT too
+  });
+
+  it('ABORT with eavesdropping but low QBER (an incidental, not deliberate, abort) pays Eve nothing', () => {
+    const r = { ...base, eveHit: true, sampleQBER: SABOTAGE_THRESHOLD - 0.01 };
+    expect(scoreRound('eve', r, 'abort').delta).toBe(0);
+  });
+});
+
+describe('isSabotage', () => {
+  const base = {
+    n: 10,
+    p: 0,
+    sifted: 5,
+    sampleSize: 2,
+    sampleQBER: 0,
+    finalKey: 3,
+    stolen: 4,
+    eveHit: false,
+    aBases: [],
+    bBases: [],
+    intercepted: [],
+    sampleIndices: [],
+    sampleErrors: [],
+  };
+
+  it('is false on KEEP no matter the QBER', () => {
+    expect(isSabotage({ ...base, eveHit: true, sampleQBER: 1 }, 'keep')).toBe(false);
+  });
+
+  it('is false on ABORT when Eve never touched the channel', () => {
+    expect(isSabotage({ ...base, eveHit: false, sampleQBER: 1 }, 'abort')).toBe(false);
+  });
+
+  it('is false on ABORT when Eve intercepted but the QBER stayed below threshold', () => {
+    expect(isSabotage({ ...base, eveHit: true, sampleQBER: SABOTAGE_THRESHOLD - 0.01 }, 'abort')).toBe(false);
+  });
+
+  it('is true on ABORT when Eve intercepted and the QBER met the threshold', () => {
+    expect(isSabotage({ ...base, eveHit: true, sampleQBER: SABOTAGE_THRESHOLD }, 'abort')).toBe(true);
   });
 });
 

@@ -1,8 +1,13 @@
 import * as THREE from 'three';
-import { CorridorDef, MapDef, RoomDef } from './sceneMaps';
+import { CorridorDef, MapDef, RoomDef, roomContaining } from './sceneMaps';
 import { applySurface, groundSurface, metalSurface, wallSurface } from './sceneTextures';
 import { profile } from './sceneQuality';
 import { VectorSpringSimulator } from './springs';
+import { buildRoomFurniture, glassMaterial } from './sceneOfficeProps';
+// `Text` must be imported by name, not just referenced — the DOM has its own
+// global `Text` (a character-data node) that TypeScript resolves to instead.
+import { Text } from 'troika-three-text';
+import { createLabel } from './sceneText';
 
 export interface MarkerHandle {
   group: THREE.Group;
@@ -28,10 +33,11 @@ export interface World {
 const WALL_H = 3.1;
 const WALL_T = 0.34;
 
-class Res {
+export class Res {
   private geoms = new Set<THREE.BufferGeometry>();
   private mats = new Set<THREE.Material>();
   private texs = new Set<THREE.Texture>();
+  private misc = new Set<{ dispose(): void }>();
 
   g<T extends THREE.BufferGeometry>(x: T): T {
     this.geoms.add(x);
@@ -45,13 +51,22 @@ class Res {
     this.texs.add(x);
     return x;
   }
+  /** Anything else that owns GPU resources and cleans up after itself — a
+   * troika `Text`, whose glyph geometry and material are internal and so
+   * can't go through `g()`/`m()`. Same lifetime as everything else here. */
+  d<T extends { dispose(): void }>(x: T): T {
+    this.misc.add(x);
+    return x;
+  }
   dispose(): void {
     this.geoms.forEach((x) => x.dispose());
     this.mats.forEach((x) => x.dispose());
     this.texs.forEach((x) => x.dispose());
+    this.misc.forEach((x) => x.dispose());
     this.geoms.clear();
     this.mats.clear();
     this.texs.clear();
+    this.misc.clear();
   }
 }
 
@@ -142,23 +157,17 @@ function scatterProps(
   }
 }
 
-function nameplate(text: string, color: string, res: Res): THREE.Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = 768;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.font = '600 46px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,.95)';
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = color;
-  ctx.fillText(text.toUpperCase(), canvas.width / 2, canvas.height / 2);
-  const tex = res.t(new THREE.CanvasTexture(canvas));
-  tex.anisotropy = 8;
-  const s = new THREE.Sprite(res.m(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })));
-  s.scale.set(6, 1, 1);
-  return s;
+/** Floating room label. SDF glyphs rather than a stretched canvas, with a
+ * dark outline so it stays readable against a bright floor; billboarded by
+ * the caller so it always faces the camera the way the old sprite did. */
+function nameplate(text: string, color: number, res: Res): Text {
+  return createLabel(res, {
+    text: text.toUpperCase(),
+    size: 0.62,
+    color,
+    letterSpacing: 0.08,
+    outline: 0.02,
+  });
 }
 
 export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera, map: MapDef): World {
@@ -170,7 +179,11 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
 
   // The IBL environment now supplies most of the ambient fill, so the
   // hemisphere light is dialled back to a tint rather than a light source.
-  scene.add(new THREE.HemisphereLight(p.ambientSky, p.ambientGround, 0.32));
+  // Lifted from 0.32: with the trim glare tamed, the rooms underneath it were
+  // revealed to be genuinely underlit — walls were reading near-black and the
+  // furniture had nothing to catch. This is the light that keeps a surface
+  // facing away from the sun from going to pure shadow.
+  scene.add(new THREE.HemisphereLight(p.ambientSky, p.ambientGround, 0.55));
 
   const key = new THREE.DirectionalLight(p.sun, 1.5);
   key.position.set(11, 21, 7);
@@ -200,6 +213,31 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
   const wallMat = res.m(new THREE.MeshStandardMaterial({ color: p.wall, roughness: 0.92, metalness: 0.03 }));
   applySurface(wallMat, wallMaps, 1.4, 1.1);
 
+  // Soffit tint — darker than the walls so the ceiling reads as underlit
+  // rather than a duplicate wall.
+  const ceilingColor = new THREE.Color(p.wall).multiplyScalar(0.6).getHex();
+  const ceilingMat = res.m(new THREE.MeshStandardMaterial({ color: ceilingColor, roughness: 0.95, metalness: 0.02 }));
+  applySurface(ceilingMat, wallMaps, 1.4, 1.1);
+
+  // A plane facing -Y (rotation.x = +PI/2, the opposite of the floor's -PI/2)
+  // is only visible to a camera looking *up* at it — the default chase cam
+  // sits well above WALL_H looking down and only ever sees this plane's back
+  // face, which a FrontSide material never renders, so today's top-down-ish
+  // view is unaffected. First-person mode, which looks roughly horizontal/up
+  // from inside the room, sees the front face and gets a real ceiling instead
+  // of the black void that used to be up there. castShadow stays off so this
+  // never blocks the sun from reaching the floor beneath it; the existing
+  // per-room practical `lamp` PointLight (already near ceiling height) is
+  // what actually lights its underside.
+  const addCeiling = (w: number, d: number, x: number, z: number) => {
+    const c = new THREE.Mesh(res.g(new THREE.PlaneGeometry(w, d)), ceilingMat);
+    c.rotation.x = Math.PI / 2;
+    c.position.set(x, WALL_H - 0.01, z);
+    c.receiveShadow = true;
+    c.castShadow = false;
+    scene.add(c);
+  };
+
   const floorFor = (w: number, d: number, color: number) => {
     const mat = res.m(new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.03 }));
     // Tile by physical size so a big hall and a narrow corridor share a scale.
@@ -210,35 +248,68 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
     return mat;
   };
 
-  // ---- floors ----
+  // ---- floors + ceilings ----
   for (const c of map.corridors) {
     const f = new THREE.Mesh(res.g(new THREE.PlaneGeometry(c.w, c.d)), floorFor(c.w, c.d, 0xbfb4a6));
     f.rotation.x = -Math.PI / 2;
     f.position.set(c.x, 0.002, c.z);
     f.receiveShadow = true;
     scene.add(f);
+    addCeiling(c.w, c.d, c.x, c.z);
   }
 
   for (const room of map.rooms) {
-    const f = new THREE.Mesh(
-      res.g(new THREE.PlaneGeometry(room.size.w, room.size.d)),
-      floorFor(room.size.w, room.size.d, 0xffffff)
-    );
+    const mat = floorFor(room.size.w, room.size.d, 0xffffff);
+
+    // "Polished floor" as a material property rather than a true mirror.
+    //
+    // This started as a real `Reflector`, and it was measured and backed out:
+    // a Reflector re-renders the entire scene from the mirrored camera, so it
+    // roughly doubles the frame cost of the map it's on — and this game's
+    // default camera looks down from above, where a floor mirror mostly
+    // reflects the dark ceiling and reads as almost nothing. All of the cost,
+    // very little of the look. Dropping roughness and leaning on the IBL
+    // environment instead gives polished stone catching the lamps and trim
+    // from every angle, including the overhead one, for no extra passes.
+    if (room.reflectiveFloor && profile().reflections) {
+      mat.roughness = 0.18;
+      mat.metalness = 0.42;
+      mat.envMapIntensity = 1.8;
+    }
+
+    const f = new THREE.Mesh(res.g(new THREE.PlaneGeometry(room.size.w, room.size.d)), mat);
     f.rotation.x = -Math.PI / 2;
     f.position.set(room.center.x, 0, room.center.z);
     f.receiveShadow = true;
     scene.add(f);
+    addCeiling(room.size.w, room.size.d, room.center.x, room.center.z);
   }
 
   // ---- walls with doorways carved where corridors land ----
+  // The wall-top trim reads as lit signage, so it carries a modest emissive
+  // of its own. It used to get there by being highly metallic instead, which
+  // meant a mirror-sharp specular streak off the sun that shot past the bloom
+  // threshold and smeared the whole frame in glare — bright, but uncontrolled,
+  // and it drowned everything else in the room. A dialled-back metalness plus
+  // an explicit emissive puts that brightness where it was wanted, at a level
+  // the grade and bloom can actually work with.
   const capMat = res.m(
-    new THREE.MeshStandardMaterial({ color: p.wallTop, roughness: 0.52, metalness: 0.55 })
+    new THREE.MeshStandardMaterial({
+      color: p.wallTop,
+      roughness: 0.62,
+      metalness: 0.2,
+      emissive: new THREE.Color(p.wallTop),
+      emissiveIntensity: 0.35,
+    })
   );
   applySurface(capMat, metalSurface(p.wallTop), 3, 1.0);
 
   const crateMat = res.m(new THREE.MeshStandardMaterial({ color: 0x5a4a36, roughness: 0.82, metalness: 0.08 }));
   applySurface(crateMat, metalSurface(0x5a4a36), 1.5, 0.7);
   const cableMat = res.m(new THREE.MeshStandardMaterial({ color: 0x1a1815, roughness: 0.75, metalness: 0.1 }));
+  const mullionMat = res.m(new THREE.MeshStandardMaterial({ color: 0x1c2229, roughness: 0.4, metalness: 0.7 }));
+  applySurface(mullionMat, metalSurface(0x1c2229), 1.5, 0.8);
+  const glassMat = res.m(glassMaterial(profile().fillLights));
 
   function buildWalls(room: RoomDef, corridors: CorridorDef[]): void {
     const halfW = room.size.w / 2;
@@ -249,12 +320,47 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
     const z1 = room.center.z + halfD;
     const touch = 0.9; // how close a corridor must be to count as attached
 
-    const place = (sx: number, sz: number, px: number, pz: number) => {
-      const wall = new THREE.Mesh(res.g(new THREE.BoxGeometry(sx, WALL_H, sz)), wallMat);
-      wall.position.set(px, WALL_H / 2, pz);
-      wall.castShadow = true;
-      wall.receiveShadow = true;
-      scene.add(wall);
+    // Which edge (of the four place() calls below) the room wants glazed,
+    // if any. north = z0 edge, south = z1 edge, west = x0 edge, east = x1 edge
+    // — an arbitrary but consistent mapping, not real-world compass direction.
+    const place = (sx: number, sz: number, px: number, pz: number, glass = false) => {
+      if (glass) {
+        const pane = new THREE.Mesh(res.g(new THREE.BoxGeometry(sx, WALL_H - 0.3, sz)), glassMat);
+        pane.position.set(px, WALL_H / 2, pz);
+        scene.add(pane);
+
+        // Frame: sill, header, and a vertical mullion every ~1.4 units along
+        // the pane's long axis so it reads as glazing, not a floating slab.
+        const horiz = sx > sz;
+        const len = horiz ? sx : sz;
+        const frameBar = (bw: number, bh: number, bd: number, by: number) => {
+          const bar = new THREE.Mesh(res.g(new THREE.BoxGeometry(bw, bh, bd)), mullionMat);
+          bar.position.set(px, by, pz);
+          bar.castShadow = true;
+          scene.add(bar);
+        };
+        frameBar(horiz ? sx : WALL_T, 0.12, horiz ? WALL_T : sz, 0.06);
+        frameBar(horiz ? sx : WALL_T, 0.12, horiz ? WALL_T : sz, WALL_H - 0.06);
+        const bars = Math.max(1, Math.round(len / 1.4) - 1);
+        for (let i = 1; i <= bars; i++) {
+          const t = i / (bars + 1) - 0.5;
+          const mx = horiz ? px + t * sx : px;
+          const mz = horiz ? pz : pz + t * sz;
+          const mullion = new THREE.Mesh(
+            res.g(new THREE.BoxGeometry(horiz ? WALL_T * 0.6 : WALL_T, WALL_H - 0.3, horiz ? WALL_T : WALL_T * 0.6)),
+            mullionMat
+          );
+          mullion.position.set(mx, WALL_H / 2, mz);
+          mullion.castShadow = true;
+          scene.add(mullion);
+        }
+      } else {
+        const wall = new THREE.Mesh(res.g(new THREE.BoxGeometry(sx, WALL_H, sz)), wallMat);
+        wall.position.set(px, WALL_H / 2, pz);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        scene.add(wall);
+      }
 
       const cap = new THREE.Mesh(res.g(new THREE.BoxGeometry(sx * 1.02, 0.16, sz * 1.02)), capMat);
       cap.position.set(px, WALL_H + 0.08, pz);
@@ -263,28 +369,28 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
     };
 
     // North & south walls run along x; holes come from corridors meeting them.
-    for (const [zEdge, dir] of [
-      [z0, -1],
-      [z1, 1],
-    ] as [number, number][]) {
+    for (const [zEdge, dir, side] of [
+      [z0, -1, 'north'],
+      [z1, 1, 'south'],
+    ] as [number, number, RoomDef['glassFront']][]) {
       const holes = corridors
         .filter((c) => Math.abs((dir < 0 ? c.z + c.d / 2 : c.z - c.d / 2) - zEdge) < touch && c.w < c.d + 4)
         .map((c) => [c.x - c.w / 2, c.x + c.w / 2] as [number, number]);
       for (const [a, b] of solidRuns(x0, x1, holes)) {
-        place(b - a + WALL_T, WALL_T, (a + b) / 2, zEdge);
+        place(b - a + WALL_T, WALL_T, (a + b) / 2, zEdge, room.glassFront === side);
       }
     }
 
     // East & west walls run along z.
-    for (const [xEdge, dir] of [
-      [x0, -1],
-      [x1, 1],
-    ] as [number, number][]) {
+    for (const [xEdge, dir, side] of [
+      [x0, -1, 'west'],
+      [x1, 1, 'east'],
+    ] as [number, number, RoomDef['glassFront']][]) {
       const holes = corridors
         .filter((c) => Math.abs((dir < 0 ? c.x + c.w / 2 : c.x - c.w / 2) - xEdge) < touch && c.d < c.w + 4)
         .map((c) => [c.z - c.d / 2, c.z + c.d / 2] as [number, number]);
       for (const [a, b] of solidRuns(z0, z1, holes)) {
-        place(WALL_T, b - a + WALL_T, xEdge, (a + b) / 2);
+        place(WALL_T, b - a + WALL_T, xEdge, (a + b) / 2, room.glassFront === side);
       }
     }
   }
@@ -292,12 +398,51 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
   for (const room of map.rooms) buildWalls(room, map.corridors);
 
   // ---- room labels + practical lamps ----
-  for (const room of map.rooms) {
-    const label = nameplate(room.name, `#${room.color.toString(16).padStart(6, '0')}`, res);
-    label.position.set(room.center.x, 3.7, room.center.z);
-    scene.add(label);
+  // Every room gets one mandatory practical lamp — fine at any room count
+  // tested so far. Corner *bounce* lights are the genuinely optional extra,
+  // and were adding without limit: at 11 rooms (this map's canonical size),
+  // 22 bounce lights on top of 11 lamps reproducibly crashed the renderer at
+  // the default "high" tier — not a slow frame, an actual lost WebGL
+  // context — independent of furniture or room size (confirmed by testing
+  // both with furniture removed and rooms scaled down; neither helped, and
+  // dropping to "balanced" tier, which is the one place fillLights is
+  // already off, was the only thing that survived). A hard cap on how many
+  // *bounce* lights a single map may add keeps every existing smaller map's
+  // lighting completely unaffected — they never come close to this ceiling —
+  // while keeping a large map's total real-time light count in the range
+  // this renderer has actually been proven to handle.
+  // SDF labels are real meshes, not sprites — they need orienting toward the
+  // camera every frame to keep the sprite behaviour they replaced.
+  const billboards: Text[] = [];
 
-    const lamp = new THREE.PointLight(p.lamp, p.lampIntensity * 0.8, Math.max(room.size.w, room.size.d) * 1.7, 2);
+  let bounceLightBudget = 16;
+  for (const room of map.rooms) {
+    // Furnished rooms get a wall-mounted signage panel (see buildRoomFurniture
+    // below) instead of the plain floating nameplate sprite.
+    if (!room.furniture) {
+      const label = nameplate(room.name, room.color, res);
+      label.position.set(room.center.x, 3.7, room.center.z);
+      billboards.push(label);
+      scene.add(label);
+    }
+
+    // One lamp intensity for every room only works if every room is the same
+    // size. These aren't: HQ's Central Operations spans 18 where Relay's bays
+    // span 8, and with physically-correct (decay 2) falloff the light reaching
+    // a wall drops with the square of the distance — so the big rooms were
+    // arriving at roughly a fifth of the wall brightness the small ones got,
+    // which is why their walls read as black slabs. Scaling by the square of
+    // the room's half-span holds wall illuminance roughly constant across
+    // sizes; an 8-unit room lands on exactly the old value, so the four
+    // original maps are unchanged.
+    const halfSpan = Math.max(room.size.w, room.size.d) / 2;
+    const sizeScale = Math.min(6, (halfSpan / 4) ** 2);
+    const lamp = new THREE.PointLight(
+      p.lamp,
+      p.lampIntensity * 0.8 * sizeScale,
+      Math.max(room.size.w, room.size.d) * 1.7,
+      2
+    );
     lamp.position.set(room.center.x, 2.7, room.center.z);
     scene.add(lamp);
 
@@ -316,13 +461,22 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
     bulb.position.set(room.center.x, 2.82, room.center.z);
     scene.add(bulb);
 
-    // Corner bounce lights — expensive, so only above the balanced tier.
+    // Corner bounce lights — expensive, so only above the balanced tier,
+    // and capped globally (see bounceLightBudget above) regardless of tier.
     if (profile().fillLights) {
       for (const [sx, sz] of [
         [-1, -1],
         [1, 1],
       ] as [number, number][]) {
-        const fill = new THREE.PointLight(p.lamp, p.lampIntensity * 0.22, Math.max(room.size.w, room.size.d), 2);
+        if (bounceLightBudget <= 0) break;
+        bounceLightBudget--;
+        // Same size scaling as the main practical above, for the same reason.
+        const fill = new THREE.PointLight(
+          p.lamp,
+          p.lampIntensity * 0.22 * sizeScale,
+          Math.max(room.size.w, room.size.d),
+          2
+        );
         fill.position.set(
           room.center.x + sx * room.size.w * 0.3,
           1.1,
@@ -334,6 +488,14 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
       // same tier gate as the bounce lights, since neither changes gameplay,
       // only how grounded the room reads.
       scatterProps(room, res, scene, crateMat, cableMat);
+    }
+
+    // Office dressing (desks, reception counter, conference table, signage) —
+    // the "identity" pieces render at every tier so a furnished room never
+    // looks broken on `balanced`; only the secondary decorative extras inside
+    // buildRoomFurniture are gated on fillLights.
+    if (room.furniture) {
+      buildRoomFurniture(scene, res, room, profile().fillLights);
     }
   }
 
@@ -464,6 +626,8 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
     update(dt) {
       clock += dt;
 
+      for (const b of billboards) b.quaternion.copy(camera.quaternion);
+
       markers.forEach((g) => {
         g.rotation.y = clock * 1.5;
         g.position.y = 0.98 + Math.sin(clock * 2.1) * 0.08;
@@ -518,7 +682,20 @@ export function createWorld(scene: THREE.Scene, camera: THREE.PerspectiveCamera,
 
       const anchorX = playerPos.x + lookAhead.position.x;
       const anchorZ = playerPos.z + lookAhead.position.y;
-      const desired = new THREE.Vector3(anchorX * 0.6, 13.5, anchorZ + 10);
+
+      // Per-room camera framing: pull back for a big room (Central Ops
+      // spans 18), pull in tighter for a small one (Reception spans 8) —
+      // the same idea as a per-room camera profile, but computed from each
+      // room's own footprint instead of hand-authored per room, so every
+      // map benefits automatically and a differently-sized new room never
+      // needs a manual camera entry. 14 is the span most existing rooms
+      // already use, i.e. camScale ≈ 1 for them — this is a refinement of
+      // the existing framing, not a departure from it.
+      const room = roomContaining(map, playerPos.x, playerPos.z);
+      const roomSpan = room ? Math.max(room.size.w, room.size.d) : 14;
+      const camScale = THREE.MathUtils.clamp(roomSpan / 14, 0.72, 1.55);
+
+      const desired = new THREE.Vector3(anchorX * 0.6, 13.5 * camScale, anchorZ + 10 * camScale);
       camera.position.lerp(desired, Math.min(dt * 3.2, 1));
       camera.lookAt(anchorX * 0.6, 0.8, anchorZ + 0.5);
     },

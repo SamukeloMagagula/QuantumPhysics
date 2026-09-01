@@ -7,6 +7,14 @@ set of standalone interactive **labs** (SQL injection, XSS, phishing,
 password cracking, Wi-Fi evil twin, Caesar cipher, RSA factoring, BB84 QKD)
 and a small network-defense mini-game.
 
+There's also **Quantum Breach**, a single-player narrative campaign: Scene 1
+teaches symmetric encryption (Alice and Bob share a secret key — until Eve
+intercepts it), Scene 2 teaches asymmetric encryption (public/private
+keypairs solve key distribution — until a man-in-the-middle twist shows why
+authentication still matters), and Scene 3 hands the player straight into
+**Quantum Intercept**, a real 3-player BB84 key exchange with hidden
+Alice/Bob/Eve roles and a post-round accusation vote.
+
 ## Run it
 
 ```
@@ -31,8 +39,10 @@ Everything lives under `photon-runner/`:
   world (character models, maps, materials); `springs.ts` +
   `sceneAnimPhase.ts` drive movement/animation feel; `lab*.ts`/`labRegistry.ts`
   + the individual challenge files (`xss.ts`, `sql-injection.ts`, etc.) are
-  the standalone security labs; `server*.ts` is the Express + better-sqlite3
-  API (guest identity).
+  the standalone security labs; `campaignScene*.ts`/`Campaign*.tsx` are the
+  Quantum Breach campaign scenes; `qkd*.ts` is the Quantum Intercept
+  multiplayer game; `server*.ts` is the Express + better-sqlite3 API (guest
+  identity).
 - **`data/`** — the server's SQLite database (gitignored, created on first run).
 
 ## Develop

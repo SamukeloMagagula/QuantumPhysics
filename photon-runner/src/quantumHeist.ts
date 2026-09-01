@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { GameEngine, Game } from './GameEngine';
 import { createHumanoid, Humanoid } from './sceneCharacter';
-import { createWorld, World, MarkerHandle, FirstPersonView } from './sceneWorld';
+import { createWorld, World, MarkerHandle, FirstPersonView, Res } from './sceneWorld';
+import { HoloPanel, createHoloPanel } from './sceneHologram';
 import { getAppearance, randomAppearance } from './characterAppearance';
-import { MapDef, getMap, isWalkable, roomContaining } from './sceneMaps';
+import { MapDef, getMap, isWalkable, receptionKioskPosition, roomContaining } from './sceneMaps';
+import { accessRegistry } from './engine/Access';
 import { VectorSpringSimulator, RelativeSpringSimulator } from './springs';
 import {
   TutorialState,
@@ -83,7 +85,7 @@ export interface TutorialView {
   manual: boolean;
 }
 
-export type PromptKind = 'station' | 'vent' | 'report' | 'emergency' | 'fix';
+export type PromptKind = 'station' | 'vent' | 'report' | 'emergency' | 'fix' | 'badge';
 
 export interface HeistUiState {
   mapId: string;
@@ -177,10 +179,26 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
   const stations = stationsFor(map);
   const scored = scoredStations(stations);
 
+  // Zone-gated access, ported from the reference facility's badge-kiosk
+  // flow: on maps with a vault room (today, only HQ's Secure Core), that
+  // room starts locked to every operative. Registering at the reception
+  // counter's keypad grants the registering operative — and only them —
+  // access for the rest of the match. Maps with no `furniture: 'vault'`
+  // room (Relay/Greenhouse/Deep Cut/Meridian) are entirely unaffected:
+  // `vaultRoom`/`badgeKiosk` stay null, and `isZoneOpen` is a no-op when
+  // nothing has been `restrict()`ed.
+  accessRegistry.reset();
+  const vaultRoom = map.rooms.find((r) => r.furniture === 'vault') ?? null;
+  const receptionRoom = map.rooms.find((r) => r.furniture === 'reception') ?? null;
+  if (vaultRoom) accessRegistry.restrict(vaultRoom.id);
+  const badgeKiosk = receptionRoom ? receptionKioskPosition(receptionRoom) : null;
+
   let engine: GameEngine | null = null;
   let world: World | null = null;
   let player: Humanoid | null = null;
   let mentor: Walker | null = null;
+  let holoRes: Res | null = null;
+  let stationPanel: HoloPanel | null = null;
 
   let g: GameState = createGame();
   let tutorial: TutorialState = initialTutorial(opts.tutorial ?? false);
@@ -265,6 +283,15 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
   const nearestBody = () => g.nodes.find((n) => !n.reported && dist(playerPos, n) < BODY_RADIUS) ?? null;
   const atEmergency = () => dist(playerPos, map.meeting) < INTERACT_RADIUS;
 
+  /** Standing at the reception badge kiosk, with the vault still locked to
+   * you — false once you've already badged in, so the prompt disappears
+   * instead of offering to "register" a second time. */
+  const atBadgeKiosk = (): boolean =>
+    !!badgeKiosk &&
+    !!vaultRoom &&
+    !accessRegistry.canEnter(g.you.id, vaultRoom.id) &&
+    dist(playerPos, badgeKiosk) < INTERACT_RADIUS;
+
   /** The living crewmate Eve is close enough to compromise. */
   const killTarget = (): Bot | null => {
     if (!isEve() || !youAlive()) return null;
@@ -292,6 +319,7 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
     if (nearestBody()) return { kind: 'report', label: 'Report corrupted node' };
     if (atEmergency() && !g.crisis) return { kind: 'emergency', label: 'Call emergency meeting' };
     if (isEve() && nearestVent()) return { kind: 'vent', label: 'Enter vent' };
+    if (atBadgeKiosk()) return { kind: 'badge', label: 'Register visitor badge' };
     const s = nearestStation();
     if (s) return { kind: 'station', label: s.label };
     return null;
@@ -742,6 +770,14 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
     init(e) {
       engine = e;
       world = createWorld(e.scene, e.camera, map);
+
+      // In-world readout for whatever you're standing at, instead of only a
+      // chip in the corner of the screen. It owns its own resource tracker
+      // because createWorld keeps its `Res` private; disposed below.
+      holoRes = new Res();
+      stationPanel = createHoloPanel(holoRes, { width: 1.7, height: 0.8, accent: 0x5ea8c9 });
+      e.scene.add(stationPanel.group);
+
       spawnCast();
       moveMentorToFocus();
       refreshMarkers();
@@ -771,8 +807,16 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         if (velocitySpring.position.lengthSq() > 1e-4) {
           const tx = playerPos.x + velocitySpring.position.x * dt;
           const tz = playerPos.z + velocitySpring.position.y * dt;
-          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
-          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+          // A restricted room (only Secure Core, today) blocks movement the
+          // same way a wall does for anyone who hasn't badged in — see
+          // accessRegistry above. Every other room is always open, so this
+          // is a no-op on maps with no vault room.
+          if (isWalkable(map, tx, playerPos.z, BODY_PAD) && accessRegistry.canEnter(g.you.id, roomContaining(map, tx, playerPos.z)?.id ?? null)) {
+            playerPos.x = tx;
+          }
+          if (isWalkable(map, playerPos.x, tz, BODY_PAD) && accessRegistry.canEnter(g.you.id, roomContaining(map, playerPos.x, tz)?.id ?? null)) {
+            playerPos.z = tz;
+          }
         }
 
         if (nx !== 0 || nz !== 0) {
@@ -858,6 +902,25 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         emit();
       }
 
+      // Diegetic station readout — floats over whatever console you're
+      // standing at and folds away when you step off it. Hidden entirely
+      // while a terminal is open, since the terminal *is* the interface then.
+      if (stationPanel && engine) {
+        const near = activeTerminal ? null : nearestStation();
+        if (near) {
+          stationPanel.group.position.set(near.x, 2.05, near.z);
+          stationPanel.setContent({
+            title: near.label,
+            lines: [near.hint, doneTasks.has(near.id) ? 'STATUS · complete' : 'STATUS · awaiting input', '', '[E] to work this console'],
+            accent: doneTasks.has(near.id) ? 0x7ea87a : 0x5ea8c9,
+          });
+          stationPanel.show();
+        } else {
+          stationPanel.hide();
+        }
+        stationPanel.update(dt, engine.camera);
+      }
+
       world.update(dt);
       world.updateCamera(playerPos, dt, velocitySpring.position, firstPersonView());
     },
@@ -898,6 +961,13 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
         }
       }
 
+      if (atBadgeKiosk() && vaultRoom) {
+        accessRegistry.grant(g.you.id, vaultRoom.id);
+        showToast(`Badge issued — ${vaultRoom.name} clearance granted.`);
+        emit();
+        return;
+      }
+
       const station = nearestStation();
       if (station) {
         activeTerminal = {
@@ -915,6 +985,10 @@ export function createQuantumHeist(opts: HeistOptions = {}): HeistGame {
       player?.dispose();
       mentor?.humanoid.dispose();
       bots.forEach((b) => b.humanoid.dispose());
+      if (stationPanel) engine?.scene.remove(stationPanel.group);
+      holoRes?.dispose();
+      holoRes = null;
+      stationPanel = null;
       world?.dispose();
       bots = [];
       player = null;

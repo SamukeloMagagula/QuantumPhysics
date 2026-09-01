@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Award, Crosshair, Eye, KeyRound, Loader2, Radio, ShieldCheck, ShieldX, Skull, Trophy } from 'lucide-react';
 import type { QkdRole } from './QkdLobby';
+import { ChannelStatusIndicator } from './QuantumUI';
 
 const POLL_MS = 1500;
 
@@ -22,6 +23,7 @@ interface LastResult {
   perRole: Record<string, number>;
   round: number;
   errorShape: 'none' | 'clustered' | 'scattered';
+  sabotage: boolean;
 }
 
 interface GameState {
@@ -324,13 +326,12 @@ function BobDecisionPanel({
   return (
     <div className="glass rounded-2xl p-5 space-y-4">
       <p className="text-sm ink-1 font-medium">The sample check is in. Keep the key, or abort if it looks tapped.</p>
-      <div className="flex items-center gap-4">
-        <div className="text-3xl font-mono font-bold ink-1">{(qber * 100).toFixed(1)}%</div>
-        <div className="text-xs ink-3">
-          sampled error rate
-          {state.errorShape && state.errorShape !== 'none' && <> · pattern reads <span className="ink-1 font-semibold">{state.errorShape}</span></>}
-        </div>
-      </div>
+      <ChannelStatusIndicator qber={qber} />
+      {state.errorShape && state.errorShape !== 'none' && (
+        <p className="text-xs ink-3">
+          pattern reads <span className="ink-1 font-semibold">{state.errorShape}</span>
+        </p>
+      )}
       <div className="flex gap-3">
         <button onClick={() => onSubmit({ decision: 'keep' })} disabled={submitting} className="btn btn-primary px-6 py-3 text-sm flex-1">
           <ShieldCheck size={15} /> Keep the key
@@ -352,10 +353,17 @@ function ResolvePanel({ state, submitting, onNext }: { state: GameState; submitt
         {r.eveHit ? <Eye size={16} style={{ color: 'var(--danger)' }} /> : <ShieldCheck size={16} style={{ color: 'var(--ok)' }} />}
         <p className="text-sm font-semibold ink-1">{r.eveHit ? 'The channel was tapped.' : 'The channel was clean.'}</p>
       </div>
+      <ChannelStatusIndicator qber={r.sampleQBER} />
       <p className="text-xs ink-3">
-        {r.sifted} sifted · {(r.sampleQBER * 100).toFixed(1)}% sample error · Bob {r.bobDecision === 'keep' ? 'kept' : 'aborted'} the key
+        {r.sifted} sifted · Bob {r.bobDecision === 'keep' ? 'kept' : 'aborted'} the key
         {r.bobDecision === 'keep' && !r.eveHit && <> · final key {r.finalKey} bits</>}
       </p>
+      {r.sabotage && (
+        <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+          <Skull size={12} className="inline -mt-0.5 mr-1" />
+          Eve forced this abort deliberately — a sabotage, not a slip. The key never got made, whether or not she's caught later.
+        </p>
+      )}
       <div className="grid grid-cols-3 gap-2 text-center">
         {(['alice', 'bob', 'eve'] as const).map((role) => (
           <div key={role} className="panel rounded-xl py-2.5">

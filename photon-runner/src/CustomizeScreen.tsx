@@ -73,9 +73,13 @@ function createPreviewGame(initial: CharacterAppearance): PreviewGame {
       engine.camera.position.set(0, 1.15, 3.15);
       engine.camera.lookAt(0, 0.98, 0);
 
-      engine.scene.add(new THREE.HemisphereLight(0x8ab4ff, 0x1a1030, 1.5));
+      engine.scene.add(new THREE.HemisphereLight(0x8ab4ff, 0x1a1030, 1.05));
 
-      const key = new THREE.DirectionalLight(0xffffff, 2.1);
+      // The flat/matte character materials have no surface micro-detail to
+      // soften a highlight, so a rounded up-facing surface (e.g. the crown
+      // of the head) can blow out under a strong key light — kept lower
+      // than before for that reason.
+      const key = new THREE.DirectionalLight(0xffffff, 1.5);
       key.position.set(2.6, 4.2, 3.4);
       engine.scene.add(key);
 

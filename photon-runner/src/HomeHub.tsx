@@ -2,8 +2,11 @@ import React from 'react';
 import {
   ArrowRight,
   BookOpen,
+  Building2,
+  Check,
   Eye,
   FlaskConical,
+  Lock,
   Palette,
   Radio,
   Shield,
@@ -12,8 +15,19 @@ import {
   Users,
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
+import { getCompletedScenes } from './campaignProgress';
+import { useTilt } from './useTilt';
 
-export type ModeId = 'heist' | 'heist-mp' | 'labs' | 'quantum' | 'defender' | 'customize' | 'rooms' | 'qkd-multiplayer';
+export type ModeId =
+  | 'campus'
+  | 'qkd-attack'
+  | 'labs'
+  | 'quantum'
+  | 'defender'
+  | 'customize'
+  | 'rooms'
+  | 'qkd-multiplayer'
+  | 'campaign';
 
 interface HomeHubProps {
   onOpen: (mode: ModeId) => void;
@@ -29,23 +43,33 @@ interface ModeCard {
 }
 
 const FEATURED: ModeCard = {
-  id: 'heist',
-  title: 'Quantum Heist',
-  tag: '3D · Social deduction',
+  id: 'qkd-attack',
+  title: 'Signals Intercept',
+  tag: 'Hacking sim · walk-in 3D lab',
   blurb:
-    'Three operatives share a quantum facility. You are secretly the transmitter, the receiver, or the eavesdropper. Work the consoles, run a real BB84 exchange, and watch the error rate betray whoever is tapping the fiber.',
+    'Walk the intercept floor and take a seat at any workstation to open its terminal. You are Eve on a fiber BB84 link: scan the target, find the countermeasure it is missing, and build an attack out of what it cannot see — photon-number splitting, detector blinding, a trojan probe. Steal the key before the error rate gives you away.',
   Icon: Eye,
   glow: '#fb7185',
 };
 
 const MODES: ModeCard[] = [
   {
-    id: 'heist-mp',
-    title: 'Quantum Heist · Online',
-    tag: 'Multiplayer · room codes',
-    blurb: 'Host or join a facility with a 4-letter code. The host picks the map — every operative only ever learns their own role.',
-    Icon: Users,
-    glow: '#fb7185',
+    id: 'campus',
+    title: 'Research Campus',
+    tag: 'Explore · 3D hub',
+    blurb:
+      'Walk the grounds outside the facility — Quantum Lab, Security, the Research Lab, the Server Room — and step through a door to open that world.',
+    Icon: Building2,
+    glow: '#34d399',
+  },
+  {
+    id: 'campaign',
+    title: 'Quantum Breach',
+    tag: 'Story campaign · single-player',
+    blurb:
+      'Learn symmetric and asymmetric cryptography the hard way — watch a shared key get intercepted, then a public key get spoofed — before you walk into a real BB84 exchange as Alice, Bob, or Eve.',
+    Icon: Lock,
+    glow: '#818cf8',
   },
   {
     id: 'qkd-multiplayer',
@@ -97,6 +121,59 @@ const MODES: ModeCard[] = [
   },
 ];
 
+/** A mode card with a mouse-tracked 3D tilt — split out from the MODES.map()
+ * loop because useTilt() is a hook and hooks can't run inside a loop body. */
+function ModeCardButton({
+  mode,
+  tag,
+  index,
+  showComplete,
+  onOpen,
+}: {
+  mode: ModeCard;
+  tag: string;
+  index: number;
+  showComplete: boolean;
+  onOpen: (id: ModeId) => void;
+}) {
+  const tilt = useTilt(7);
+  return (
+    <button
+      ref={tilt.ref as React.RefObject<HTMLButtonElement>}
+      onClick={() => onOpen(mode.id)}
+      onPointerMove={tilt.onPointerMove}
+      onPointerLeave={tilt.onPointerLeave}
+      style={{ ['--glow' as string]: mode.glow, ['--i' as string]: index + 1 }}
+      className="card sheen glass group rounded-[22px] p-5 text-left flex flex-col gap-3 min-h-[204px]"
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className="grid place-items-center w-11 h-11 rounded-2xl transition-transform duration-300 group-hover:scale-110"
+          style={{ background: `color-mix(in oklab, ${mode.glow} 15%, transparent)`, color: mode.glow }}
+        >
+          <mode.Icon size={21} />
+        </span>
+        {showComplete && (
+          <span className="shrink-0" style={{ color: 'var(--ok)' }}>
+            <Check size={14} />
+          </span>
+        )}
+      </div>
+
+      <div>
+        <h3 className="h-section text-base ink-1">{mode.title}</h3>
+        <div className="label-mono !text-[9px] mt-0.5">{tag}</div>
+      </div>
+
+      <p className="text-xs ink-3 leading-relaxed flex-1">{mode.blurb}</p>
+
+      <span className="text-[11px] ink-4 group-hover:ink-1 transition-colors flex items-center gap-1">
+        Open <ArrowRight size={11} />
+      </span>
+    </button>
+  );
+}
+
 function PhotonRail() {
   return (
     <div className="relative h-px w-full max-w-md mx-auto my-5 overflow-hidden">
@@ -121,6 +198,12 @@ function PhotonRail() {
 
 export function HomeHub({ onOpen }: HomeHubProps) {
   const you = getAppearance();
+  const campaignDone = getCompletedScenes();
+  const campaignTag = !campaignDone.includes('scene1')
+    ? 'Story campaign · single-player'
+    : !campaignDone.includes('scene2')
+    ? 'Continue · Scene 2 of 3'
+    : 'Completed · replay anytime';
 
   return (
     <div className="bg-scene bg-mesh min-h-full px-4 py-12 md:px-8 md:py-16">
@@ -189,32 +272,21 @@ export function HomeHub({ onOpen }: HomeHubProps) {
 
         {/* -------- modes -------- */}
         <div className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MODES.map((m, i) => (
-            <button
-              key={m.id}
-              onClick={() => onOpen(m.id)}
-              style={{ ['--glow' as string]: m.glow, ['--i' as string]: i + 1 }}
-              className="card sheen glass group rounded-[22px] p-5 text-left flex flex-col gap-3 min-h-[204px]"
-            >
-              <span
-                className="grid place-items-center w-11 h-11 rounded-2xl transition-transform duration-300 group-hover:scale-110"
-                style={{ background: `color-mix(in oklab, ${m.glow} 15%, transparent)`, color: m.glow }}
-              >
-                <m.Icon size={21} />
-              </span>
-
-              <div>
-                <h3 className="h-section text-base ink-1">{m.title}</h3>
-                <div className="label-mono !text-[9px] mt-0.5">{m.tag}</div>
-              </div>
-
-              <p className="text-xs ink-3 leading-relaxed flex-1">{m.blurb}</p>
-
-              <span className="text-[11px] ink-4 group-hover:ink-1 transition-colors flex items-center gap-1">
-                Open <ArrowRight size={11} />
-              </span>
-            </button>
-          ))}
+          {MODES.map((m, i) => {
+            const isCampaign = m.id === 'campaign';
+            const tag = isCampaign ? campaignTag : m.tag;
+            const campaignComplete = isCampaign && campaignDone.length === 2;
+            return (
+              <ModeCardButton
+                key={m.id}
+                mode={m}
+                tag={tag}
+                index={i}
+                showComplete={campaignComplete}
+                onOpen={onOpen}
+              />
+            );
+          })}
         </div>
 
         {/* -------- your operative -------- */}

@@ -24,6 +24,23 @@ export interface EngineOptions {
   noPost?: boolean;
   /** Image-based lighting strength; 0 disables the environment entirely. */
   envIntensity?: number;
+  /** Caps the ambient-occlusion sample count below whatever the graphics
+   * tier would otherwise use — for a specific scene proven too geometry-
+   * heavy for full GTAO at that tier, without touching every other scene's
+   * quality. `0` disables the AO pass outright. Leave unset to use the
+   * tier's own aoSamples unmodified. */
+  maxAoSamples?: number;
+}
+
+/** What a dev-facing perf overlay actually needs — Three.js already tracks
+ * all of this in `renderer.info`, nothing here is estimated or sampled. */
+export interface EngineStats {
+  fps: number;
+  frameMs: number;
+  drawCalls: number;
+  triangles: number;
+  geometries: number;
+  textures: number;
 }
 
 export class GameEngine {
@@ -39,6 +56,8 @@ export class GameEngine {
   private disposeEnv: (() => void) | null = null;
   private opts: EngineOptions;
   private resizeHandler = () => this.handleResize();
+  private fps = 0;
+  private lastFrameMs = 0;
 
   constructor(opts: EngineOptions = {}) {
     this.opts = opts;
@@ -100,9 +119,13 @@ export class GameEngine {
     const w = this.canvas.clientWidth || 1;
     const h = this.canvas.clientHeight || 1;
     const prof = profile();
+    const aoSamples =
+      this.opts.maxAoSamples !== undefined ? Math.min(prof.aoSamples, this.opts.maxAoSamples) : prof.aoSamples;
     this.post = createPostFx(this.renderer, this.scene, this.camera, w, h, {
-      aoSamples: prof.aoSamples,
+      aoSamples,
       bloom: prof.bloom,
+      grade: true,
+      smaa: prof.smaa,
     });
   }
 
@@ -129,7 +152,29 @@ export class GameEngine {
     if (!this.renderer) return;
     if (this.post) this.post.render(dt);
     else this.renderer.render(this.scene, this.camera);
+
+    // Exponential moving average rather than "1/dt" raw — a single slow
+    // frame would otherwise make the readout spike/jitter unreadably.
+    this.lastFrameMs = dt * 1000;
+    const instantFps = dt > 0 ? 1 / dt : 0;
+    this.fps = this.fps === 0 ? instantFps : this.fps + (instantFps - this.fps) * 0.1;
   };
+
+  /** Real numbers from `renderer.info` — draw calls/triangles/geometries/
+   * textures currently resident on the GPU — plus a smoothed FPS. Nothing
+   * here is estimated; this is what a perf overlay needs to be trustworthy
+   * rather than decorative. */
+  getStats(): EngineStats {
+    const info = this.renderer?.info;
+    return {
+      fps: Math.round(this.fps),
+      frameMs: Math.round(this.lastFrameMs * 10) / 10,
+      drawCalls: info?.render.calls ?? 0,
+      triangles: info?.render.triangles ?? 0,
+      geometries: info?.memory.geometries ?? 0,
+      textures: info?.memory.textures ?? 0,
+    };
+  }
 
   dispose(): void {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);

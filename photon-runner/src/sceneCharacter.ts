@@ -10,6 +10,7 @@ import {
 import { applySurface, fabricSurface, hairSurface, metalSurface, skinSurface } from './sceneTextures';
 import { profile } from './sceneQuality';
 import { AnimPhase, PhaseState, advancePhase, initialPhaseState } from './sceneAnimPhase';
+import { createModelHumanoid, hasCharacterModel } from './characterModel';
 
 /**
  * A human-proportioned articulated character built entirely from primitives —
@@ -28,12 +29,18 @@ const CHEST_Y = 1.28;
 const SHOULDER_Y = 1.42;
 const NECK_Y = 1.5;
 const HEAD_Y = 1.66;
-const HEAD_R = 0.118;
+const HEAD_R = 0.128;
 
 const THIGH_LEN = HIP_Y - KNEE_Y;
 const SHIN_LEN = KNEE_Y - ANKLE_Y;
 const UPPER_ARM_LEN = 0.3;
 const FOREARM_LEN = 0.28;
+
+/** One-shot gestures — mutually exclusive; starting a new one cancels
+ * whatever was already playing. Layered additively on top of whatever the
+ * idle/walk base pose already set that frame, the same way `wave` always
+ * worked; this just gives that pattern more members. */
+export type Gesture = 'wave' | 'jump' | 'point' | 'celebrate' | 'dismay' | 'flinch';
 
 export interface Humanoid {
   group: THREE.Group;
@@ -41,8 +48,18 @@ export interface Humanoid {
   setSprinting(isSprinting: boolean): void;
   update(dt: number): void;
   faceDirection(angle: number): void;
-  /** Plays a one-shot gesture (used for interactions / taps). */
+  /** Plays a one-shot gesture (used for interactions / taps / UI events). */
+  playGesture(gesture: Gesture): void;
+  /** Plays a one-shot gesture (used for interactions / taps). Alias for
+   * `playGesture('wave')`, kept for existing call sites. */
   wave(): void;
+  /** Looping talk animation (head nod + hand gesture) while true — combines
+   * with idle/walk and with a one-shot gesture rather than replacing them. */
+  setTalking(talking: boolean): void;
+  /** Sit the figure down: hips drop to chair height, thighs go horizontal,
+   * shins vertical, hands forward onto the desk. Replaces the idle/walk
+   * cycle entirely while set. */
+  setSeated(seated: boolean): void;
   dispose(): void;
 }
 
@@ -112,9 +129,7 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   // Skin specifically uses MeshPhysicalMaterial for two extra terms real skin
   // has and cloth/metal don't: `sheen` (the soft peach-fuzz micro-fringe that
   // catches grazing light at a silhouette's edge) and a faint `clearcoat`
-  // (the thin oily highlight on a forehead/nose under a key light). Both are
-  // native three.js PBR terms — no custom shader — so this is a drop-in
-  // replacement for the plain MeshStandardMaterial that was here before.
+  // (the thin oily highlight on a forehead/nose under a key light).
   const skinMat = res.mat(
     new THREE.MeshPhysicalMaterial({
       color: skinCol,
@@ -144,6 +159,7 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   applySurface(darkMat, metalSurface(0x2b2620), 1.5, 0.9);
   const eyeWhiteMat = res.mat(new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.14, metalness: 0.02 }));
   const irisMat = res.mat(new THREE.MeshStandardMaterial({ color: 0x2c1810, roughness: 0.1, metalness: 0.05 }));
+  const sparkleMat = res.mat(new THREE.MeshBasicMaterial({ color: 0xffffff }));
 
   const root = new THREE.Group();
   const body = new THREE.Group(); // vertical bob + breathing live here
@@ -197,6 +213,8 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   const faceZ = HEAD_R * 0.9;
   const eyeY = head.position.y + 0.012;
 
+  // Round eyes: white + iris + a small offset highlight dot for a catchlight
+  // sparkle — the thing that makes a cartoon face read as alive.
   const eyes: THREE.Group[] = [];
   for (const side of [-1, 1]) {
     const eye = new THREE.Group();
@@ -208,6 +226,9 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     iris.position.z = 0.014;
     iris.scale.z = 0.6;
     eye.add(iris);
+    const sparkle = new THREE.Mesh(res.geom(new THREE.SphereGeometry(0.003, 6, 6)), sparkleMat);
+    sparkle.position.set(-side * 0.004, 0.004, 0.02);
+    eye.add(sparkle);
     headPivot.add(eye);
     eyes.push(eye);
 
@@ -276,7 +297,9 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   }
   const legs: Record<'l' | 'r', Leg> = {} as Record<'l' | 'r', Leg>;
 
-  const legMat = look.outfit === 'labcoat' ? secondaryMat : primaryMat;
+  // Pants always read as the secondary outfit color — a flat two-tone
+  // shirt/pants look, independent of which outfit is equipped.
+  const legMat = secondaryMat;
 
   for (const side of ['l', 'r'] as const) {
     const dir = side === 'l' ? -1 : 1;
@@ -284,7 +307,7 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     hip.position.set(dir * 0.075, 0, 0);
     torso.add(hip);
 
-    const thigh = capsule(0.058 * spec.limbScale, THIGH_LEN - 0.09, legMat);
+    const thigh = capsule(0.052 * spec.limbScale, THIGH_LEN - 0.09, legMat);
     thigh.position.y = -THIGH_LEN / 2;
     hip.add(thigh);
 
@@ -292,7 +315,7 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     knee.position.y = -THIGH_LEN;
     hip.add(knee);
 
-    const shin = capsule(0.046 * spec.limbScale, SHIN_LEN - 0.09, legMat);
+    const shin = capsule(0.052 * spec.limbScale, SHIN_LEN - 0.09, legMat);
     shin.position.y = -SHIN_LEN / 2;
     knee.add(shin);
 
@@ -300,8 +323,10 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     ankle.position.y = -SHIN_LEN;
     knee.add(ankle);
 
-    const foot = new THREE.Mesh(res.geom(new THREE.BoxGeometry(0.085, 0.055, 0.185)), darkMat);
-    foot.position.set(0, -0.02, 0.045);
+    // A simple rounded cap in the pants color, not a distinct shoe.
+    const foot = new THREE.Mesh(res.geom(new THREE.SphereGeometry(0.052, 12, 8)), legMat);
+    foot.position.set(0, -0.02, 0.03);
+    foot.scale.set(0.9, 0.6, 1.2);
     ankle.add(foot);
 
     legs[side] = { hip, knee, ankle };
@@ -355,26 +380,106 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
   let phaseState: PhaseState = initialPhaseState();
   let blinkTimer = 2 + Math.random() * 3;
   let blinkT = 0;
-  let waveT = 0;
+  let gesture: Gesture | null = null;
+  let gestureT = 0;
+  let talking = false;
+  let talkClock = 0;
+
+  const GESTURE_DURATION: Record<Gesture, number> = {
+    wave: 0.72,
+    jump: 0.5,
+    point: 0.85,
+    celebrate: 1.2,
+    dismay: 1.0,
+    flinch: 0.35,
+  };
 
   const lerp = THREE.MathUtils.lerp;
+
+  // If a rigged character model has been configured (see characterModel.ts),
+  // upgrade to it in place: the procedural body is built and returned
+  // immediately so nothing waits on a network fetch, then swapped out for the
+  // skinned mesh when the glTF resolves. Every method below forwards to the
+  // skeletal rig once `skeletal` is set. With no model configured — the
+  // default, and the case today — `hasCharacterModel()` is false and none of
+  // this runs at all.
+  let seatedPose = false;
+  let skeletal: Humanoid | null = null;
+  if (hasCharacterModel()) {
+    void createModelHumanoid(roleColor).then((model) => {
+      if (!model) return;
+      root.children.slice().forEach((c) => {
+        if (c !== model.group) c.visible = false;
+      });
+      root.add(model.group);
+      skeletal = model;
+    });
+  }
 
   return {
     group: root,
 
     setWalking(isWalking) {
       moving = isWalking;
+      skeletal?.setWalking(isWalking);
     },
 
     setSprinting(isSprinting) {
       sprinting = isSprinting;
+      skeletal?.setSprinting(isSprinting);
+    },
+
+    playGesture(next) {
+      gesture = next;
+      gestureT = 1;
+      skeletal?.playGesture(next);
     },
 
     wave() {
-      waveT = 1;
+      gesture = 'wave';
+      gestureT = 1;
+      skeletal?.wave();
+    },
+
+    setTalking(next) {
+      talking = next;
+      if (!talking) talkClock = 0;
+      skeletal?.setTalking(next);
+    },
+
+    setSeated(next) {
+      seatedPose = next;
+      skeletal?.setSeated?.(next);
     },
 
     update(dt) {
+      // Once upgraded, the skeletal rig owns the pose entirely — the
+      // procedural body below it is hidden, so its maths would be wasted work.
+      if (skeletal) {
+        skeletal.update(dt);
+        return;
+      }
+
+      // Seated overrides the locomotion system outright — a walk cycle
+      // blended under a chair reads as floating, not sitting.
+      if (seatedPose) {
+        idleClock += dt;
+        const breathe = Math.sin(idleClock * 1.6) * 0.012;
+        // Hips at chair height rather than standing height.
+        body.position.y = -(HIP_Y - 0.5) + breathe;
+        for (const side of ['l', 'r'] as const) {
+          legs[side].hip.rotation.x = -Math.PI / 2;  // thighs forward, horizontal
+          legs[side].knee.rotation.x = Math.PI / 2;  // shins straight down
+          legs[side].ankle.rotation.x = 0;
+          arms[side].shoulder.rotation.x = -0.62;    // reaching to the desk
+          arms[side].elbow.rotation.x = -0.85;
+        }
+        torso.rotation.x = 0.12;
+        headPivot.rotation.x = 0.06;
+        return;
+      }
+
+      body.position.y = 0;
       idleClock += dt;
       phaseState = advancePhase(phaseState, dt, moving, sprinting);
       const phase: AnimPhase = phaseState.phase;
@@ -455,14 +560,91 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
         headPivot.rotation.x = lerp(headPivot.rotation.x, 0, 0.1);
       }
 
-      // One-shot wave overrides the right arm while it plays out.
-      if (waveT > 0) {
-        waveT = Math.max(0, waveT - dt * 1.4);
-        const p = 1 - waveT;
-        const raise = Math.sin(Math.min(1, p * 1.6) * Math.PI * 0.5);
-        arms.r.shoulder.rotation.x = lerp(arms.r.shoulder.rotation.x, -2.2 * raise, 0.4);
-        arms.r.shoulder.rotation.z = lerp(arms.r.shoulder.rotation.z, -0.5 * raise, 0.4);
-        arms.r.elbow.rotation.x = -0.5 + Math.sin(p * 22) * 0.45 * raise;
+      // One-shot gesture overrides specific bones while it plays out —
+      // additive on top of whatever idle/walk already set this frame (every
+      // case below `lerp`s from the current, already-posed value rather than
+      // assigning outright, so a gesture blends with idle sway/walk bob
+      // instead of fighting it).
+      if (gesture && gestureT > 0) {
+        const duration = GESTURE_DURATION[gesture];
+        gestureT = Math.max(0, gestureT - dt / duration);
+        const p = 1 - gestureT; // 0 -> 1 progress through the gesture
+
+        switch (gesture) {
+          case 'wave': {
+            const raise = Math.sin(Math.min(1, p * 1.6) * Math.PI * 0.5);
+            arms.r.shoulder.rotation.x = lerp(arms.r.shoulder.rotation.x, -2.2 * raise, 0.4);
+            arms.r.shoulder.rotation.z = lerp(arms.r.shoulder.rotation.z, -0.5 * raise, 0.4);
+            arms.r.elbow.rotation.x = -0.5 + Math.sin(p * 22) * 0.45 * raise;
+            break;
+          }
+
+          case 'jump': {
+            // A cosmetic hop (this isn't a platformer with real gravity) —
+            // an up-then-down arc with a knee tuck at the peak.
+            const arc = Math.sin(Math.min(1, p) * Math.PI);
+            body.position.y += arc * 0.3;
+            legs.l.knee.rotation.x = lerp(legs.l.knee.rotation.x, -0.9 * arc, 0.5);
+            legs.r.knee.rotation.x = lerp(legs.r.knee.rotation.x, -0.9 * arc, 0.5);
+            arms.l.shoulder.rotation.x = lerp(arms.l.shoulder.rotation.x, -0.6 * arc, 0.4);
+            arms.r.shoulder.rotation.x = lerp(arms.r.shoulder.rotation.x, -0.6 * arc, 0.4);
+            break;
+          }
+
+          case 'point': {
+            const extend = Math.sin(Math.min(1, p * 1.3) * Math.PI * 0.5);
+            arms.r.shoulder.rotation.x = lerp(arms.r.shoulder.rotation.x, -1.35 * extend, 0.4);
+            arms.r.shoulder.rotation.z = lerp(arms.r.shoulder.rotation.z, -0.28 * extend, 0.4);
+            arms.r.elbow.rotation.x = lerp(arms.r.elbow.rotation.x, -0.1 * extend, 0.4);
+            headPivot.rotation.x = lerp(headPivot.rotation.x, -0.12 * extend, 0.3);
+            break;
+          }
+
+          case 'celebrate': {
+            const raise = Math.sin(Math.min(1, p * 1.2) * Math.PI * 0.5);
+            const bounce = Math.abs(Math.sin(p * Math.PI * 3)) * raise;
+            arms.l.shoulder.rotation.x = lerp(arms.l.shoulder.rotation.x, -2.6 * raise, 0.4);
+            arms.r.shoulder.rotation.x = lerp(arms.r.shoulder.rotation.x, -2.6 * raise, 0.4);
+            arms.l.shoulder.rotation.z = lerp(arms.l.shoulder.rotation.z, 0.4 * raise, 0.4);
+            arms.r.shoulder.rotation.z = lerp(arms.r.shoulder.rotation.z, -0.4 * raise, 0.4);
+            body.position.y += bounce * 0.09;
+            headPivot.rotation.x = lerp(headPivot.rotation.x, -0.18 * raise, 0.3);
+            break;
+          }
+
+          case 'dismay': {
+            const droop = Math.sin(Math.min(1, p * 1.1) * Math.PI * 0.5);
+            torso.rotation.x = lerp(torso.rotation.x, 0.22 * droop, 0.3);
+            headPivot.rotation.x = lerp(headPivot.rotation.x, 0.3 * droop, 0.3);
+            arms.l.shoulder.rotation.z = lerp(arms.l.shoulder.rotation.z, 0.05 * droop, 0.3);
+            arms.r.shoulder.rotation.z = lerp(arms.r.shoulder.rotation.z, -0.05 * droop, 0.3);
+            body.position.y -= droop * 0.03;
+            break;
+          }
+
+          case 'flinch': {
+            const snap = Math.sin(Math.min(1, p * 3) * Math.PI); // quick out-and-back
+            torso.rotation.x = lerp(torso.rotation.x, -0.18 * snap, 0.6);
+            headPivot.rotation.x = lerp(headPivot.rotation.x, -0.12 * snap, 0.6);
+            arms.l.elbow.rotation.x = lerp(arms.l.elbow.rotation.x, -0.4 * snap, 0.6);
+            arms.r.elbow.rotation.x = lerp(arms.r.elbow.rotation.x, -0.4 * snap, 0.6);
+            break;
+          }
+        }
+
+        if (gestureT <= 0) gesture = null;
+      }
+
+      // Looping talk animation — a subtle head nod plus one hand gesturing,
+      // independent of locomotion/gesture so it can combine with either.
+      if (talking) {
+        talkClock += dt;
+        const nod = Math.sin(talkClock * 5.2);
+        headPivot.rotation.x += nod * 0.045;
+        headPivot.rotation.y += Math.sin(talkClock * 2.3) * 0.03;
+        const handBeat = Math.max(0, Math.sin(talkClock * 4.1));
+        arms.r.shoulder.rotation.x += -0.25 * handBeat;
+        arms.r.elbow.rotation.x += -0.15 * handBeat;
       }
     },
 
@@ -471,6 +653,8 @@ export function createHumanoid(roleColor: number, options: HumanoidOptions = {})
     },
 
     dispose() {
+      skeletal?.dispose();
+      skeletal = null;
       res.dispose();
     },
   };
@@ -501,6 +685,10 @@ function buildHair(
   };
 
   switch (style) {
+    case 'bald':
+      // No hair mesh — the flat skin-colored scalp shows through.
+      break;
+
     case 'buzz':
       cap(HEAD_R * 1.02, 0.9, 0.004);
       break;
@@ -632,6 +820,7 @@ function buildOutfit(outfit: Outfit, ctx: OutfitCtx): void {
 
     case 'labcoat': {
       const coatMat = res.mat(new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.68 }));
+      applySurface(coatMat, fabricSurface(0xf1f5f9), 2, 1);
       // Two open front panels + skirt below the waist.
       for (const side of [-1, 1]) {
         const front = new THREE.Mesh(res.geom(new THREE.BoxGeometry(0.115, 0.5, 0.03)), coatMat);

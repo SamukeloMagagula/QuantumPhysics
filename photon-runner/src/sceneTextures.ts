@@ -362,6 +362,147 @@ export function metalSurface(color: number, q: Quality = tierQuality()): Surface
   return out;
 }
 
+/** Wood: long wavy grain streaks and darker knots. For desks, counters, tables. */
+export function woodSurface(color: number, q: Quality = tierQuality()): SurfaceMaps {
+  const key = `wood:${color}:${q}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const size = SIZE[q];
+  const rand = rng(color ^ 0x4c9e);
+
+  const { c: alb, ctx: a } = canvas(size);
+  a.fillStyle = hex(color);
+  a.fillRect(0, 0, size, size);
+
+  const { c: hgt, ctx: hc } = canvas(size);
+  hc.fillStyle = '#808080';
+  hc.fillRect(0, 0, size, size);
+
+  // Long horizontal grain lines with gentle waviness.
+  const lines = size / 3;
+  for (let i = 0; i < lines; i++) {
+    const y = (i / lines) * size + (rand() - 0.5) * (size / lines) * 0.6;
+    const v = 90 + Math.floor(rand() * 110);
+    hc.strokeStyle = `rgb(${v},${v},${v})`;
+    hc.lineWidth = 0.6 + rand() * 1.8;
+    hc.beginPath();
+    hc.moveTo(0, y);
+    for (let x = 0; x <= size; x += size / 8) {
+      hc.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
+    }
+    hc.stroke();
+
+    a.globalAlpha = 0.04 + rand() * 0.07;
+    a.strokeStyle = rand() > 0.5 ? '#3a2414' : '#e8c99a';
+    a.lineWidth = hc.lineWidth;
+    a.beginPath();
+    a.moveTo(0, y);
+    for (let x = 0; x <= size; x += size / 8) {
+      a.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
+    }
+    a.stroke();
+  }
+  a.globalAlpha = 1;
+
+  // A few darker knots.
+  for (let i = 0; i < 5; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const r = size * (0.015 + rand() * 0.02);
+    a.globalAlpha = 0.25;
+    a.fillStyle = '#2a1a0e';
+    a.beginPath();
+    a.ellipse(x, y, r, r * 1.8, 0, 0, Math.PI * 2);
+    a.fill();
+    a.globalAlpha = 1;
+
+    hc.fillStyle = '#3a3a3a';
+    hc.beginPath();
+    hc.ellipse(x, y, r, r * 1.8, 0, 0, Math.PI * 2);
+    hc.fill();
+  }
+
+  const { c: rgh, ctx: rc } = canvas(size);
+  rc.fillStyle = '#9a9a9a';
+  rc.fillRect(0, 0, size, size);
+  for (let i = 0; i < 40; i++) {
+    rc.globalAlpha = 0.2;
+    rc.fillStyle = rand() > 0.5 ? '#7a7a7a' : '#b8b8b8';
+    rc.fillRect(0, rand() * size, size, 1 + rand() * 2);
+  }
+  rc.globalAlpha = 1;
+
+  const out: SurfaceMaps = {
+    map: toTexture(alb, 1, true),
+    normalMap: heightToNormal(hgt, 0.9),
+    roughnessMap: toRoughness(rgh, 1),
+  };
+  cache.set(key, out);
+  return out;
+}
+
+/** Office-tower facade: a grid of window cells in dark curtain-wall mullions,
+ * a random fraction lit. The albedo doubles as an emissive map (bright
+ * window cells glow, dark frames don't) — callers set `mat.emissiveMap =
+ * mat.map` after `applySurface()` rather than this module growing an
+ * emissive channel that every other material using `SurfaceMaps` doesn't
+ * need. */
+export function facadeSurface(color: number, q: Quality = tierQuality()): SurfaceMaps {
+  const key = `facade:${color}:${q}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const size = SIZE[q];
+  const rand = rng(color ^ 0x6a2c);
+  const cols = 6;
+  const rows = 8;
+  const cw = size / cols;
+  const ch = size / rows;
+  const inset = Math.min(cw, ch) * 0.12;
+
+  const { c: alb, ctx: a } = canvas(size);
+  a.fillStyle = hex(color);
+  a.fillRect(0, 0, size, size);
+
+  const { c: hgt, ctx: hc } = canvas(size);
+  hc.fillStyle = '#707070';
+  hc.fillRect(0, 0, size, size);
+
+  const { c: rgh, ctx: rc } = canvas(size);
+  rc.fillStyle = '#4a4a4a';
+  rc.fillRect(0, 0, size, size);
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = col * cw + inset;
+      const y = row * ch + inset;
+      const w = cw - inset * 2;
+      const h = ch - inset * 2;
+      const lit = rand() > 0.35;
+
+      a.fillStyle = lit ? (rand() > 0.5 ? '#bfe6ff' : '#ffe3ad') : '#0c1218';
+      a.fillRect(x, y, w, h);
+
+      hc.fillStyle = '#2c2c2c';
+      hc.fillRect(x - 1, y - 1, w + 2, h + 2);
+      hc.fillStyle = '#9a9a9a';
+      hc.fillRect(x, y, w, h);
+
+      rc.fillStyle = '#1c1c1c';
+      rc.fillRect(x, y, w, h);
+    }
+  }
+
+  const out: SurfaceMaps = {
+    map: toTexture(alb, 1, true),
+    normalMap: heightToNormal(hgt, 0.8),
+    roughnessMap: toRoughness(rgh, 1),
+  };
+  cache.set(key, out);
+  return out;
+}
+
 /** Poured concrete / packed earth: aggregate, pitting, slab joints. */
 export function groundSurface(base: number, accent: number, q: Quality = tierQuality(), seed = 7): SurfaceMaps {
   const key = `ground:${base}:${accent}:${q}:${seed}`;

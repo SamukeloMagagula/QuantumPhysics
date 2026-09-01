@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAPS, MapDef, getMap, isWalkable, roomContaining } from './sceneMaps';
+import { MAPS, MapDef, getMap, isWalkable, receptionCounterSlot, receptionKioskPosition, roomContaining, wallSlotPosition } from './sceneMaps';
 
 /** Body radius the game clamps movement by — must match BODY_PAD in the heist. */
 const BODY_PAD = 0.5;
@@ -164,5 +164,43 @@ describe('isWalkable padding', () => {
     for (const r of map.rooms) {
       expect(isWalkable(map, r.center.x, r.center.z, BODY_PAD)).toBe(true);
     }
+  });
+});
+
+describe('reception kiosk placement', () => {
+  const hq = getMap('hq');
+  const reception = hq.rooms.find((r) => r.furniture === 'reception')!;
+
+  it('finds exactly one reception and one vault room on HQ', () => {
+    expect(reception).toBeTruthy();
+    expect(hq.rooms.filter((r) => r.furniture === 'vault')).toHaveLength(1);
+  });
+
+  it('places the counter and kiosk inside the reception room, on the wall opposite its signage', () => {
+    const counter = receptionCounterSlot(reception);
+    const kiosk = receptionKioskPosition(reception);
+
+    // glassFront is 'north', so signage goes on the north wall (opposite
+    // the glass) and the counter sits on the remaining wall — south.
+    expect(reception.glassFront).toBe('north');
+    expect(counter.rotY).toBe(Math.PI);
+    expect(counter.z).toBeCloseTo(reception.center.z + reception.size.d / 2 - Math.min(reception.size.w, reception.size.d) * 0.28);
+
+    // Both points fall inside the room's own footprint.
+    for (const p of [counter, kiosk]) {
+      expect(Math.abs(p.x - reception.center.x)).toBeLessThanOrEqual(reception.size.w / 2);
+      expect(Math.abs(p.z - reception.center.z)).toBeLessThanOrEqual(reception.size.d / 2);
+    }
+
+    // The kiosk sits a short, fixed distance in front of the counter.
+    expect(Math.hypot(kiosk.x - counter.x, kiosk.z - counter.z)).toBeCloseTo(0.55);
+  });
+
+  it('wallSlotPosition orients each edge to face inward', () => {
+    const room = hq.rooms[0];
+    expect(wallSlotPosition(room, 'north', 0).rotY).toBe(0);
+    expect(wallSlotPosition(room, 'south', 0).rotY).toBe(Math.PI);
+    expect(wallSlotPosition(room, 'west', 0).rotY).toBe(Math.PI / 2);
+    expect(wallSlotPosition(room, 'east', 0).rotY).toBe(-Math.PI / 2);
   });
 });

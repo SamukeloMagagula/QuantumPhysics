@@ -15,7 +15,8 @@ import { GameEngine, Game } from './GameEngine';
 import { createHumanoid, Humanoid } from './sceneCharacter';
 import { createWorld, World, MarkerHandle, FirstPersonView } from './sceneWorld';
 import { getAppearance, randomAppearance } from './characterAppearance';
-import { MapDef, getMap, isWalkable, roomContaining } from './sceneMaps';
+import { MapDef, RoomDef, getMap, isWalkable, receptionKioskPosition, roomContaining } from './sceneMaps';
+import { accessRegistry } from './engine/Access';
 import { VectorSpringSimulator, RelativeSpringSimulator } from './springs';
 import { INTERACT_RADIUS, REPEATABLE, StationDef, TerminalKind, scoredStations, stationsFor } from './quantumHeistStations';
 import { CRISIS_INFO, CrisisKind, REACH } from './quantumHeistLogic';
@@ -98,6 +99,15 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
   let stations: StationDef[] = stationsFor(map);
   let scored: StationDef[] = scoredStations(stations);
   let totalTasks = 1;
+  // Zone-gated access (see engine/Access.ts) — mirrors quantumHeist.ts's
+  // singleplayer wiring exactly, just re-derived once the server tells us
+  // which map the host picked (see poll(), below) instead of at
+  // construction time. There's only ever one locally-controlled operative
+  // per running instance, so a constant local id is all `accessRegistry`
+  // needs — it isn't the server's notion of identity.
+  const LOCAL_ACTOR_ID = 'local';
+  let vaultRoom: RoomDef | null = null;
+  let badgeKiosk: { x: number; z: number } | null = null;
 
   let room: RoomState | null = null;
   const remotes = new Map<string, RemoteWalker>();
@@ -145,6 +155,12 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
 
   const atEmergency = () => dist(playerPos, map.meeting) < INTERACT_RADIUS;
 
+  const atBadgeKiosk = (): boolean =>
+    !!badgeKiosk &&
+    !!vaultRoom &&
+    !accessRegistry.canEnter(LOCAL_ACTOR_ID, vaultRoom.id) &&
+    dist(playerPos, badgeKiosk) < INTERACT_RADIUS;
+
   const killTarget = (): RemoteSeat | null => {
     if (!room?.you || room.you.role !== 'eve' || !room.you.alive || !room.canKillNow) return null;
     for (const s of room.seats) {
@@ -166,6 +182,7 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
     if (!room || room.phase !== 'play' || activeTerminal || !room.you?.alive) return null;
     if (crisisConsoleHere()) return { kind: 'fix', label: 'Stabilise the channel' };
     if (atEmergency() && !room.crisis) return { kind: 'emergency', label: 'Call emergency meeting' };
+    if (atBadgeKiosk()) return { kind: 'badge', label: 'Register visitor badge' };
     const s = nearestStation();
     if (s) return { kind: 'station', label: s.label };
     return null;
@@ -327,6 +344,12 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
         scored = scoredStations(stations);
         totalTasks = scored.length;
         mapReady = true;
+
+        accessRegistry.reset();
+        vaultRoom = map.rooms.find((r) => r.furniture === 'vault') ?? null;
+        const receptionRoom = map.rooms.find((r) => r.furniture === 'reception') ?? null;
+        if (vaultRoom) accessRegistry.restrict(vaultRoom.id);
+        badgeKiosk = receptionRoom ? receptionKioskPosition(receptionRoom) : null;
       }
       syncRemotes();
       if (before?.phase !== data.phase || before?.crisis !== data.crisis) refreshMarkers();
@@ -469,8 +492,13 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
         if (velocitySpring.position.lengthSq() > 1e-4) {
           const tx = playerPos.x + velocitySpring.position.x * dt;
           const tz = playerPos.z + velocitySpring.position.y * dt;
-          if (isWalkable(map, tx, playerPos.z, BODY_PAD)) playerPos.x = tx;
-          if (isWalkable(map, playerPos.x, tz, BODY_PAD)) playerPos.z = tz;
+          // See accessRegistry setup above — a no-op on maps with no vault room.
+          if (isWalkable(map, tx, playerPos.z, BODY_PAD) && accessRegistry.canEnter(LOCAL_ACTOR_ID, roomContaining(map, tx, playerPos.z)?.id ?? null)) {
+            playerPos.x = tx;
+          }
+          if (isWalkable(map, playerPos.x, tz, BODY_PAD) && accessRegistry.canEnter(LOCAL_ACTOR_ID, roomContaining(map, playerPos.x, tz)?.id ?? null)) {
+            playerPos.z = tz;
+          }
         }
 
         if (nx !== 0 || nz !== 0) {
@@ -549,6 +577,13 @@ export function createQuantumHeistNetwork(opts: HeistNetworkOptions): HeistGame 
 
       if (atEmergency() && !room.crisis) {
         void act({ type: 'emergency' });
+        return;
+      }
+
+      if (atBadgeKiosk() && vaultRoom) {
+        accessRegistry.grant(LOCAL_ACTOR_ID, vaultRoom.id);
+        showToast(`Badge issued — ${vaultRoom.name} clearance granted.`);
+        emit();
         return;
       }
 

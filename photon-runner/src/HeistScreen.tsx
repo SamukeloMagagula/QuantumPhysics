@@ -58,7 +58,16 @@ export function HeistScreen({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const engine = new GameEngine();
+    // The full 11-department HQ facility reproducibly crashed the renderer
+    // (a lost WebGL context, not just a slow frame) at the default "high"
+    // tier's ambient-occlusion sample count — confirmed to be GTAO
+    // specifically, independent of furniture, light count, or room scale.
+    // Every other map here is nowhere near this scene's geometric depth, so
+    // this caps AO for this one map rather than reducing AO quality
+    // everywhere. (Known gap: the multiplayer path doesn't know the
+    // server-selected map yet at this point, so it can't apply the same cap
+    // — solo is the path this was actually reproduced and fixed on.)
+    const engine = new GameEngine({ maxAoSamples: mapId === 'hq' ? 0 : undefined });
     if (!engine.mount(canvas)) {
       setUnsupported(true);
       return;
@@ -180,6 +189,7 @@ export function HeistScreen({
                       style={{
                         background: o.alive ? (o.isYou ? accent : 'var(--ink-3)') : 'transparent',
                         border: o.alive ? 'none' : '1.5px solid var(--danger)',
+                        boxShadow: o.alive && o.isYou ? `0 0 0 2px var(--ink-1), 0 0 10px -2px ${accent}` : undefined,
                       }}
                     />
                   ))}
@@ -189,8 +199,12 @@ export function HeistScreen({
               <button
                 onClick={() => gameRef.current?.toggleCameraMode()}
                 title={`Switch to ${ui.cameraMode === 'first' ? 'third' : 'first'}-person (V)`}
-                className="glass rounded-2xl w-11 h-11 grid place-items-center shrink-0"
-                style={ui.cameraMode === 'first' ? { color: accent, borderColor: accent } : undefined}
+                className="btn btn-ghost rounded-2xl w-11 h-11 shrink-0"
+                style={
+                  ui.cameraMode === 'first'
+                    ? { color: accent, borderColor: accent, ['--glow' as string]: accent }
+                    : undefined
+                }
               >
                 <Camera size={16} />
               </button>
@@ -205,8 +219,12 @@ export function HeistScreen({
                         ? 'Unmute proximity voice'
                         : 'Mute proximity voice'
                   }
-                  className="glass rounded-2xl w-11 h-11 grid place-items-center shrink-0"
-                  style={ui.micMuted || ui.voiceStatus === 'denied' ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : undefined}
+                  className="btn btn-ghost rounded-2xl w-11 h-11 shrink-0"
+                  style={
+                    ui.micMuted || ui.voiceStatus === 'denied'
+                      ? { color: 'var(--danger)', borderColor: 'var(--danger)', ['--glow' as string]: 'var(--danger)' }
+                      : undefined
+                  }
                 >
                   {ui.micMuted || ui.voiceStatus === 'denied' ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
