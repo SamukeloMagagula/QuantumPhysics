@@ -70,8 +70,17 @@ monitoring exist for exactly the attacks QBER cannot see.
 
 The client's persistent object: the same workstation for the whole game,
 because it becomes part of the evidence chain. It runs the **Phantom Q
-campaign** — the Prologue ("First Shift at Phantom Q") and Incident 01
-("Understand the Incident"), implemented from the campaign bible.
+campaign**, structured as seven stages — the Prologue plus Incidents 01 to
+06. Clear a stage and the next unlocks; the rest stay visible but shut,
+mirroring the clearance mechanic the bible asks for. The Prologue and
+Incident 01 are implemented; the remaining five are specified and labelled
+`NOT YET BUILT` rather than hidden.
+
+Each stage is timed against a par time, and the best clear time is kept.
+The clock counts **up**, and going over par never fails you — the campaign
+teaches "verify before you escalate", and a countdown that punished
+careful work would undercut the whole lesson. Par is something to beat on
+a replay, not a pass mark.
 
 The Prologue is deliberately not a security lesson. You register, create a
 training credential (fictional — the game says so in as many words), take
@@ -161,6 +170,8 @@ Everything lives under `photon-runner/`:
   - `campaignStory.ts` — the campaign: chapters, beats, choices, evidence,
     clearance and the information boundary. Pure and serialisable, so the
     whole story is playable and assertable in tests.
+  - `campaignStages.ts` — the stage/level layer: unlock chain, par times,
+    best-time records and persistence.
   - `CampaignPanel.tsx` — Workstation 04's screen and the case board.
   - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
     footprints, depth ordering, hotspots and the walk rules. Pure, so the
@@ -204,7 +215,7 @@ npm test
 npm run build
 ```
 
-483 tests. The pure logic — attack simulation, forensics, labs, scene map
+502 tests. The pure logic — attack simulation, forensics, labs, scene map
 and walk rules, BB84 engine — is covered directly; the rendering is verified
 by running the app rather than by unit test.
 

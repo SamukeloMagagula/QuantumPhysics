@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { LogOut, Wrench } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Clock, Lock, LogOut, Play, Wrench } from 'lucide-react';
 import {
   AREA_NAMES,
   CampaignState,
@@ -12,6 +12,20 @@ import {
   getChapter,
   initialCampaign,
 } from './campaignStory';
+import {
+  STAGES,
+  StageDef,
+  StageProgress,
+  formatTime,
+  getStage,
+  isCompleted,
+  isPlayable,
+  isUnlocked,
+  loadProgress,
+  rate,
+  recordClear,
+  saveProgress,
+} from './campaignStages';
 import { HardwareLabPanel } from './HardwareLabPanel';
 
 /**
@@ -48,13 +62,51 @@ const SPEAKER_COLOUR: Record<string, string> = {
 };
 
 export function CampaignPanel({ onClose }: { onClose: () => void }) {
+  const [progressStore, setProgressStore] = useState<StageProgress>(() => loadProgress());
+  /** null = the stage select screen; otherwise the stage being played. */
+  const [active, setActive] = useState<StageDef | null>(null);
   const [state, setState] = useState<CampaignState>(() => initialCampaign());
   const [lastOutcome, setLastOutcome] = useState<{ text: string; unsupported: boolean } | null>(null);
   const [showBench, setShowBench] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const startedAt = useRef<number>(0);
+  const [result, setResult] = useState<{ ms: number; underPar: boolean } | null>(null);
+
+  // Live clock while a stage is running. Stops the moment it is cleared, so
+  // the reported time is the run, not how long the summary sat on screen.
+  useEffect(() => {
+    if (!active || result) return;
+    const t = window.setInterval(() => setElapsed(Date.now() - startedAt.current), 200);
+    return () => window.clearInterval(t);
+  }, [active, result]);
 
   const beat = currentBeat(state);
   const chapter = getChapter(state.chapter);
   const progress = chapterProgress(state);
+
+  const beginStage = (stage: StageDef) => {
+    setActive(stage);
+    setState({ ...initialCampaign(), chapter: stage.id });
+    setLastOutcome(null);
+    setResult(null);
+    setElapsed(0);
+    startedAt.current = Date.now();
+  };
+
+  const finishStage = () => {
+    if (!active) return;
+    const ms = Date.now() - startedAt.current;
+    const next = recordClear(progressStore, active.id, ms);
+    setProgressStore(next);
+    saveProgress(next);
+    setResult({ ms, underPar: rate(active.id, ms) === 'under-par' });
+  };
+
+  // A stage ends when its own chapter completes.
+  useEffect(() => {
+    if (active && !result && state.complete) finishStage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, active, result]);
 
   const take = (c: Choice) => {
     setLastOutcome({ text: c.outcome, unsupported: !!c.unsupported });
@@ -69,6 +121,10 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
 
   if (showBench) {
     return <HardwareLabPanel onClose={() => setShowBench(false)} />;
+  }
+
+  if (!active) {
+    return <StageSelect progress={progressStore} onPick={beginStage} onClose={onClose} />;
   }
 
   return (
@@ -90,6 +146,22 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
             {chapter?.title.toUpperCase()}
           </span>
           <span style={{ color: TONE.dim, fontSize: 11 }}>{chapter?.subtitle}</span>
+          <span
+            style={{
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: 12,
+              // Amber past par, but never a failure — see campaignStages.ts.
+              color: elapsed > active.parSeconds * 1000 ? TONE.warn : TONE.dim,
+            }}
+            title={`Par ${formatTime(active.parSeconds * 1000)}`}
+          >
+            <Clock size={12} /> {formatTime(result ? result.ms : elapsed)}
+            <span style={{ color: TONE.dim, opacity: 0.65 }}>/ {formatTime(active.parSeconds * 1000)}</span>
+          </span>
         </div>
 
         <div style={{ height: 3, background: 'rgba(255,255,255,.07)', borderRadius: 3, marginBottom: 14 }}>
@@ -104,8 +176,16 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        {state.complete || !beat ? (
-          <CaseClosed chapter={chapter} onClose={onClose} />
+        {result ? (
+          <StageResult
+            stage={active}
+            chapter={chapter}
+            result={result}
+            onStageSelect={() => setActive(null)}
+            onClose={onClose}
+          />
+        ) : !beat ? (
+          <p style={{ color: TONE.dim, fontSize: 12 }}>Closing the case…</p>
         ) : (
           <>
             <div style={{ color: TONE.dim, fontSize: 10, letterSpacing: 1.2, marginBottom: 12 }}>
@@ -305,34 +385,155 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
   <p style={{ color: TONE.dim, fontSize: 11, lineHeight: 1.5 }}>{children}</p>
 );
 
-function CaseClosed({ chapter, onClose }: { chapter: ReturnType<typeof getChapter>; onClose: () => void }) {
+/** Level select. Stages unlock in order; the rest stay visible but shut,
+ * which is the clearance mechanic the campaign bible asks for. */
+function StageSelect({
+  progress,
+  onPick,
+  onClose,
+}: {
+  progress: StageProgress;
+  onPick: (s: StageDef) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: TONE.bg,
+        border: '1px solid rgba(255,255,255,.1)',
+        borderRadius: 16,
+        height: '100%',
+        padding: 22,
+        overflowY: 'auto',
+      }}
+    >
+      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4 }}>PHANTOM Q CAMPAIGN</div>
+      <p style={{ color: TONE.dim, fontSize: 12, lineHeight: 1.6, margin: '6px 0 18px' }}>
+        Seven stages. Clear one to unlock the next. The clock runs while a stage is open and is measured
+        against a par time — beating par is a bonus, not a requirement.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {STAGES.map((st) => {
+          const done = isCompleted(progress, st.id);
+          const unlocked = isUnlocked(progress, st.id);
+          const playable = isPlayable(progress, st.id);
+          const best = progress[st.id]?.bestMs ?? null;
+          return (
+            <button
+              key={st.id}
+              onClick={() => playable && onPick(st)}
+              disabled={!playable}
+              style={{
+                textAlign: 'left',
+                padding: '13px 15px',
+                borderRadius: 13,
+                background: playable ? 'rgba(94,200,232,.07)' : 'rgba(255,255,255,.03)',
+                border: `1px solid ${playable ? 'rgba(94,200,232,.3)' : 'rgba(255,255,255,.09)'}`,
+                cursor: playable ? 'pointer' : 'not-allowed',
+                opacity: unlocked ? 1 : 0.55,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
+                <span style={{ color: TONE.dim, fontSize: 10, fontFamily: 'ui-monospace, monospace' }}>
+                  {String(st.order).padStart(2, '0')}
+                </span>
+                <span style={{ color: TONE.text, fontSize: 13, fontWeight: 700 }}>{st.title}</span>
+                <span style={{ color: TONE.dim, fontSize: 11 }}>{st.subtitle}</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {done && (
+                    <span style={{ color: TONE.good, fontSize: 10.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={12} /> {best != null ? formatTime(best) : 'cleared'}
+                    </span>
+                  )}
+                  {!unlocked && <Lock size={12} color={TONE.dim} />}
+                  {playable && !done && <Play size={12} color={TONE.accent} />}
+                </span>
+              </div>
+              <div style={{ color: TONE.dim, fontSize: 11.5, lineHeight: 1.5 }}>{st.brief}</div>
+              <div style={{ color: TONE.dim, fontSize: 10, marginTop: 5, fontFamily: 'ui-monospace, monospace' }}>
+                PAR {formatTime(st.parSeconds * 1000)}
+                {!st.built && ' · NOT YET BUILT'}
+                {!unlocked && st.built && ' · LOCKED'}
+              </div>
+              {!st.built && st.sourceNote && (
+                <div style={{ color: TONE.dim, fontSize: 10, marginTop: 3, opacity: 0.8 }}>{st.sourceNote}</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <button onClick={onClose} style={{ ...ghostBtn, marginTop: 18 }}>
+        <LogOut size={13} /> Step away <span style={{ color: TONE.dim }}>(Esc)</span>
+      </button>
+    </div>
+  );
+}
+
+/** End-of-stage summary: the clear time against par, and the case board. */
+function StageResult({
+  stage,
+  chapter,
+  result,
+  onStageSelect,
+  onClose,
+}: {
+  stage: StageDef;
+  chapter: ReturnType<typeof getChapter>;
+  result: { ms: number; underPar: boolean };
+  onStageSelect: () => void;
+  onClose: () => void;
+}) {
+  const nextUp = STAGES.find((s) => s.order === stage.order + 1);
   return (
     <div>
-      <div style={{ color: TONE.good, fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-        {chapter?.endState ? 'CHAPTER COMPLETE' : 'END OF WRITTEN CONTENT'}
+      <div style={{ color: TONE.good, fontSize: 14, fontWeight: 700, marginBottom: 4 }}>STAGE CLEARED</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+        <span style={{ color: TONE.text, fontSize: 22, fontFamily: 'ui-monospace, monospace' }}>
+          {formatTime(result.ms)}
+        </span>
+        <span style={{ color: result.underPar ? TONE.good : TONE.dim, fontSize: 11.5 }}>
+          {result.underPar ? `under par (${formatTime(stage.parSeconds * 1000)})` : `par ${formatTime(stage.parSeconds * 1000)}`}
+        </span>
       </div>
+
       {chapter?.endState && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 16 }}>
           {chapter.endState.map((e) => (
             <div
               key={e.label}
-              style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 11.5, fontFamily: 'ui-monospace, monospace' }}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                fontSize: 11.5,
+                fontFamily: 'ui-monospace, monospace',
+              }}
             >
               <span style={{ color: TONE.dim }}>{e.label}</span>
-              <span style={{ color: e.value === 'UNKNOWN' || e.value.includes('UNKNOWN') ? TONE.warn : TONE.text }}>
-                {e.value}
-              </span>
+              <span style={{ color: e.value.includes('UNKNOWN') ? TONE.warn : TONE.text }}>{e.value}</span>
             </div>
           ))}
         </div>
       )}
+
       <p style={{ color: TONE.dim, fontSize: 12, lineHeight: 1.6 }}>
-        Incidents 02 to 06 are specified in the campaign bible and not yet built. The evidence you have gathered
-        carries forward into them.
+        {nextUp
+          ? nextUp.built
+            ? `${nextUp.title} — ${nextUp.subtitle} — is now unlocked.`
+            : `${nextUp.title} — ${nextUp.subtitle} — is specified in the campaign bible but not yet built.`
+          : 'That is every stage currently written.'}
       </p>
-      <button onClick={onClose} style={{ ...ghostBtn, marginTop: 16 }}>
-        <LogOut size={13} /> Step away
-      </button>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <button onClick={onStageSelect} style={{ ...ghostBtn, flex: 1 }}>
+          Stage select
+        </button>
+        <button onClick={onClose} style={{ ...ghostBtn, flex: 1 }}>
+          <LogOut size={13} /> Step away
+        </button>
+      </div>
     </div>
   );
 }

@@ -59,9 +59,16 @@ describe('campaign structure', () => {
     }
   });
 
-  it('plays from the entrance to the end of the written chapters', () => {
+  it('plays the Prologue from the entrance through to completion', () => {
     const s = playThrough();
     expect(s.complete).toBe(true);
+  });
+
+  it('ends at its own chapter boundary rather than rolling into the next', () => {
+    // Each chapter is a stage, and the stage gate is the progression
+    // mechanic — chaining here would bypass both the gate and the timer.
+    const s = playThrough();
+    expect(s.chapter).toBe('prologue');
   });
 });
 

@@ -561,18 +561,19 @@ function accrue(
   };
 }
 
-/** Move to the next beat, completing the chapter at the end. */
+/**
+ * Move to the next beat, completing the chapter at the end.
+ *
+ * A chapter deliberately does *not* roll into the next one. Each chapter is
+ * a stage (see campaignStages.ts), and the stage gate — clear this one to
+ * unlock the next — is the progression mechanic. Chaining chapters here
+ * would walk straight past that gate and past the timer's stage boundary.
+ */
 function step(s: CampaignState): CampaignState {
   const ch = getChapter(s.chapter);
   if (!ch) return s;
   const next = s.beatIndex + 1;
-  if (next >= ch.beats.length) {
-    const order: ChapterId[] = CHAPTERS.map((c) => c.id);
-    const i = order.indexOf(s.chapter);
-    const following = order[i + 1];
-    if (!following) return { ...s, complete: true };
-    return { ...s, chapter: following, beatIndex: 0 };
-  }
+  if (next >= ch.beats.length) return { ...s, beatIndex: next, complete: true };
   return { ...s, beatIndex: next };
 }
 
