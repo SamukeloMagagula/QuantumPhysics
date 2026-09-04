@@ -27,7 +27,7 @@ canvas can be any size. A sprite operator walks the floor feet-anchored,
 and cropped furniture layers are re-drawn over him when he steps behind
 them, which is what gives a flat image real depth.
 
-Three consoles in the room, one per stage of the loop:
+Three consoles in the room:
 
 ### Communications console — the attack terminal
 
@@ -66,7 +66,37 @@ Accuse wrongly after a *quiet* attack and the game explains why the error
 rate pointed nowhere — the lesson being that decoy states and detector
 monitoring exist for exactly the attacks QBER cannot see.
 
-### Coordination table — the hardware bench
+### Workstation 04 — the campaign
+
+The client's persistent object: the same workstation for the whole game,
+because it becomes part of the evidence chain. It runs the **Phantom Q
+campaign** — the Prologue ("First Shift at Phantom Q") and Incident 01
+("Understand the Incident"), implemented from the campaign bible.
+
+The Prologue is deliberately not a security lesson. You register, create a
+training credential (fictional — the game says so in as many words), take
+part in Eve's *authorised* credential check, log in to Workstation 04, and
+send Alice's files to Bob. Two go fine. The third does not arrive, then
+arrives altered, and a credential event appears that nothing authorised
+explains. You escalate PQ-001 knowing something failed and not who did it.
+
+Two of the bible's rules are enforced in code rather than left to prose,
+and both are covered by tests:
+
+- **Eve is not the villain.** She is authorised security support. Accusing
+  her returns `CLAIM NOT SUPPORTED` with the evidential position spelled
+  out — not a wrong-answer buzzer — and never dead-ends the story.
+- **The Prologue explains nothing.** No CIA vocabulary, no encryption, no
+  attacker, no method. A test asserts none of those words appear in it.
+  Incident 01 then names what you already lived through.
+
+Poor decisions produce believable consequences rather than popups: retry
+without reconfirming the source and the transfer still happens — you just
+never get Alice's confirmation into evidence.
+
+The hardware bench (below) is reachable from this same workstation.
+
+### Hardware bench
 
 Diagnosis labs on two tracks. **QKD optics**: detector dark counts,
 polariser drift, a source running hot at μ = 0.85 — that last one is
@@ -128,6 +158,10 @@ Everything lives under `photon-runner/`:
     whole game is playable and assertable in tests without a DOM.
   - `qkdForensics.ts` — post-hack evidence and the accusation verdict.
   - `hardwareLabs.ts` — the diagnosis labs, both tracks.
+  - `campaignStory.ts` — the campaign: chapters, beats, choices, evidence,
+    clearance and the information boundary. Pure and serialisable, so the
+    whole story is playable and assertable in tests.
+  - `CampaignPanel.tsx` — Workstation 04's screen and the case board.
   - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
     footprints, depth ordering, hotspots and the walk rules. Pure, so the
     map is unit-tested by flood fill rather than discovered by walking into
@@ -170,7 +204,7 @@ npm test
 npm run build
 ```
 
-464 tests. The pure logic — attack simulation, forensics, labs, scene map
+483 tests. The pure logic — attack simulation, forensics, labs, scene map
 and walk rules, BB84 engine — is covered directly; the rendering is verified
 by running the app rather than by unit test.
 

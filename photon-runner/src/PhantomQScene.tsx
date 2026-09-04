@@ -20,7 +20,7 @@ import {
 } from './pqScene';
 import { QkdConsole } from './QkdConsole';
 import { ForensicsPanel } from './ForensicsPanel';
-import { HardwareLabPanel } from './HardwareLabPanel';
+import { CampaignPanel } from './CampaignPanel';
 import { AttackState } from './qkdAttack';
 
 /**
@@ -366,12 +366,12 @@ export function PhantomQScene() {
           style={{ background: 'rgba(4,7,11,.74)', backdropFilter: 'blur(2px)' }}
         >
           <div
-            className={station === 'attack' ? 'w-full max-w-5xl' : 'w-full max-w-2xl'}
+            className={station === 'forensics' ? 'w-full max-w-2xl' : 'w-full max-w-5xl'}
             style={{ height: 'min(86%, 660px)' }}
           >
             {station === 'attack' && <QkdConsole onClose={standUp} embedded onSessionChange={setSession} />}
             {station === 'forensics' && <ForensicsPanel session={session} onClose={standUp} />}
-            {station === 'hardware' && <HardwareLabPanel onClose={standUp} />}
+            {station === 'campaign' && <CampaignPanel onClose={standUp} />}
           </div>
         </div>
       )}

@@ -155,7 +155,7 @@ export const LAYER_FILES: Record<string, string> = {
  * wall is where error rates surface, and the coordination table is the
  * bench you work at.
  */
-export type StationKind = 'attack' | 'forensics' | 'hardware';
+export type StationKind = 'attack' | 'forensics' | 'campaign';
 
 export interface Hotspot {
   id: string;
@@ -190,14 +190,18 @@ export const HOTSPOTS: Hotspot[] = [
     label: 'Review the channel',
   },
   {
+    // Workstation 04 — the campaign's persistent object. The client's own
+    // config labels this hotspot "PLAYER ANCHOR", which is exactly what the
+    // bible calls it: the same workstation for the whole game, because it
+    // becomes part of the evidence chain.
     id: 'table',
-    station: 'hardware',
+    station: 'campaign',
     anchor: { x: 0.525, y: 0.545 },
     approach: { x: 0.505, y: 0.722 },
     hitRadius: 0.115,
-    kicker: 'ENGINEERING',
+    kicker: 'WORKSTATION 04',
     title: 'COORDINATION TABLE',
-    label: 'Open the hardware bench',
+    label: 'Log in to Workstation 04',
   },
 ];
 
