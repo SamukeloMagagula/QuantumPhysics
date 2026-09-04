@@ -76,7 +76,65 @@ export interface TransferExercise {
   wrongMessage: string;
 }
 
-export type Exercise = OrderExercise | ClassifyExercise | TransferExercise;
+/**
+ * Hands-on hardware: seat modules into the right rack slots. Physical work
+ * rather than a quiz — you are holding parts and deciding where they go.
+ */
+export interface RackModule {
+  id: string;
+  label: string;
+  detail?: string;
+}
+
+export interface RackSlot {
+  id: string;
+  label: string;
+  /** The module this bay is wired for. */
+  accepts: string;
+  /** Why this bay takes that module — shown when it is seated wrongly. */
+  why: string;
+}
+
+export interface RackExercise {
+  kind: 'rack';
+  prompt: string;
+  slots: RackSlot[];
+  modules: RackModule[];
+}
+
+/**
+ * A phishing attempt against the trainee.
+ *
+ * Deliberately *not* sent by Eve. The campaign bible is explicit that Eve is
+ * authorised security support and never the attacker, so the message merely
+ * claims to come from Phantom Q Security — and the way to defeat it is the
+ * habit the Prologue already taught: authorised activity is logged, so check
+ * the log rather than trusting the letterhead.
+ */
+export interface PhishTell {
+  id: string;
+  label: string;
+  /** True when this really is a warning sign. */
+  suspicious: boolean;
+  why: string;
+}
+
+export interface PhishExercise {
+  kind: 'phish';
+  prompt: string;
+  from: string;
+  subject: string;
+  body: string;
+  /** Details the player can examine before deciding. */
+  tells: PhishTell[];
+  /** How many genuine tells must be found before deciding. */
+  requiredTells: number;
+  /** The only safe action. */
+  correctAction: 'verify' | 'report' | 'ignore';
+  actions: { id: 'comply' | 'verify' | 'report' | 'ignore'; label: string; outcome: string }[];
+}
+
+export type Exercise = OrderExercise | ClassifyExercise | TransferExercise | RackExercise | PhishExercise;
 
 // ------------------------------------------------------------------ order
 
@@ -166,10 +224,62 @@ export function checkTransfer(ex: TransferExercise, fileId: string): TransferRes
   return { ok: false, message: ex.wrongMessage };
 }
 
+// ------------------------------------------------------------------- rack
+
+export interface RackResult {
+  ok: boolean;
+  wrong: { slot: string; why: string }[];
+  empty: string[];
+}
+
+export function checkRack(ex: RackExercise, seated: Record<string, string>): RackResult {
+  const wrong: RackResult['wrong'] = [];
+  const empty: string[] = [];
+  for (const slot of ex.slots) {
+    const mod = seated[slot.id];
+    if (!mod) {
+      empty.push(slot.id);
+      continue;
+    }
+    if (mod !== slot.accepts) wrong.push({ slot: slot.id, why: slot.why });
+  }
+  return { ok: wrong.length === 0 && empty.length === 0, wrong, empty };
+}
+
+// ------------------------------------------------------------------ phish
+
+export interface PhishResult {
+  ok: boolean;
+  message: string;
+}
+
+export function checkPhish(ex: PhishExercise, foundTells: string[], action: string): PhishResult {
+  const genuine = ex.tells.filter((t) => t.suspicious).map((t) => t.id);
+  const found = foundTells.filter((id) => genuine.includes(id));
+  const chosen = ex.actions.find((a) => a.id === action);
+  if (!chosen) return { ok: false, message: 'No action taken.' };
+
+  if (action !== ex.correctAction) return { ok: false, message: chosen.outcome };
+  if (found.length < ex.requiredTells) {
+    return {
+      ok: false,
+      message:
+        'The right call — but you made it on instinct. Going back with nothing specific to point at is how a real report gets dismissed. Find what is actually wrong with the message first.',
+    };
+  }
+  return { ok: true, message: chosen.outcome };
+}
+
 /** True when the exercise has been satisfied and the beat may advance. */
 export function isSolved(ex: Exercise, answer: unknown): boolean {
   if (ex.kind === 'order') return Array.isArray(answer) && checkOrder(ex, answer as string[]).ok;
   if (ex.kind === 'classify')
     return !!answer && typeof answer === 'object' && checkClassify(ex, answer as Record<string, string>).ok;
+  if (ex.kind === 'rack')
+    return !!answer && typeof answer === 'object' && checkRack(ex, answer as Record<string, string>).ok;
+  if (ex.kind === 'phish') {
+    const a = answer as { tells?: string[]; action?: string } | undefined;
+    return !!a && checkPhish(ex, a.tells ?? [], a.action ?? '').ok;
+  }
   return typeof answer === 'string' && checkTransfer(ex, answer).ok;
 }

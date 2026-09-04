@@ -5,6 +5,7 @@ import { COOKIE, resolveUser, renameUser } from './serverIdentity';
 import { mountRoomsRoutes } from './roomsRoutes';
 import { mountQkdRoutes } from './qkdRoutes';
 import { mountHeistRoutes } from './heistRoutes';
+import { mountFloorRoutes } from './floorRoutes';
 
 export interface AppOptions {
   db: Db;
@@ -57,6 +58,7 @@ export function createApp({ db, secret }: AppOptions): Express {
   mountRoomsRoutes(app, db);
   mountQkdRoutes(app, db);
   mountHeistRoutes(app, db);
+  mountFloorRoutes(app);
 
   return app;
 }

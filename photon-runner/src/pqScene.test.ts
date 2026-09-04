@@ -114,8 +114,28 @@ describe('resolveMove', () => {
 });
 
 describe('hotspots', () => {
-  it('covers all three stations, one each', () => {
-    expect(new Set(HOTSPOTS.map((h) => h.station)).size).toBe(3);
+  it('covers every station, one each', () => {
+    expect(new Set(HOTSPOTS.map((h) => h.station)).size).toBe(HOTSPOTS.length);
+  });
+
+  it('puts hardware work at the equipment row rather than the desk', () => {
+    // Rebuilding the capture chain is physical work, so it has to be a place
+    // the player walks to — not another panel at Workstation 04.
+    const rack = HOTSPOTS.find((h) => h.station === 'rack');
+    expect(rack, 'no rack station').toBeTruthy();
+    expect(rack!.approach).not.toEqual(HOTSPOTS.find((h) => h.station === 'campaign')!.approach);
+  });
+
+  it('keeps the hotspots far enough apart to be individually reachable', () => {
+    // Overlapping catchments would make one station unreachable, because
+    // hotspotAt only ever returns the nearest.
+    for (const a of HOTSPOTS) {
+      for (const b of HOTSPOTS) {
+        if (a.id >= b.id) continue;
+        const d = Math.hypot(a.approach.x - b.approach.x, a.approach.y - b.approach.y);
+        expect(d, `${a.id} and ${b.id} overlap`).toBeGreaterThan(a.hitRadius + b.hitRadius);
+      }
+    }
   });
 
   it('offers each hotspot when standing on its approach point', () => {
@@ -125,7 +145,7 @@ describe('hotspots', () => {
   });
 
   it('offers nothing in open floor away from the consoles', () => {
-    expect(hotspotAt({ x: 0.2, y: 0.72 })).toBeNull();
+    expect(hotspotAt({ x: 0.38, y: 0.82 })).toBeNull();
   });
 
   it('puts every approach point on standable floor', () => {

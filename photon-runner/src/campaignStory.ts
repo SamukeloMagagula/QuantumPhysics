@@ -87,8 +87,19 @@ export interface EvidenceItem {
   detail: string;
 }
 
+/**
+ * Where in the building a beat happens.
+ *
+ * Most of the campaign is desk work at Workstation 04. Hardware is not: the
+ * capture chain is rebuilt at the equipment row, which means getting up and
+ * walking there while the stage clock runs.
+ */
+export type Place = 'workstation' | 'rack';
+
 export interface Beat {
   id: string;
+  /** Defaults to the workstation when absent. */
+  at?: Place;
   area: Area;
   speaker: Speaker;
   /** What is said or shown. */
@@ -397,6 +408,91 @@ const PROLOGUE: Chapter = {
       records: ['Something unusual also happened with my training credential.'],
     },
     {
+      id: 'phish',
+      area: 'central-ops',
+      speaker: 'workstation',
+      objective: 'Deal with the message in your inbox',
+      text:
+        'A message has arrived at Workstation 04 while you were checking the transfer. It is addressed to you by name and it is asking for your training credential.',
+      exercise: {
+        kind: 'phish',
+        prompt: 'Examine the message before you do anything with it.',
+        from: 'Phantom Q Security <security@phantomq-support.co.za>',
+        subject: 'URGENT: credential re-verification required within 1 hour',
+        body:
+          'Following a security event on the network we must re-verify your trainee credential immediately. Reply to this message with your Phantom Q training username and password so the check can be completed. Accounts not verified within 1 hour will be suspended and your access badge deactivated.',
+        tells: [
+          {
+            id: 'domain',
+            label: 'Sender domain: phantomq-support.co.za',
+            suspicious: true,
+            why: 'Phantom Q security mail comes from the Phantom Q domain. This is a lookalike domain that merely resembles it.',
+          },
+          {
+            id: 'asks-password',
+            label: 'It asks you to send your password',
+            suspicious: true,
+            why: 'Eve ran her credential check with you present and never asked for your password. No legitimate security process needs it sent in a message.',
+          },
+          {
+            id: 'urgency',
+            label: 'One-hour deadline, with a threat to suspend access',
+            suspicious: true,
+            why: 'Manufactured time pressure exists to stop you verifying. That is the point of it.',
+          },
+          {
+            id: 'addressed',
+            label: 'It uses your name and knows you are a trainee',
+            suspicious: false,
+            why: 'Not a tell on its own — you registered at Reception today, and plenty of legitimate mail would know this.',
+          },
+          {
+            id: 'security-topic',
+            label: 'It refers to a real security event',
+            suspicious: false,
+            why: 'There genuinely is one. A message referencing something true is not thereby suspicious — it is what makes this one plausible.',
+          },
+        ],
+        requiredTells: 3,
+        correctAction: 'verify',
+        actions: [
+          {
+            id: 'comply',
+            label: 'Reply with your training credential',
+            outcome:
+              'You send it. Nothing appears to happen — no confirmation, no follow-up. That silence is the problem: your credential is now somewhere you cannot account for, on the same day an unrecognised login already appeared against it. Whatever the investigation concludes, you have made it harder.',
+          },
+          {
+            id: 'verify',
+            label: "Check it against Eve's authorised activity log",
+            outcome:
+              'Eve has no re-verification exercise open, and Phantom Q Security does not request credentials by message. The domain is a lookalike. The message goes to the incident, not the sender — and the habit that caught it is the one you learned this morning: authorised activity is logged, so check the log rather than the letterhead.',
+          },
+          {
+            id: 'report',
+            label: 'Forward it to the incident without reading it',
+            outcome:
+              'Filed — but with nothing attached about *why* it is suspicious. A report that says "this felt wrong" is much easier to set aside than one naming a lookalike domain and a credential request.',
+          },
+          {
+            id: 'ignore',
+            label: 'Delete it and carry on',
+            outcome:
+              'It is gone from your inbox and gone from the record. If the same message reached anyone else today, nobody now knows.',
+          },
+        ],
+      },
+      evidence: {
+        id: 'phish-message',
+        label: 'Credential request message',
+        detail:
+          'A message claiming to be Phantom Q Security requested the trainee credential. Lookalike sender domain, one-hour deadline. No authorised exercise explains it.',
+      },
+      records: [
+        'Someone asked me for my training credential in a message that only looked like it came from security.',
+      ],
+    },
+    {
       id: 'ask-eve',
       area: 'central-ops',
       speaker: 'system',
@@ -638,6 +734,57 @@ const INCIDENT_01: Chapter = {
       text:
         'A credential represents authority to act. Eve’s check was expected and authorised. The later event was neither. That makes the identity activity suspicious — not conclusively compromised.',
       objective: 'Stage 5 — Identity and access',
+    },
+    {
+      id: 'i1-rack',
+      at: 'rack',
+      area: 'training',
+      speaker: 'system',
+      objective: 'Stage 5b — Rebuild the capture chain',
+      text:
+        'Before the identity evidence can be trusted it has to be captured properly. The training rack has been stripped; seat the modules so the chain runs in order — the line comes in, is split for monitoring, is timestamped, and only then is written to the log.',
+      exercise: {
+        kind: 'rack',
+        prompt: 'Seat each module in the bay it belongs to.',
+        slots: [
+          {
+            id: 'u1',
+            label: 'U1 — line in',
+            accepts: 'tap',
+            why: 'The optical tap is what the incoming line lands on. Nothing downstream sees anything until it is seated here.',
+          },
+          {
+            id: 'u2',
+            label: 'U2 — monitoring split',
+            accepts: 'splitter',
+            why: 'The splitter has to sit after the tap and before the clock, or monitoring gets a copy of nothing.',
+          },
+          {
+            id: 'u3',
+            label: 'U3 — timing',
+            accepts: 'clock',
+            why: 'Events are timestamped before they are written. A log with no reliable clock cannot support a timeline, which is the whole point of Stage 1.',
+          },
+          {
+            id: 'u4',
+            label: 'U4 — capture',
+            accepts: 'logger',
+            why: 'The logger is the end of the chain. Put it earlier and it records events that have not been timestamped yet.',
+          },
+        ],
+        modules: [
+          { id: 'tap', label: 'Optical tap', detail: 'Passive line tap' },
+          { id: 'splitter', label: 'Monitoring splitter', detail: '90/10 split' },
+          { id: 'clock', label: 'Timing reference', detail: 'GPS-disciplined' },
+          { id: 'logger', label: 'Capture logger', detail: 'Write-once store' },
+        ],
+      },
+      records: ['A log without a reliable clock cannot support a timeline.'],
+      evidence: {
+        id: 'capture-chain',
+        label: 'Capture chain rebuilt',
+        detail: 'Training rack restored to tap → splitter → clock → logger, so identity events are timestamped before capture.',
+      },
     },
     {
       id: 'i1-trust',

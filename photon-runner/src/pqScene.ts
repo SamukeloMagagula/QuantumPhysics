@@ -155,7 +155,7 @@ export const LAYER_FILES: Record<string, string> = {
  * wall is where error rates surface, and the coordination table is the
  * bench you work at.
  */
-export type StationKind = 'attack' | 'forensics' | 'campaign';
+export type StationKind = 'attack' | 'forensics' | 'campaign' | 'rack';
 
 export interface Hotspot {
   id: string;
@@ -202,6 +202,20 @@ export const HOTSPOTS: Hotspot[] = [
     kicker: 'WORKSTATION 04',
     title: 'COORDINATION TABLE',
     label: 'Log in to Workstation 04',
+  },
+  {
+    // The equipment row along the lower-left glazing. Hardware tasks happen
+    // here rather than at Workstation 04, so rebuilding the capture chain
+    // means getting up and walking to the hardware — which is what the work
+    // actually looks like.
+    id: 'rack',
+    station: 'rack',
+    anchor: { x: 0.3, y: 0.62 },
+    approach: { x: 0.27, y: 0.685 },
+    hitRadius: 0.09,
+    kicker: 'EQUIPMENT ROW',
+    title: 'TRAINING RACK',
+    label: 'Work on the rack',
   },
 ];
 

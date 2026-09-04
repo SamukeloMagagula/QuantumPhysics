@@ -21,6 +21,7 @@ import {
 import { QkdConsole } from './QkdConsole';
 import { ForensicsPanel } from './ForensicsPanel';
 import { CampaignPanel } from './CampaignPanel';
+import { RemoteActor, connectFloor } from './floorClient';
 import { AttackState } from './qkdAttack';
 
 /**
@@ -138,10 +139,32 @@ export function PhantomQScene() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Other people on the same floor. Presence is optional: if the API is not
+    // there, this reports nobody and the scene plays exactly as before.
+    const floor = connectFloor();
+
     let raf = 0;
     let last = performance.now();
     let clock = 0;
     let stepPhase = 0;
+
+    // ---- camera ----------------------------------------------------------
+    // A shallow parallax that gives the flat illustration some depth without
+    // touching the art. The client's rule is that the rendered image *is* the
+    // world, so nothing here redraws or restyles it: the frame is overscanned
+    // a couple of percent and the whole composite — background, glows,
+    // hotspots, actor and the furniture layers drawn over him — is panned as
+    // one plane against the player, with a slight dolly as he moves front to
+    // back.
+    //
+    // Panning the furniture layers *further* than the background would be the
+    // textbook multi-plane parallax, but it cannot be done here: those layers
+    // are crops of the same illustration, so offsetting them would ghost them
+    // against the furniture already painted into the background. Moving the
+    // whole frame keeps the registration exact, which matters more than the
+    // extra depth cue.
+    const CAM = { overscan: 0.022, sway: 0.62, tilt: 0.6, dolly: 0.012, ease: 3.4 };
+    const cam = { x: 0, y: 0 };
 
     const resize = () => {
       const parent = canvas.parentElement;
@@ -171,6 +194,14 @@ export function PhantomQScene() {
       const W = canvas.width;
       const H = canvas.height;
       const toPx = (nx: number, ny: number) => [nx * W, ny * H] as const;
+
+      // Ease the camera toward the player rather than pinning it, so the room
+      // settles behind him instead of jerking with every step.
+      {
+        const e = 1 - Math.exp(-CAM.ease * dt);
+        cam.x += ((pos.current.x - 0.5) * 2 - cam.x) * e;
+        cam.y += ((pos.current.y - 0.5) * 2 - cam.y) * e;
+      }
 
       // ---- movement ----
       if (!seated.current) {
@@ -206,6 +237,8 @@ export function PhantomQScene() {
           (window as unknown as { __pq?: unknown }).__pq = { x: pos.current.x, y: pos.current.y };
         }
 
+        floor.report(pos.current.x, pos.current.y, facing.current, held.current.size > 0);
+
         const hit = hotspotAt(pos.current);
         if (hit?.id !== promptRef.current?.id) {
           promptRef.current = hit;
@@ -216,7 +249,21 @@ export function PhantomQScene() {
       const moving = !seated.current && held.current.size > 0;
 
       // ---- draw ----
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, W, H);
+
+      // Overscan covers the pan, and the dolly stays above 1 so the frame
+      // edges can never be exposed.
+      const scale = (1 + CAM.overscan * 2) * (1 + CAM.dolly * cam.y);
+      ctx.setTransform(
+        scale,
+        0,
+        0,
+        scale,
+        -W * (scale - 1) * 0.5 - cam.x * CAM.overscan * CAM.sway * W,
+        -H * (scale - 1) * 0.5 - cam.y * CAM.overscan * CAM.sway * CAM.tilt * H
+      );
+
       ctx.drawImage(sprites.hq, 0, 0, W, H);
 
       // Screen glows: a slow pulse over the video walls, so the room is not
@@ -247,56 +294,106 @@ export function PhantomQScene() {
         ctx.fill();
       }
 
-      // ---- actor ----
-      const [px, py] = toPx(pos.current.x, pos.current.y);
-      // Height in image space, scaled with depth so he shrinks toward the
-      // back wall the way the drawn figures do.
-      const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(pos.current.y));
+      // ---- actors ----
+      // Everyone on the floor, drawn back to front so a person nearer the
+      // camera overlaps one further away.
+      floor.tick(dt);
+      const cast = [
+        {
+          x: pos.current.x,
+          y: pos.current.y,
+          facing: facing.current,
+          walking: moving,
+          phase: stepPhase,
+          name: null as string | null,
+        },
+        ...floor.actors().map((a: RemoteActor) => ({
+          x: a.x,
+          y: a.y,
+          facing: a.facing,
+          walking: a.walking,
+          phase: a.phase,
+          name: a.name as string | null,
+        })),
+      ].sort((a, b) => a.y - b.y);
 
-      let sheet: HTMLImageElement;
-      let rect: [number, number, number, number];
-      if (moving) {
-        const frames = ACTOR.walkFrames[facing.current];
-        rect = frames[Math.floor(stepPhase) % frames.length];
-        sheet = sprites.walk;
-      } else if (facing.current === 'left') {
-        rect = ACTOR.idleLeftSource;
-        sheet = sprites.idleLeft;
-      } else {
-        rect = ACTOR.idleFrames[facing.current === 'backward' ? 'backward' : facing.current === 'right' ? 'right' : 'forward'];
-        sheet = sprites.idle;
+      for (const who of cast) {
+        const [px, py] = toPx(who.x, who.y);
+        // Height in image space, scaled with depth so they shrink toward the
+        // back wall the way the drawn figures do.
+        const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(who.y));
+
+        let sheet: HTMLImageElement;
+        let rect: [number, number, number, number];
+        if (who.walking) {
+          const frames = ACTOR.walkFrames[who.facing];
+          rect = frames[Math.floor(who.phase) % frames.length];
+          sheet = sprites.walk;
+        } else if (who.facing === 'left') {
+          rect = ACTOR.idleLeftSource;
+          sheet = sprites.idleLeft;
+        } else {
+          rect = ACTOR.idleFrames[who.facing === 'backward' ? 'backward' : who.facing === 'right' ? 'right' : 'forward'];
+          sheet = sprites.idle;
+        }
+        const [sx, sy, sw, sh] = rect;
+        const w = h * (sw / sh);
+        // Feet are the anchor, per the client's actor contract.
+        const drawX = px - w / 2;
+        const drawY = py - h;
+
+        // Contact shadow, so they sit on the floor rather than floating.
+        ctx.save();
+        ctx.globalAlpha = 0.28;
+        ctx.fillStyle = '#0d1520';
+        ctx.beginPath();
+        ctx.ellipse(px, py, w * 0.34, w * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.drawImage(sheet, sx, sy, sw, sh, drawX, drawY, w, h);
+
+        // Name tag over other people only — you know who you are.
+        if (who.name) {
+          const fontPx = Math.max(9, h * 0.115);
+          ctx.save();
+          ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const padX = fontPx * 0.5;
+          const tw = ctx.measureText(who.name).width;
+          const ty = drawY - fontPx * 0.9;
+          ctx.globalAlpha = 0.72;
+          ctx.fillStyle = '#0b1420';
+          ctx.beginPath();
+          ctx.roundRect(px - tw / 2 - padX, ty - fontPx * 0.75, tw + padX * 2, fontPx * 1.5, fontPx * 0.6);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#bfe6f5';
+          ctx.fillText(who.name, px, ty);
+          ctx.restore();
+        }
+
+        // ---- depth layers ----
+        // Re-draw furniture crops over this person when they are behind them.
+        // This is what makes a flat illustration read as a space you are
+        // inside of, and doing it per actor keeps the ordering right when two
+        // people are on opposite sides of the same desk.
+        for (const layer of DEPTH_LAYERS) {
+          if (!layerCoversActor(layer, who.x, who.y)) continue;
+          const img = sprites.layers[layer.src];
+          if (!img) continue;
+          const [bx, by, bw, bh] = layer.box;
+          ctx.drawImage(img, (bx / SCENE_W) * W, (by / SCENE_H) * H, (bw / SCENE_W) * W, (bh / SCENE_H) * H);
+        }
       }
-      const [sx, sy, sw, sh] = rect;
-      const w = h * (sw / sh);
-      // Feet are the anchor, per the client's actor contract.
-      const drawX = px - w / 2;
-      const drawY = py - h;
 
-      // Contact shadow, so he sits on the floor rather than floating.
-      ctx.save();
-      ctx.globalAlpha = 0.28;
-      ctx.fillStyle = '#0d1520';
-      ctx.beginPath();
-      ctx.ellipse(px, py, w * 0.34, w * 0.13, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.drawImage(sheet, sx, sy, sw, sh, drawX, drawY, w, h);
-
-      // ---- depth layers ----
-      // Re-draw furniture crops over the actor when he is behind them. This
-      // is what makes a flat illustration read as a space you are inside of.
-      for (const layer of DEPTH_LAYERS) {
-        if (!layerCoversActor(layer, pos.current.x, pos.current.y)) continue;
-        const img = sprites.layers[layer.src];
-        if (!img) continue;
-        const [bx, by, bw, bh] = layer.box;
-        ctx.drawImage(img, (bx / SCENE_W) * W, (by / SCENE_H) * H, (bw / SCENE_W) * W, (bh / SCENE_H) * H);
-      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
     };
 
     raf = requestAnimationFrame(frame);
     return () => {
+      floor.stop();
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
     };
@@ -372,6 +469,7 @@ export function PhantomQScene() {
             {station === 'attack' && <QkdConsole onClose={standUp} embedded onSessionChange={setSession} />}
             {station === 'forensics' && <ForensicsPanel session={session} onClose={standUp} />}
             {station === 'campaign' && <CampaignPanel onClose={standUp} />}
+            {station === 'rack' && <CampaignPanel onClose={standUp} place="rack" />}
           </div>
         </div>
       )}

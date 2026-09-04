@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Clock, Lock, LogOut, Play, Wrench } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Check, Clock, Footprints, Lock, LogOut, Play, Wrench } from 'lucide-react';
 import {
   AREA_NAMES,
   CampaignState,
   Choice,
   SPEAKER_NAMES,
+  Place,
   advance,
   chapterProgress,
   choose,
@@ -29,6 +30,7 @@ import {
   saveCase,
   saveProgress,
 } from './campaignStages';
+import { elapsedMs, getSession, resetSession, subscribeSession, updateSession } from './campaignSession';
 import { HardwareLabPanel } from './HardwareLabPanel';
 import { CampaignExerciseView } from './CampaignExerciseView';
 
@@ -55,6 +57,86 @@ const TONE = {
   bad: '#fb7185',
 };
 
+/** Human names for the places a beat can happen, used in the walk prompt. */
+const PLACE_NAMES: Record<Place, string> = {
+  workstation: 'Workstation 04',
+  rack: 'the training rack on the equipment row',
+};
+
+/**
+ * Shown when the current task is somewhere else in the building. It names the
+ * place rather than drawing a waypoint: the room is small, the rack is
+ * visible from the desk, and finding it is part of knowing the floor.
+ */
+function GoTo({ place }: { place: Place }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 11,
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 14,
+        background: 'rgba(94,200,232,.07)',
+        border: '1px dashed rgba(94,200,232,.35)',
+      }}
+    >
+      <Footprints size={18} color={TONE.accent} />
+      <div>
+        <div style={{ color: TONE.accent, fontSize: 12, fontWeight: 700 }}>
+          This one is not desk work.
+        </div>
+        <div style={{ color: TONE.dim, fontSize: 11.5, lineHeight: 1.5 }}>
+          Press Esc to stand up, walk to {PLACE_NAMES[place]}, and press E there.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shown back at the desk for work already finished somewhere else. */
+function DoneElsewhere({ place }: { place: Place }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        padding: '11px 14px',
+        borderRadius: 12,
+        marginBottom: 14,
+        background: 'rgba(74,222,128,.07)',
+        border: '1px solid rgba(74,222,128,.28)',
+        color: TONE.good,
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      <Check size={14} /> Done at {PLACE_NAMES[place]}.
+    </div>
+  );
+}
+
+/** The equipment row with no stage running — there is nothing to do here. */
+function NothingHere({ onClose }: { onClose: () => void }) {
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4, marginBottom: 8 }}>
+        TRAINING RACK
+      </div>
+      <p style={{ color: TONE.dim, fontSize: 12.5, lineHeight: 1.6 }}>
+        The bays are as you left them. Hardware tasks are handed out with the
+        case — start a stage at Workstation 04 and come back when one needs the
+        rack.
+      </p>
+      <button onClick={onClose} style={{ ...ghostBtn, marginTop: 18 }}>
+        <LogOut size={13} /> Step away
+      </button>
+    </div>
+  );
+}
+
 const SPEAKER_COLOUR: Record<string, string> = {
   alice: '#ffa94d',
   bob: '#5ec8e8',
@@ -65,24 +147,24 @@ const SPEAKER_COLOUR: Record<string, string> = {
   trainee: '#d6e2f0',
 };
 
-export function CampaignPanel({ onClose }: { onClose: () => void }) {
+export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () => void; place?: Place }) {
   const [progressStore, setProgressStore] = useState<StageProgress>(() => loadProgress());
-  /** null = the stage select screen; otherwise the stage being played. */
-  const [active, setActive] = useState<StageDef | null>(null);
-  const [state, setState] = useState<CampaignState>(() => initialCampaign());
-  const [lastOutcome, setLastOutcome] = useState<{ text: string; unsupported: boolean } | null>(null);
   const [showBench, setShowBench] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const startedAt = useRef<number>(0);
-  const [result, setResult] = useState<{ ms: number; underPar: boolean } | null>(null);
-  /** Beat ids whose exercise the player has completed this run. */
-  const [solved, setSolved] = useState<Set<string>>(new Set());
+  const [now, setNow] = useState(() => Date.now());
+
+  // The run itself lives outside React, so standing up and walking to another
+  // station does not destroy it — see campaignSession.ts.
+  const session = useSyncExternalStore(subscribeSession, getSession, getSession);
+  const active = session.stageId ? getStage(session.stageId) ?? null : null;
+  const { state, lastOutcome, result } = session;
+  const solved = useMemo(() => new Set(session.solved), [session.solved]);
+  const elapsed = elapsedMs(session, now);
 
   // Live clock while a stage is running. Stops the moment it is cleared, so
   // the reported time is the run, not how long the summary sat on screen.
   useEffect(() => {
     if (!active || result) return;
-    const t = window.setInterval(() => setElapsed(Date.now() - startedAt.current), 200);
+    const t = window.setInterval(() => setNow(Date.now()), 200);
     return () => window.clearInterval(t);
   }, [active, result]);
 
@@ -94,28 +176,30 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
     // Seed from the carried case file so an investigation opens with the
     // evidence already earned, rather than an empty board.
     const carried = loadCase();
-    setActive(stage);
-    setState({
-      ...initialCampaign(),
-      chapter: stage.id,
-      knownFacts: carried.knownFacts,
-      evidence: carried.evidence,
-    });
-    setLastOutcome(null);
-    setResult(null);
-    setSolved(new Set());
-    setElapsed(0);
-    startedAt.current = Date.now();
+    updateSession(() => ({
+      stageId: stage.id,
+      state: {
+        ...initialCampaign(),
+        chapter: stage.id,
+        knownFacts: carried.knownFacts,
+        evidence: carried.evidence,
+      },
+      solved: [],
+      startedAt: Date.now(),
+      lastOutcome: null,
+      result: null,
+    }));
+    setNow(Date.now());
   };
 
   const finishStage = () => {
     if (!active) return;
-    const ms = Date.now() - startedAt.current;
+    const ms = Date.now() - session.startedAt;
     const next = recordClear(progressStore, active.id, ms);
     setProgressStore(next);
     saveProgress(next);
     saveCase(mergeCase(loadCase(), { knownFacts: state.knownFacts, evidence: state.evidence }));
-    setResult({ ms, underPar: rate(active.id, ms) === 'under-par' });
+    updateSession((s) => ({ ...s, result: { ms, underPar: rate(active.id, ms) === 'under-par' } }));
   };
 
   // A stage ends when its own chapter completes.
@@ -125,13 +209,17 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
   }, [state, active, result]);
 
   const take = (c: Choice) => {
-    setLastOutcome({ text: c.outcome, unsupported: !!c.unsupported });
-    setState((s) => choose(s, c.id));
+    updateSession((s) => ({
+      ...s,
+      lastOutcome: { text: c.outcome, unsupported: !!c.unsupported },
+      state: choose(s.state, c.id),
+    }));
   };
   const next = () => {
-    setLastOutcome(null);
-    setState((s) => advance(s));
+    updateSession((s) => ({ ...s, lastOutcome: null, state: advance(s.state) }));
   };
+  const markSolved = (beatId: string) =>
+    updateSession((s) => (s.solved.includes(beatId) ? s : { ...s, solved: [...s.solved, beatId] }));
 
   const evidence = useMemo(() => [...state.evidence].reverse(), [state.evidence]);
 
@@ -140,8 +228,17 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
   }
 
   if (!active) {
+    // Only Workstation 04 starts a stage. The equipment row is a place you go
+    // during one, not a second front door into the campaign.
+    if (place !== 'workstation') return <NothingHere onClose={onClose} />;
     return <StageSelect progress={progressStore} onPick={beginStage} onClose={onClose} />;
   }
+
+  // Some beats are physical work and happen away from the desk. In the wrong
+  // place the beat still reads — the briefing is what sends the player across
+  // the floor — but the task itself only opens where the hardware is.
+  const beatPlace: Place = beat?.at ?? 'workstation';
+  const here = beatPlace === place;
 
   return (
     <div
@@ -197,7 +294,7 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
             stage={active}
             chapter={chapter}
             result={result}
-            onStageSelect={() => setActive(null)}
+            onStageSelect={resetSession}
             onClose={onClose}
           />
         ) : !beat ? (
@@ -261,18 +358,18 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
                 board is the player's own work, and whisking it away the
                 instant it is right hides both the confirmation and what
                 they just built. */}
-            {beat.exercise && (
-              <CampaignExerciseView
-                key={beat.id}
-                exercise={beat.exercise}
-                onSolved={() => setSolved((prev) => new Set(prev).add(beat.id))}
-              />
+            {beat.exercise && here && (
+              <CampaignExerciseView key={beat.id} exercise={beat.exercise} onSolved={() => markSolved(beat.id)} />
             )}
+            {beat.exercise && !here &&
+              (solved.has(beat.id) ? <DoneElsewhere place={beatPlace} /> : <GoTo place={beatPlace} />)}
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {beat.exercise && !solved.has(beat.id) ? (
                 <p style={{ color: TONE.dim, fontSize: 11.5, textAlign: 'center' }}>
-                  Complete the task above to continue.
+                  {here
+                    ? 'Complete the task above to continue.'
+                    : 'The clock is still running while you walk.'}
                 </p>
               ) : beat.choices?.length ? (
                 beat.choices.map((c) => (
