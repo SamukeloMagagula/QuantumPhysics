@@ -103,6 +103,19 @@ Poor decisions produce believable consequences rather than popups: retry
 without reconfirming the source and the transfer still happens — you just
 never get Alice's confirmation into evidence.
 
+**You play the reasoning rather than read it.** Pick the right file off
+Alice's USB and send it. Rebuild the PQ-001 timeline from shuffled events —
+put Bob's "nothing received" before the transfer and it answers `SEQUENCE
+CONFLICT — Bob cannot report a missing transfer before the transfer
+occurs`, not "wrong". Sort statements into FACT / ASSUMPTION / UNKNOWN, and
+build the CIA board, where marking confidentiality *affected* is rejected
+because no evidence establishes anyone read the file — it is in question,
+which is as far as the evidence goes. Every misplacement explains where the
+statement belongs and why, because the why is the lesson.
+
+Evidence carries between stages: an investigation opens with the artefacts
+already earned, never an empty board.
+
 The hardware bench (below) is reachable from this same workstation.
 
 ### Hardware bench
@@ -171,7 +184,10 @@ Everything lives under `photon-runner/`:
     clearance and the information boundary. Pure and serialisable, so the
     whole story is playable and assertable in tests.
   - `campaignStages.ts` — the stage/level layer: unlock chain, par times,
-    best-time records and persistence.
+    best-time records, the carried case file, and persistence.
+  - `campaignExercises.ts` — the interactive mechanics (timeline ordering,
+    fact/assumption and CIA classification, file transfer) with their
+    grading rules. Pure, so every exercise is gradeable in tests.
   - `CampaignPanel.tsx` — Workstation 04's screen and the case board.
   - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
     footprints, depth ordering, hotspots and the walk rules. Pure, so the
@@ -215,7 +231,7 @@ npm test
 npm run build
 ```
 
-502 tests. The pure logic — attack simulation, forensics, labs, scene map
+524 tests. The pure logic — attack simulation, forensics, labs, scene map
 and walk rules, BB84 engine — is covered directly; the rendering is verified
 by running the app rather than by unit test.
 

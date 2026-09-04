@@ -25,6 +25,8 @@
  * played and asserted in tests without a DOM.
  */
 
+import { Exercise } from './campaignExercises';
+
 export type ChapterId = 'prologue' | 'incident-01' | 'incident-02' | 'incident-03' | 'incident-04' | 'incident-05' | 'incident-06';
 
 export type Speaker = 'system' | 'alice' | 'bob' | 'eve' | 'reception' | 'trainee' | 'workstation';
@@ -100,6 +102,8 @@ export interface Beat {
   evidence?: EvidenceItem;
   /** Areas unlocked on completing this beat. */
   unlocks?: Area[];
+  /** Something the player must actually do before the beat will advance. */
+  exercise?: Exercise;
 }
 
 export interface Chapter {
@@ -237,6 +241,17 @@ const PROLOGUE: Chapter = {
       speaker: 'bob',
       text: `${F1} — RECEIVED. Got it, thanks. Clean copy.`,
       objective: `Send ${F1} to Bob`,
+      exercise: {
+        kind: 'transfer',
+        prompt: 'Alice asked for the layout first. Choose the file to send.',
+        files: [
+          { id: F1, label: F1, note: 'Floor layout · 2.1 MB' },
+          { id: F2, label: F2, note: 'Site report · 840 KB' },
+        ],
+        correct: F1,
+        wrongMessage:
+          'That is not the file Alice asked for first. Bob receives it and sets it aside, and you now have a delivery on record that nobody requested — worth avoiding when the record is the point.',
+      },
       evidence: {
         id: 'transfer-1',
         label: `${F1} — delivered`,
@@ -249,6 +264,16 @@ const PROLOGUE: Chapter = {
       speaker: 'bob',
       text: `${F2} — RECEIVED. That's both. All good on my side.`,
       objective: `Send ${F2} to Bob`,
+      exercise: {
+        kind: 'transfer',
+        prompt: 'One left on the USB.',
+        files: [
+          { id: F1, label: F1, note: 'Already delivered' },
+          { id: F2, label: F2, note: 'Site report · 840 KB' },
+        ],
+        correct: F2,
+        wrongMessage: 'Bob already has that one. He confirms a duplicate and asks for the report instead.',
+      },
       evidence: {
         id: 'transfer-2',
         label: `${F2} — delivered`,
@@ -275,6 +300,17 @@ const PROLOGUE: Chapter = {
       speaker: 'bob',
       text: "TRANSFER SENT — but nothing has arrived here. I haven't received anything.",
       objective: `Send ${F3} to Bob`,
+      exercise: {
+        kind: 'transfer',
+        prompt: 'Alice has added a third file. Send it.',
+        files: [
+          { id: F1, label: F1, note: 'Already delivered' },
+          { id: F2, label: F2, note: 'Already delivered' },
+          { id: F3, label: F3, note: 'Access schedule · added just now' },
+        ],
+        correct: F3,
+        wrongMessage: 'Bob already has that. It is the access schedule Alice just added that needs to go across.',
+      },
       evidence: {
         id: 'transfer-3a',
         label: `${F3} — attempt 1: not received`,
@@ -451,14 +487,104 @@ const INCIDENT_01: Chapter = {
       text:
         'The incident table holds every event from PQ-001, unordered. Rebuild the sequence. Files 1 and 2 sit above the line as the normal baseline — the contrast is the point.',
       objective: 'Stage 1 — Reconstruct the timeline',
+      exercise: {
+        kind: 'order',
+        prompt: 'Put the events in the order they happened.',
+        baseline: [`${F1} — delivered normally`, `${F2} — delivered normally`],
+        events: [
+          { id: 'e1', label: 'Alice provides File 3' },
+          { id: 'e2', label: 'Trainee sends File 3' },
+          { id: 'e3', label: 'Bob receives nothing' },
+          { id: 'e4', label: 'Trainee checks with Alice' },
+          { id: 'e5', label: 'Alice confirms the source' },
+          { id: 'e6', label: 'Trainee retries the transfer' },
+          { id: 'e7', label: 'Bob receives File 3' },
+          { id: 'e8', label: 'Bob reports a mismatch' },
+          { id: 'e9', label: 'Credential anomaly reviewed' },
+        ],
+        constraints: [
+          {
+            before: 'e2',
+            after: 'e3',
+            message: 'SEQUENCE CONFLICT — Bob cannot report a missing transfer before the transfer occurs.',
+          },
+          {
+            before: 'e6',
+            after: 'e7',
+            message: 'SEQUENCE CONFLICT — Bob cannot receive File 3 before it is sent a second time.',
+          },
+          {
+            before: 'e4',
+            after: 'e6',
+            message: 'MISSING STEP — the retry cannot be evaluated without confirming the source first.',
+          },
+          {
+            before: 'e7',
+            after: 'e8',
+            message: 'SEQUENCE CONFLICT — Bob cannot report a mismatch in a file he has not received.',
+          },
+          {
+            before: 'e1',
+            after: 'e2',
+            message: 'SEQUENCE CONFLICT — the file cannot be sent before Alice provides it.',
+          },
+        ],
+      },
     },
     {
       id: 'i1-fact-assumption',
       area: 'training',
       speaker: 'system',
       text:
-        'Now sort the statements into what the evidence supports. FACT, ASSUMPTION, or UNKNOWN. "Someone read the file" is not a fact — no evidence establishes it. "Eve changed the file" is not a fact either; it is an assumption with nothing behind it.',
+        'Sort each statement by what the evidence actually supports. This board stays with the case for the rest of the investigation, so it is worth getting right.',
       objective: 'Stage 2 — Fact vs assumption',
+      exercise: {
+        kind: 'classify',
+        prompt: 'Place every statement.',
+        buckets: [
+          { id: 'fact', label: 'FACT', hint: 'Directly evidenced' },
+          { id: 'assumption', label: 'ASSUMPTION', hint: 'Plausible, unevidenced' },
+          { id: 'unknown', label: 'UNKNOWN', hint: 'Not established either way' },
+        ],
+        items: [
+          {
+            id: 's1',
+            text: 'Bob did not receive the first File 3 transfer.',
+            bucket: 'fact',
+            why: 'Bob reported it directly from the destination.',
+          },
+          {
+            id: 's2',
+            text: "The second copy differs from Alice's original.",
+            bucket: 'fact',
+            why: 'Alice and Bob compared their versions.',
+          },
+          {
+            id: 's3',
+            text: 'An unrecognised credential event occurred.',
+            bucket: 'fact',
+            why: 'The workstation raised it and Eve confirmed it was outside her authorised test.',
+          },
+          {
+            id: 's4',
+            text: 'Someone read the contents of File 3.',
+            bucket: 'unknown',
+            why: 'Nothing in evidence establishes whether the contents were viewed.',
+          },
+          {
+            id: 's5',
+            text: 'Eve changed the file.',
+            bucket: 'assumption',
+            why: 'There is no evidence establishing Eve as responsible — only that she ran an authorised test earlier.',
+          },
+          {
+            id: 's6',
+            text: 'The credential activity caused the File 3 problem.',
+            bucket: 'unknown',
+            why: 'Both happened. Correlation between them has not been proven.',
+          },
+        ],
+      },
     },
     {
       id: 'i1-trace',
@@ -473,8 +599,37 @@ const INCIDENT_01: Chapter = {
       area: 'training',
       speaker: 'system',
       text:
-        'Bob was authorised to receive the file. Could he obtain it when required? No — availability affected. When it did arrive, did it match Alice’s original? No — integrity affected. Do we know whether anyone read it? No proof either way — confidentiality in question, not failed. A suspicious event does not mean every property failed.',
+        'Three security properties. Judge each one against the evidence you have — and only against the evidence you have. A suspicious event does not mean every property failed.',
       objective: 'Stage 4 — Identify what failed',
+      exercise: {
+        kind: 'classify',
+        prompt: 'Assess each property.',
+        buckets: [
+          { id: 'affected', label: 'AFFECTED', hint: 'Evidence shows it failed' },
+          { id: 'question', label: 'IN QUESTION', hint: 'Cannot be established' },
+          { id: 'intact', label: 'NOT AFFECTED', hint: 'Evidence shows it held' },
+        ],
+        items: [
+          {
+            id: 'availability',
+            text: 'Availability — could an authorised user obtain the information when required?',
+            bucket: 'affected',
+            why: 'Bob was authorised to receive File 3 and could not obtain it on the first attempt.',
+          },
+          {
+            id: 'integrity',
+            text: 'Integrity — did the information remain accurate and unaltered?',
+            bucket: 'affected',
+            why: "The copy Bob received did not match Alice's original.",
+          },
+          {
+            id: 'confidentiality',
+            text: 'Confidentiality — was the information kept from unauthorised parties?',
+            bucket: 'question',
+            why: 'Tempting to call this failed, but there is no proof anyone read the contents. In question is as far as the evidence goes.',
+          },
+        ],
+      },
     },
     {
       id: 'i1-identity',

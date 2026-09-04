@@ -21,12 +21,16 @@ import {
   isCompleted,
   isPlayable,
   isUnlocked,
+  loadCase,
   loadProgress,
+  mergeCase,
   rate,
   recordClear,
+  saveCase,
   saveProgress,
 } from './campaignStages';
 import { HardwareLabPanel } from './HardwareLabPanel';
+import { CampaignExerciseView } from './CampaignExerciseView';
 
 /**
  * Workstation 04 — the campaign terminal.
@@ -71,6 +75,8 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
   const [elapsed, setElapsed] = useState(0);
   const startedAt = useRef<number>(0);
   const [result, setResult] = useState<{ ms: number; underPar: boolean } | null>(null);
+  /** Beat ids whose exercise the player has completed this run. */
+  const [solved, setSolved] = useState<Set<string>>(new Set());
 
   // Live clock while a stage is running. Stops the moment it is cleared, so
   // the reported time is the run, not how long the summary sat on screen.
@@ -85,10 +91,19 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
   const progress = chapterProgress(state);
 
   const beginStage = (stage: StageDef) => {
+    // Seed from the carried case file so an investigation opens with the
+    // evidence already earned, rather than an empty board.
+    const carried = loadCase();
     setActive(stage);
-    setState({ ...initialCampaign(), chapter: stage.id });
+    setState({
+      ...initialCampaign(),
+      chapter: stage.id,
+      knownFacts: carried.knownFacts,
+      evidence: carried.evidence,
+    });
     setLastOutcome(null);
     setResult(null);
+    setSolved(new Set());
     setElapsed(0);
     startedAt.current = Date.now();
   };
@@ -99,6 +114,7 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
     const next = recordClear(progressStore, active.id, ms);
     setProgressStore(next);
     saveProgress(next);
+    saveCase(mergeCase(loadCase(), { knownFacts: state.knownFacts, evidence: state.evidence }));
     setResult({ ms, underPar: rate(active.id, ms) === 'under-par' });
   };
 
@@ -241,8 +257,24 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
+            {/* Stays mounted after it is solved: the completed timeline or
+                board is the player's own work, and whisking it away the
+                instant it is right hides both the confirmation and what
+                they just built. */}
+            {beat.exercise && (
+              <CampaignExerciseView
+                key={beat.id}
+                exercise={beat.exercise}
+                onSolved={() => setSolved((prev) => new Set(prev).add(beat.id))}
+              />
+            )}
+
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {beat.choices?.length ? (
+              {beat.exercise && !solved.has(beat.id) ? (
+                <p style={{ color: TONE.dim, fontSize: 11.5, textAlign: 'center' }}>
+                  Complete the task above to continue.
+                </p>
+              ) : beat.choices?.length ? (
                 beat.choices.map((c) => (
                   <button
                     key={c.id}

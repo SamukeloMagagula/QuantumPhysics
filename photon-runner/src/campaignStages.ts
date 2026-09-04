@@ -1,4 +1,4 @@
-import { ChapterId, getChapter } from './campaignStory';
+import { ChapterId, EvidenceItem, getChapter } from './campaignStory';
 
 /**
  * Campaign stages — the level structure over the story.
@@ -175,6 +175,50 @@ export function isPlayable(p: StageProgress, id: ChapterId): boolean {
 /** The next stage the player should attempt, or null when all are cleared. */
 export function nextStage(p: StageProgress): StageDef | null {
   return STAGES.find((s) => s.built && !isCompleted(p, s.id) && isUnlocked(p, s.id)) ?? null;
+}
+
+/**
+ * The case file, carried between stages.
+ *
+ * The bible is explicit that the Prologue creates persistent artefacts that
+ * later investigations reuse — Incident 01 opens with "the PQ-001 case
+ * contains only evidence already earned". Without this, starting a stage
+ * reset the board to "nothing yet", which both contradicts the story and
+ * strips the investigation of the evidence it is supposed to reason over.
+ */
+export interface CarriedCase {
+  knownFacts: string[];
+  evidence: EvidenceItem[];
+}
+
+const CASE_KEY = 'phantom-q:caseFile';
+
+export function loadCase(): CarriedCase {
+  try {
+    const raw = localStorage.getItem(CASE_KEY);
+    const p = raw ? JSON.parse(raw) : null;
+    if (p && Array.isArray(p.knownFacts) && Array.isArray(p.evidence)) return p as CarriedCase;
+  } catch {
+    /* fall through */
+  }
+  return { knownFacts: [], evidence: [] };
+}
+
+/** Merges a completed run into the case file, without duplicating. */
+export function mergeCase(prev: CarriedCase, add: CarriedCase): CarriedCase {
+  const facts = [...prev.knownFacts];
+  for (const f of add.knownFacts) if (!facts.includes(f)) facts.push(f);
+  const evidence = [...prev.evidence];
+  for (const e of add.evidence) if (!evidence.some((x) => x.id === e.id)) evidence.push(e);
+  return { knownFacts: facts, evidence };
+}
+
+export function saveCase(c: CarriedCase): void {
+  try {
+    localStorage.setItem(CASE_KEY, JSON.stringify(c));
+  } catch {
+    /* just won't persist */
+  }
 }
 
 // ------------------------------------------------------------------ timer

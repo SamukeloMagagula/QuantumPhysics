@@ -7,10 +7,13 @@ import {
   isCompleted,
   isPlayable,
   isUnlocked,
+  loadCase,
   loadProgress,
+  mergeCase,
   nextStage,
   rate,
   recordClear,
+  saveCase,
   saveProgress,
 } from './campaignStages';
 import { getChapter } from './campaignStory';
@@ -150,5 +153,55 @@ describe('persistence', () => {
       return;
     }
     expect(loadProgress()).toEqual({});
+  });
+});
+
+describe('the carried case file', () => {
+  beforeEach(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      /* storage-less environment */
+    }
+  });
+
+  it('starts empty', () => {
+    expect(loadCase()).toEqual({ knownFacts: [], evidence: [] });
+  });
+
+  it('carries evidence forward between stages', () => {
+    // The bible: Incident 01 opens with "only evidence already earned".
+    saveCase({
+      knownFacts: ['Alice is the source of the files.'],
+      evidence: [{ id: 'transfer-1', label: 'delivered', detail: 'x' }],
+    });
+    const back = loadCase();
+    expect(back.knownFacts).toHaveLength(1);
+    expect(back.evidence[0].id).toBe('transfer-1');
+  });
+
+  it('merges without duplicating facts or artefacts', () => {
+    const a = {
+      knownFacts: ['f1'],
+      evidence: [{ id: 'e1', label: 'a', detail: 'a' }],
+    };
+    const merged = mergeCase(a, {
+      knownFacts: ['f1', 'f2'],
+      evidence: [
+        { id: 'e1', label: 'a', detail: 'a' },
+        { id: 'e2', label: 'b', detail: 'b' },
+      ],
+    });
+    expect(merged.knownFacts).toEqual(['f1', 'f2']);
+    expect(merged.evidence.map((e) => e.id)).toEqual(['e1', 'e2']);
+  });
+
+  it('survives corrupt stored data', () => {
+    try {
+      localStorage.setItem('phantom-q:caseFile', 'nonsense');
+    } catch {
+      return;
+    }
+    expect(loadCase()).toEqual({ knownFacts: [], evidence: [] });
   });
 });
