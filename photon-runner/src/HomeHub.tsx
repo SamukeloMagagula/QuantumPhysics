@@ -44,10 +44,10 @@ interface ModeCard {
 
 const FEATURED: ModeCard = {
   id: 'qkd-attack',
-  title: 'Signals Intercept',
-  tag: 'Hacking sim · walk-in 3D lab',
+  title: 'Phantom Q Headquarters',
+  tag: 'Hacking sim · walk-in HQ',
   blurb:
-    'Walk the intercept floor and take a seat at any workstation to open its terminal. You are Eve on a fiber BB84 link: scan the target, find the countermeasure it is missing, and build an attack out of what it cannot see — photon-number splitting, detector blinding, a trojan probe. Steal the key before the error rate gives you away.',
+    'Walk the Phantom Q operations floor and step up to a console. You are Eve on a fibre BB84 link: tap the communications desk, find the countermeasure the target is missing, and build an attack out of what it cannot see — photon-number splitting, detector blinding, a trojan probe. Then read the headquarters status wall and work out who was listening.',
   Icon: Eye,
   glow: '#fb7185',
 };

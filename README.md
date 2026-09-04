@@ -1,7 +1,7 @@
 # Quantum Lab
 
 A browser-based platform for teaching quantum key distribution — by attacking
-it. Entirely TypeScript: a Three.js walkable facility wrapped around a
+it. Entirely TypeScript: a walkable headquarters wrapped around a
 terminal-driven **QKD hacking simulation**, plus a narrative campaign,
 hardware-diagnosis labs, and a set of standalone security labs.
 
@@ -10,17 +10,26 @@ attacker's side. You play Eve on a fibre link: scan the target, work out
 which countermeasure it is missing, and build an attack out of what it
 cannot see — then read the trail you left and learn why it gave you away.
 
-## Signals Intercept — the main game
+## Phantom Q Headquarters — the main game
 
-Three isolated rooms off a corridor, laid out as the protocol itself. Alice
-transmits from one end, Bob receives at the other, and Eve's tap closet hangs
-off the middle of the fibre run between them, with light pulses visibly
-travelling the conduit overhead. Walk in, sit at a workstation, and that
-machine's terminal opens.
+The playable scene is the client's **Page 8** headquarters illustration,
+driven by their image-to-map pipeline rather than a 3D engine. Their handoff
+is explicit about this:
 
-Each room owns one stage of the loop:
+> The Page 8 image is the visual world. Demarcation supplies spatial data.
+> Projective mapping supplies floor movement. Do not restart this scene in
+> Unity or Blender.
 
-### Eve — the attack console
+So the rendered artwork *is* the set. What the game holds is the spatial
+intelligence traced over it — a walkable floor polygon, tight furniture
+footprints, and interaction anchors, all in normalised coordinates so the
+canvas can be any size. A sprite operator walks the floor feet-anchored,
+and cropped furniture layers are re-drawn over him when he steps behind
+them, which is what gives a flat image real depth.
+
+Three consoles in the room, one per stage of the loop:
+
+### Communications console — the attack terminal
 
 A real shell. `scan` a link, `arm` attacks, `run` the exchange, `extract`
 before you are caught. Five attacks are modelled on their actual physics:
@@ -46,7 +55,7 @@ Four escalating targets remove one attack vector at a time, from an
 unhardened university testbed to a blacksite uplink with every countermeasure
 and a tight abort threshold.
 
-### Bob — forensics
+### Headquarters status wall — forensics
 
 After a hack, identify the eavesdropper from the evidence: per-station QBER,
 error shape, and basis-match rate. An honest sifted key matches ~100% by
@@ -57,7 +66,7 @@ Accuse wrongly after a *quiet* attack and the game explains why the error
 rate pointed nowhere — the lesson being that decoy states and detector
 monitoring exist for exactly the attacks QBER cannot see.
 
-### Alice — the hardware bench
+### Coordination table — the hardware bench
 
 Diagnosis labs on two tracks. **QKD optics**: detector dark counts,
 polariser drift, a source running hot at μ = 0.85 — that last one is
@@ -99,14 +108,14 @@ them separately: `npm run dev:client` / `npm run dev:server`.
 
 ## Graphics
 
-Four tiers, selectable in-game from the facility (top right): Balanced,
-High, Ultra and 4K. The 4K tier renders at 4× supersampling with 2k
-procedural textures and 4k shadow maps — on a 1080p window that is a
-3840-wide buffer downsampled, which is what actually removes the soft,
-aliased look. It needs a real GPU.
+The headquarters scene is 2D and resolution-independent: it letterboxes to
+the artwork's aspect and draws at device pixel ratio, so it stays sharp on
+any display without a GPU budget.
 
-The renderer is deliberately assetless apart from one font: geometry,
-textures and characters are all generated procedurally at runtime.
+The remaining 3D modes (Research Campus, Quantum 3D Lab, and the retired
+facility) share a four-tier quality setting — Balanced, High, Ultra and 4K —
+where the 4K tier renders at 4× supersampling with 2k procedural textures
+and 4k shadow maps.
 
 ## What's here
 
@@ -119,9 +128,13 @@ Everything lives under `photon-runner/`:
     whole game is playable and assertable in tests without a DOM.
   - `qkdForensics.ts` — post-hack evidence and the accusation verdict.
   - `hardwareLabs.ts` — the diagnosis labs, both tracks.
-  - `sceneComputerRoom.ts` — the three-room facility. Its layout is exported
-    so connectivity is unit-tested by flood fill rather than discovered by
-    walking into a wall.
+  - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
+    footprints, depth ordering, hotspots and the walk rules. Pure, so the
+    map is unit-tested by flood fill rather than discovered by walking into
+    a wall.
+  - `PhantomQScene.tsx` — the canvas renderer: master image, sprite actor,
+    depth layers, hotspot prompts.
+  - `sceneComputerRoom.ts` — the earlier 3D facility, kept for reference.
   - `GameEngine.ts` / `postFx.ts` / `sceneQuality.ts` — Three.js scene and
     render loop, post-processing chain (GTAO → bloom → ACES → grade → SMAA),
     and the quality tiers.
@@ -134,6 +147,8 @@ Everything lives under `photon-runner/`:
   - `qkdEngine.ts`, `qkdService.ts`, `qkdRoutes.ts` — BB84 and Quantum
     Intercept multiplayer.
   - `server*.ts` — the Express + better-sqlite3 API (guest identity).
+- **`public/pq/`** — the client's Page 8 artwork: master image, the eight
+  furniture layers used for depth, and the operator sprite sheets.
 - **`public/fonts/`** — Inter (SIL OFL), bundled rather than CDN-fetched so
   in-world text never silently fails offline.
 - **`data/`** — the server's SQLite database (gitignored, created on first run).
@@ -155,8 +170,8 @@ npm test
 npm run build
 ```
 
-442 tests. The pure logic — attack simulation, forensics, labs, facility
-layout, BB84 engine — is covered directly; the Three.js scenes are verified
+464 tests. The pure logic — attack simulation, forensics, labs, scene map
+and walk rules, BB84 engine — is covered directly; the rendering is verified
 by running the app rather than by unit test.
 
 ## Tech

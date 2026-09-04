@@ -6,7 +6,7 @@ import { LabsHub } from './LabsHub';
 import { LabRunner } from './LabRunner';
 import { NetworkDefenderScreen } from './NetworkDefenderScreen';
 import { QuantumPhenomenaLab } from './QuantumPhenomenaLab';
-import { ComputerRoomScreen } from './ComputerRoomScreen';
+import { PhantomQScene } from './PhantomQScene';
 import { RoomsHub } from './RoomsHub';
 import { RoomRunner } from './RoomRunner';
 import { Leaderboard } from './Leaderboard';
@@ -73,7 +73,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   campus: 'Research Campus',
   'quantum-lab-interior': 'Quantum Lab',
   customize: 'Character creator',
-  'qkd-attack': 'Signals Intercept',
+  'qkd-attack': 'Phantom Q · Headquarters',
   labs: 'Security labs',
   lab: 'Security labs · running',
   'network-defender': 'Network defender',
@@ -223,7 +223,7 @@ export default function App() {
           <QuantumLabScreen onOpenSimulator={() => go('quantum-scene')} />
         )}
         {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
-        {screen.name === 'qkd-attack' && <ComputerRoomScreen />}
+        {screen.name === 'qkd-attack' && <PhantomQScene />}
         {screen.name === 'labs' && (
           <LabsHub onOpenLab={(labId) => go('lab', { labId })} onOpenGame={() => go('network-defender')} />
         )}
