@@ -48,7 +48,9 @@ export function createGuestStore(): ProgressStore {
 export function mountLab(container: HTMLElement, lab: Lab, store: ProgressStore, onComplete?: (id: string) => void): void {
   container.replaceChildren();
 
-  const learn = el('section', { class: CARD }, el('h2', { class: 'text-xl font-bold text-white' }, lab.title), el('div', { html: lab.intro() }));
+  // The title lives in the runner's header now, so the Learn card is just the
+  // briefing — repeating it here read as a stutter.
+  const learn = el('section', { class: CARD }, el('div', { class: 'prose-room', html: lab.intro() }));
   const tryZone = el('section', { class: CARD });
   const explainZone = el('section', { class: `${CARD} hidden` });
 
@@ -56,8 +58,8 @@ export function mountLab(container: HTMLElement, lab: Lab, store: ProgressStore,
     complete() {
       explainZone.classList.remove('hidden');
       explainZone.replaceChildren(
-        el('h3', { class: 'text-base font-bold text-white' }, 'Why it worked & how to defend'),
-        el('div', { html: lab.explain() }),
+        el('h3', { class: 'text-base font-bold ink-1' }, 'Why it worked & how to defend'),
+        el('div', { class: 'prose-room', html: lab.explain() }),
         el('p', { class: DONE_TEXT }, '✅ Lab complete.')
       );
       store.markComplete(lab.id);

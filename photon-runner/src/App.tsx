@@ -4,6 +4,7 @@ import { HomeHub, ModeId } from './HomeHub';
 import { CustomizeScreen } from './CustomizeScreen';
 import { LabsHub } from './LabsHub';
 import { LabRunner } from './LabRunner';
+import { LabExamView } from './LabExamView';
 import { NetworkDefenderScreen } from './NetworkDefenderScreen';
 import { QuantumPhenomenaLab } from './QuantumPhenomenaLab';
 import { PhantomQScene } from './PhantomQScene';
@@ -28,6 +29,7 @@ type Screen =
   | { name: 'qkd-attack' }
   | { name: 'labs' }
   | { name: 'lab'; labId: string }
+  | { name: 'lab-exam'; examId: string }
   | { name: 'network-defender' }
   | { name: 'quantum-scene' }
   | { name: 'rooms' }
@@ -47,6 +49,7 @@ function sectionOf(screen: Screen): Section {
       return 'qkd-attack';
     case 'labs':
     case 'lab':
+    case 'lab-exam':
       return 'labs';
     case 'network-defender':
       return 'defender';
@@ -76,6 +79,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   'qkd-attack': 'Phantom Q · Headquarters',
   labs: 'Security labs',
   lab: 'Security labs · running',
+  'lab-exam': 'Security labs · section test',
   'network-defender': 'Network defender',
   'quantum-scene': 'Quantum 3D lab',
   rooms: 'Symmetric Cryptography',
@@ -100,6 +104,7 @@ const SCREEN_IDS: Screen['name'][] = [
   'qkd-attack',
   'labs',
   'lab',
+  'lab-exam',
   'network-defender',
   'quantum-scene',
   'rooms',
@@ -225,9 +230,16 @@ export default function App() {
         {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
         {screen.name === 'qkd-attack' && <PhantomQScene />}
         {screen.name === 'labs' && (
-          <LabsHub onOpenLab={(labId) => go('lab', { labId })} onOpenGame={() => go('network-defender')} />
+          <LabsHub
+            onOpenLab={(labId) => go('lab', { labId })}
+            onOpenGame={() => go('network-defender')}
+            onOpenExam={(examId) => go('lab-exam', { examId })}
+          />
         )}
-        {screen.name === 'lab' && <LabRunner labId={screen.labId} />}
+        {screen.name === 'lab' && <LabRunner labId={screen.labId} onExit={() => go('labs')} />}
+        {screen.name === 'lab-exam' && (
+          <LabExamView examId={screen.examId} onBack={() => go('labs')} />
+        )}
         {screen.name === 'network-defender' && <NetworkDefenderScreen />}
         {screen.name === 'quantum-scene' && <QuantumPhenomenaLab />}
         {screen.name === 'rooms' && (

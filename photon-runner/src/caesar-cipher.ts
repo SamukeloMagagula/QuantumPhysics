@@ -35,9 +35,9 @@ const lab: Lab = {
   },
   render(container, ctx) {
     const shift = el('input', { type: 'range', min: '0', max: '25', value: '0', class: 'w-full' });
-    const shiftLabel = el('span', { class: 'text-cyan-400 font-bold' }, '0');
+    const shiftLabel = el('span', { class: 'text-[var(--accent)] font-bold' }, '0');
     const out = el('pre', { class: `${CARD} whitespace-pre-wrap` }, CIPHERTEXT);
-    const status = el('p', { class: 'text-emerald-400' });
+    const status = el('p', { class: 'text-[var(--ok)]' });
     const crackList = el('div', { class: `${MUTED} space-y-1 max-h-40 overflow-y-auto` });
     let done = false;
 
@@ -57,7 +57,7 @@ const lab: Lab = {
     const crackBtn = el('button', { class: BUTTON_SECONDARY }, 'Crack all 25');
     crackBtn.addEventListener('click', () => {
       crackList.replaceChildren(
-        el('strong', { class: 'text-white' }, 'Every shift:'),
+        el('strong', { class: 'ink-1' }, 'Every shift:'),
         ...Array.from({ length: 25 }, (_, i) => i + 1).map((k) =>
           el('div', {}, `#${k}: ${caesarDecrypt(CIPHERTEXT, k)}`)
         )
@@ -65,7 +65,7 @@ const lab: Lab = {
     });
 
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'Intercepted message'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'Intercepted message'),
       el('p', { class: MUTED }, 'Ciphertext (encrypted with an unknown Caesar shift):'),
       el('pre', { class: `${CARD} whitespace-pre-wrap` }, CIPHERTEXT),
       el('label', { class: 'block' }, 'Try shift: ', shiftLabel),

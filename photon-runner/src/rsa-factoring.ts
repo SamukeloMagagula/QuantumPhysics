@@ -79,7 +79,7 @@ const lab: Lab = {
       ctx.complete();
     });
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'Break the toy RSA'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'Break the toy RSA'),
       el(
         'div',
         { class: CARD },

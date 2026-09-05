@@ -66,8 +66,8 @@ const lab: Lab = {
   },
   render(container, ctx) {
     const answers: Record<string, boolean> = {};
-    const status = el('p', { class: 'text-emerald-400' });
-    container.append(el('h3', { class: 'text-base font-bold text-white' }, 'Triage the inbox'));
+    const status = el('p', { class: 'text-[var(--ok)]' });
+    container.append(el('h3', { class: 'text-base font-bold ink-1' }, 'Triage the inbox'));
 
     for (const s of SAMPLES) {
       const verdict = el('span', { class: MUTED });
@@ -79,8 +79,8 @@ const lab: Lab = {
         el(
           'div',
           { class: CARD },
-          el('div', {}, el('strong', { class: 'text-white' }, 'From: '), s.from),
-          el('div', {}, el('strong', { class: 'text-white' }, 'Subject: '), s.subject),
+          el('div', {}, el('strong', { class: 'ink-1' }, 'From: '), s.from),
+          el('div', {}, el('strong', { class: 'ink-1' }, 'Subject: '), s.subject),
           el('p', { class: MUTED }, s.body),
           el('button', { class: BUTTON_SECONDARY, onClick: () => mark(true) }, 'Phishing'),
           ' ',

@@ -36,7 +36,7 @@ const lab: Lab = {
       comments.push(text);
       // Safe render: el() uses text nodes, so nothing actually executes here.
       feed.replaceChildren(
-        el('strong', { class: 'text-white' }, 'Guestbook'),
+        el('strong', { class: 'ink-1' }, 'Guestbook'),
         ...comments.map((c) => el('div', { class: 'mt-1' }, c))
       );
       (input as HTMLTextAreaElement).value = '';
@@ -65,7 +65,7 @@ const lab: Lab = {
     });
 
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'FriendBook guestbook'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'FriendBook guestbook'),
       el('p', { class: MUTED }, "This board pastes your comment straight into the page's HTML."),
       input,
       post,

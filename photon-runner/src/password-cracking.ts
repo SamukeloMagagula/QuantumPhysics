@@ -78,7 +78,7 @@ const lab: Lab = {
     input.addEventListener('input', update);
     update();
 
-    container.append(el('h3', { class: 'text-base font-bold text-white' }, 'Test a password'), input, meter);
+    container.append(el('h3', { class: 'text-base font-bold ink-1' }, 'Test a password'), input, meter);
   },
   explain() {
     return `<p>Short or common passwords fall instantly to wordlist and brute-force

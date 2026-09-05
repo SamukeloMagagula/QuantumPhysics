@@ -220,7 +220,7 @@ const lab: Lab = {
     const user = el('input', { placeholder: 'username', value: '', class: INPUT });
     const pass = el('input', { placeholder: 'password', type: 'text', value: '', class: INPUT });
     const preview = el('pre', { class: `${CARD} whitespace-pre-wrap` }, buildQuery('', ''));
-    const status = el('p', { class: 'text-emerald-400' });
+    const status = el('p', { class: 'text-[var(--ok)]' });
     const errorBox = el('div', { class: `${DANGER_CARD} hidden` });
 
     const tbody = el('tbody');
@@ -232,7 +232,7 @@ const lab: Lab = {
         {},
         el(
           'tr',
-          { class: 'text-slate-400 text-left border-b border-slate-800' },
+          { class: 'ink-3 text-left border-b border-slate-800' },
           el('th', { class: 'py-1.5 pr-3' }, 'id'),
           el('th', { class: 'py-1.5 pr-3' }, 'username'),
           el('th', { class: 'py-1.5 pr-3' }, 'password'),
@@ -263,8 +263,8 @@ const lab: Lab = {
             'tr',
             {
               class: matched
-                ? 'bg-emerald-500/15 text-emerald-200 border-b border-slate-800/60'
-                : 'text-slate-400 border-b border-slate-800/60',
+                ? 'bg-emerald-500/15 text-[var(--ok)] border-b border-slate-800/60'
+                : 'ink-3 border-b border-slate-800/60',
             },
             el('td', { class: 'py-1.5 pr-3' }, String(row.id)),
             el('td', { class: 'py-1.5 pr-3' }, row.username),
@@ -289,7 +289,7 @@ const lab: Lab = {
       const result = runQuery((user as HTMLInputElement).value, (pass as HTMLInputElement).value);
       if (result.error) {
         status.textContent = '❌ Login failed — the database rejected this query.';
-        status.className = 'text-rose-400';
+        status.className = 'text-[var(--danger)]';
         return;
       }
       const first = result.rows.find((r) => r.matched);
@@ -297,18 +297,18 @@ const lab: Lab = {
         status.textContent = `✅ Access granted — logged in as ${first.user.username} (${first.user.role}). ${
           result.rows.filter((r) => r.matched).length > 1 ? 'The WHERE clause matched every row — that tautology is the bug.' : ''
         }`;
-        status.className = 'text-emerald-400';
+        status.className = 'text-[var(--ok)]';
         ctx.complete();
       } else {
         status.textContent = '❌ Login failed. 0 rows matched — look at the WHERE match column above.';
-        status.className = 'text-amber-400';
+        status.className = 'text-[var(--warn)]';
       }
     });
 
     renderTable();
 
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'Try it'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'Try it'),
       el('label', { class: 'block' }, 'Username'),
       user,
       el('label', { class: 'block' }, 'Password'),

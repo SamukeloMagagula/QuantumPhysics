@@ -88,7 +88,7 @@ const lab: Lab = {
       const pct = (r.qber * 100).toFixed(1);
       const fillPct = Math.min(100, (r.qber / 0.4) * 100); // bar scaled 0–40%
       const barColorClass = r.detected ? 'bg-rose-500' : 'bg-cyan-500';
-      const textColorClass = r.detected ? 'text-rose-400' : 'text-emerald-400';
+      const textColorClass = r.detected ? 'text-[var(--danger)]' : 'text-[var(--ok)]';
       out.replaceChildren(
         el(
           'div',
@@ -97,7 +97,7 @@ const lab: Lab = {
           el('div', {}, `QBER (error rate): ${pct}%`),
           el(
             'div',
-            { class: 'relative h-[18px] bg-slate-950 border border-slate-800 rounded my-1' },
+            { class: 'relative h-[18px] bg-[var(--bg-sunken)] border border-slate-800 rounded my-1' },
             el('div', { class: `h-full ${barColorClass} rounded`, style: `width:${fillPct}%` }),
             el('div', { class: 'absolute top-[-2px] h-[22px] border-l-2 border-dashed border-slate-400', style: 'left:27.5%' })
           ),
@@ -115,7 +115,7 @@ const lab: Lab = {
     });
 
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'BB84 quantum channel'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'BB84 quantum channel'),
       el('label', { class: 'block' }, eveToggle, ' Enable Eve (eavesdropper)'),
       el('p', { class: MUTED }, 'Run once with Eve OFF (clean), then once with Eve ON, and watch the error rate.'),
       runBtn,

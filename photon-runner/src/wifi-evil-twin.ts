@@ -47,9 +47,9 @@ const lab: Lab = {
       <p>Here's a scan of nearby networks. Flag the rogue evil twin.</p>`;
   },
   render(container, ctx) {
-    const status = el('p', { class: 'text-emerald-400' });
+    const status = el('p', { class: 'text-[var(--ok)]' });
     container.append(
-      el('h3', { class: 'text-base font-bold text-white' }, 'WiFi scan — pick the evil twin'),
+      el('h3', { class: 'text-base font-bold ink-1' }, 'WiFi scan — pick the evil twin'),
       el('p', { class: MUTED }, 'One of these is a rogue AP impersonating a real network. Flag it.')
     );
     for (const n of SCAN) {
@@ -58,7 +58,7 @@ const lab: Lab = {
         el(
           'div',
           { class: CARD },
-          el('div', {}, el('strong', { class: 'text-white' }, n.ssid), `  [${n.security}]`),
+          el('div', {}, el('strong', { class: 'ink-1' }, n.ssid), `  [${n.security}]`),
           el('div', { class: MUTED }, `BSSID ${n.bssid} · signal ${bars}`),
           el(
             'button',
