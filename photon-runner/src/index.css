@@ -135,7 +135,7 @@ canvas { touch-action: none; }
   opacity: .55;
   animation: aurora 30s ease-in-out infinite alternate;
 }
-:root[data-theme="light"] .bg-scene::before { opacity: .34; }
+:root[data-theme="light"] .bg-scene::before { opacity: .2; }
 
 @keyframes aurora {
   0%   { transform: translate3d(-2.5%, -1.5%, 0) scale(1); }
@@ -182,6 +182,13 @@ canvas { touch-action: none; }
   background: color-mix(in oklab, var(--bg-raise) 88%, transparent);
   border: 1px solid rgb(var(--glass-border) / var(--glass-border-alpha));
   box-shadow: var(--shadow-flat);
+}
+
+/* In light mode a translucent panel picks up the aurora wash behind it and
+   lands as muddy grey rather than white, which made every card look disabled.
+   Surfaces are opaque there; the depth comes from the border and shadow. */
+:root[data-theme="light"] .panel {
+  background: var(--bg-raise);
 }
 
 /* Interactive card: lifts, warms its border, and reveals a gradient hairline.

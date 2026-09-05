@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Page, PageHeader } from './ui/Page';
 import { KeyRound, Loader2, Radio, Users } from 'lucide-react';
 
 export type QkdRole = 'alice' | 'bob' | 'eve';
@@ -54,10 +55,14 @@ export function QkdLobby({ onEnterGame, onExit }: QkdLobbyProps) {
   };
 
   return (
-    <div className="bg-scene bg-mesh min-h-full px-4 py-10 md:px-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header className="a-rise">
-          <h1 className="h-display text-4xl md:text-5xl text-grad">Quantum Intercept</h1>
+    <Page width="reading">
+      <PageHeader
+        eyebrow="Multiplayer"
+        title="Quantum Intercept"
+      />
+      <div className="space-y-6">
+        <header className="hidden">
+          <h1>Quantum Intercept</h1>
           <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">
             A real BB84 key exchange with up to three players on the same network — Alice sends, Bob
             receives, Eve secretly taps the line. After three rounds, Alice and Bob vote on who Eve was.
@@ -122,6 +127,6 @@ export function QkdLobby({ onEnterGame, onExit }: QkdLobbyProps) {
           </button>
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

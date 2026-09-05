@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Page, PageHeader } from './ui/Page';
 import { Trophy } from 'lucide-react';
 
 interface LeaderboardEntry {
@@ -22,12 +23,13 @@ export function Leaderboard() {
   }, []);
 
   return (
-    <div className="bg-scene bg-mesh min-h-full px-4 py-10 md:px-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header className="a-rise">
-          <h1 className="h-display text-4xl md:text-5xl text-grad">Leaderboard</h1>
-          <p className="text-sm ink-2 mt-2">Top operatives by points earned across the learning path.</p>
-        </header>
+    <Page width="reading">
+      <PageHeader
+        eyebrow="Symmetric cryptography"
+        title="Leaderboard"
+        description="Top operatives by points earned across the learning path."
+      />
+      <div className="space-y-6">
 
         {entries === null && <p className="text-sm ink-3">Loading…</p>}
         {entries?.length === 0 && <p className="text-sm ink-3">No scores yet — be the first.</p>}
@@ -59,6 +61,6 @@ export function Leaderboard() {
           </ol>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

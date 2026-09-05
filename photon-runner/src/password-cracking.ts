@@ -44,7 +44,7 @@ export function formatDuration(seconds: number): string {
   return 'under a second';
 }
 
-const STRENGTH_LABELS = ['☠ awful', 'weak', 'ok', 'strong', '🔒 excellent'];
+const STRENGTH_LABELS = ['awful', 'weak', 'ok', 'strong', 'excellent'];
 
 const lab: Lab = {
   id: 'password-cracking',

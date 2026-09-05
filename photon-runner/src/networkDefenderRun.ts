@@ -3,8 +3,23 @@ import { blockAt, blockIp, createState, DefenderState, HEIGHT, WIDTH, step, unbl
 function draw(ctx: CanvasRenderingContext2D, state: DefenderState): void {
   ctx.fillStyle = '#0b1020';
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  // The servers the traffic is heading for. Drawn as a labelled edge rather
+  // than a bare green bar, so it reads as something rather than as an
+  // artefact of the canvas.
+  ctx.fillStyle = 'rgba(63,185,80,.22)';
+  ctx.fillRect(0, 0, 6, HEIGHT);
   ctx.fillStyle = '#3fb950';
-  ctx.fillRect(0, 0, 8, HEIGHT); // the servers (base)
+  ctx.fillRect(0, 0, 2, HEIGHT);
+  ctx.save();
+  ctx.translate(18, HEIGHT / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = 'rgba(139,148,158,.85)';
+  ctx.font = '600 9px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('SERVERS', 0, 0);
+  ctx.restore();
 
   for (const t of state.threats) {
     const color = t.dropped ? '#6e7681' : t.malicious ? '#f85149' : '#3fb950';
@@ -29,9 +44,13 @@ function draw(ctx: CanvasRenderingContext2D, state: DefenderState): void {
     ctx.fillText(t.ip, t.x - 34, t.y - 14);
   }
 
-  ctx.fillStyle = '#e6edf3';
-  ctx.font = '16px system-ui';
-  ctx.fillText(`Score ${state.score}   Health ${state.health}   Trust ${state.trust}   Wave ${state.wave}`, 16, 24);
+  // Wave number stays on the canvas — it is about what you are looking at,
+  // not a running total. The rest is reported in the page header.
+  ctx.fillStyle = 'rgba(230,237,243,.55)';
+  ctx.font = '600 10px ui-monospace, monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(`WAVE ${state.wave}`, WIDTH - 14, 22);
+  ctx.textAlign = 'left';
 }
 
 /** Mounts the canvas render loop + click handler. Returns a cleanup function. */

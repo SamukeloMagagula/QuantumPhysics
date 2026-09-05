@@ -152,15 +152,19 @@ function Header({ state, onExit }: { state: GameState; onExit: () => void }) {
     ended: 'Game over',
   };
   return (
-    <header className="a-rise flex items-start justify-between gap-4">
-      <div>
-        <h1 className="h-display text-3xl md:text-4xl text-grad">{state.code}</h1>
-        <p className="text-sm ink-2 mt-1">
+    <header
+      className="pb-4 mb-2 border-b flex items-start justify-between gap-4"
+      style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}
+    >
+      <div className="min-w-0">
+        <div className="label-mono mb-1.5">Quantum Intercept · room</div>
+        <h1 className="h-section text-[22px] md:text-[26px] ink-1 font-mono tracking-[.12em]">{state.code}</h1>
+        <p className="text-[13px] ink-2 mt-1.5">
           {phaseLabel[state.phase] ?? state.phase}
-          {state.phase !== 'lobby' && state.phase !== 'ended' && ` · round ${state.round}/${state.roundsTotal}`}
+          {state.phase !== 'lobby' && state.phase !== 'ended' && ` · round ${state.round} of ${state.roundsTotal}`}
         </p>
       </div>
-      <button onClick={onExit} className="btn btn-ghost px-4 py-2 text-xs shrink-0">
+      <button onClick={onExit} className="btn btn-ghost px-3 py-2 text-xs shrink-0">
         Leave
       </button>
     </header>

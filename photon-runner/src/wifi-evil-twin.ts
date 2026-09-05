@@ -66,10 +66,10 @@ const lab: Lab = {
               class: BUTTON_SECONDARY,
               onClick: () => {
                 if (checkPick(n.id, SCAN)) {
-                  status.textContent = "✅ Correct — that's the evil twin.";
+                  status.textContent = "Correct — that is the evil twin.";
                   ctx.complete();
                 } else {
-                  status.textContent = '❌ That one looks legit. Find an OPEN network cloning a secured SSID.';
+                  status.textContent = 'That one looks legitimate. Find an OPEN network cloning a secured SSID.';
                 }
               },
             },

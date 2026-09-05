@@ -48,7 +48,7 @@ const lab: Lab = {
       out.textContent = dec;
       if (dec === PLAINTEXT && !done) {
         done = true;
-        status.textContent = `✅ Cracked! The shift was ${g}.`;
+        status.textContent = `Cracked. The shift was ${g}.`;
         ctx.complete();
       }
     };

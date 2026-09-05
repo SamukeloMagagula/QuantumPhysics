@@ -90,7 +90,8 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
         <header className="a-rise flex items-start justify-between gap-4">
           <div>
             <div className="label-mono mb-2">Quantum Breach · Scene 1 of 3</div>
-            <h1 className="h-display text-4xl md:text-5xl text-grad">Symmetric Cryptography</h1>
+            <div className="label-mono mb-1.5">Quantum Breach</div>
+            <h1 className="h-section text-[22px] md:text-[26px] ink-1">Symmetric Cryptography</h1>
             <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">One secret. Two people.</p>
           </div>
           <button onClick={onExit} className="btn btn-ghost px-4 py-2 text-xs shrink-0">

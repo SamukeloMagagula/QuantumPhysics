@@ -11,6 +11,7 @@ import {
   shuffle,
 } from './labExam';
 import { getExam } from './labExams';
+import { Meta, Page, PageHeader } from './ui/Page';
 
 /**
  * Sitting a section test.
@@ -34,12 +35,12 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
 
   if (!exam) {
     return (
-      <div className="p-8">
+      <Page width="reading">
         <p className="text-[var(--danger)] text-sm font-mono">That test does not exist.</p>
         <button onClick={onBack} className="btn btn-ghost px-3 py-2 text-xs mt-4">
           <ArrowLeft size={13} /> Back to labs
         </button>
-      </div>
+      </Page>
     );
   }
 
@@ -58,20 +59,25 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
   const answered = exam.questions.filter((q) => answers[q.id] !== undefined).length;
 
   return (
-    <div className="min-h-full px-4 py-6 md:px-8">
-      <div className="max-w-3xl mx-auto space-y-4">
-        <button onClick={onBack} className="btn btn-ghost px-3 py-2 text-xs">
-          <ArrowLeft size={13} /> Back to labs
-        </button>
-
-        <header className="panel rounded-2xl p-5">
-          <div className="label-mono !text-[9px] ink-3">{exam.section}</div>
-          <h1 className="h-section text-2xl ink-1 mt-1">{exam.title}</h1>
-          <p className="text-sm ink-2 mt-2 leading-relaxed">{exam.blurb}</p>
-          <div className="label-mono !text-[9px] ink-3 mt-3">
-            {exam.questions.length} questions · pass at {exam.passPercent}% · unlimited attempts
-          </div>
-        </header>
+    <Page width="reading">
+      <PageHeader
+        eyebrow={`${exam.section} · section test`}
+        title={exam.title}
+        description={exam.blurb}
+        actions={
+          <button onClick={onBack} className="btn btn-ghost px-3 py-2 text-xs">
+            <ArrowLeft size={13} /> Back to labs
+          </button>
+        }
+        meta={
+          <>
+            <Meta label="Questions" value={exam.questions.length} />
+            <Meta label="Pass mark" value={`${exam.passPercent}%`} />
+            <Meta label="Attempts" value="Unlimited" />
+          </>
+        }
+      />
+      <div className="space-y-4">
 
         {result ? (
           <Review exam={exam} result={result} onRetake={retake} onBack={onBack} />
@@ -102,7 +108,7 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
           </>
         )}
       </div>
-    </div>
+    </Page>
   );
 }
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Meta, Page, PageHeader } from './ui/Page';
 import { startNetworkDefender, type DefenderHandle } from './networkDefenderRun';
 import { KIND_INFO, type DefenderState } from './networkDefenderLogic';
 
@@ -114,63 +115,82 @@ export function NetworkDefenderScreen() {
     });
   };
 
+  const hairline = 'rgb(var(--glass-border)/.2)';
+
   return (
-    <div className="min-h-full px-4 py-6 max-w-5xl mx-auto space-y-4">
-      <div className="text-center space-y-1">
-        <h1 className="text-2xl font-bold text-white">Network Defender</h1>
-        <p className="text-slate-400 text-sm font-mono">{status}</p>
-      </div>
+    <Page width="wide">
+      <PageHeader
+        eyebrow="Arcade round"
+        title="Network Defender"
+        description="Hold the perimeter as intrusions escalate. Click a packet to firewall its address, or drive it from the console."
+        meta={
+          hud ? (
+            <>
+              <Meta label="Score" value={hud.score} />
+              <Meta label="Health" value={hud.health} tone={hud.health > 3 ? 'var(--ok)' : 'var(--danger)'} />
+              <Meta label="Trust" value={hud.trust} tone="var(--accent)" />
+              <Meta label="Firewalled" value={hud.blockedIps.size} tone="var(--warn)" />
+              <Meta label="Status" value={status} />
+            </>
+          ) : (
+            <Meta label="Status" value={status} />
+          )
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <div className="text-xs font-mono text-slate-500 uppercase tracking-wider">
-            Live network — red is unblocked malicious traffic, green is legitimate, gray is a firewall drop
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <section className="panel rounded-xl p-3 flex flex-col">
+          <div className="label-mono !text-[9px] mb-2">Live network</div>
+          <canvas
+            ref={canvasRef}
+            className="rounded-lg w-full touch-none border"
+            style={{ borderColor: hairline, background: 'var(--bg-sunken)' }}
+          />
+          <div className="flex items-center gap-4 mt-2.5 flex-wrap">
+            <Legend tone="var(--danger)" label="Unblocked malicious" />
+            <Legend tone="var(--ok)" label="Legitimate" />
+            <Legend tone="var(--ink-4)" label="Firewall drop" />
           </div>
-          <canvas ref={canvasRef} className="border border-slate-800 rounded-xl w-full touch-none" />
-          {hud && (
-            <div className="grid grid-cols-4 gap-2 text-center font-mono text-xs">
-              <div className="bg-slate-900 border border-slate-800 rounded-lg py-2">
-                <div className="text-slate-500">score</div>
-                <div className="text-white font-bold">{hud.score}</div>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-lg py-2">
-                <div className="text-slate-500">health</div>
-                <div className="text-emerald-400 font-bold">{hud.health}</div>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-lg py-2">
-                <div className="text-slate-500">trust</div>
-                <div className="text-cyan-400 font-bold">{hud.trust}</div>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-lg py-2">
-                <div className="text-slate-500">firewalled</div>
-                <div className="text-amber-400 font-bold">{hud.blockedIps.size}</div>
-              </div>
-            </div>
-          )}
-        </div>
+        </section>
 
-        <div className="bg-black border border-slate-800 rounded-xl flex flex-col h-[420px] lg:h-auto">
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1">
+        <section
+          className="panel rounded-xl flex flex-col h-[420px] lg:h-auto lg:min-h-[420px] overflow-hidden"
+          style={{ background: 'var(--bg-sunken)' }}
+        >
+          <div className="label-mono !text-[9px] px-3 pt-3 pb-2">Console</div>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 pb-2 font-mono text-xs space-y-1">
             {lines.map((l, i) => (
               <div key={i} style={{ color: TONE_COLOR[l.tone] }}>
                 {l.text}
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 border-t border-slate-800 p-2">
-            <span className="text-emerald-500 font-mono text-xs">$</span>
+          <div className="flex items-center gap-2 border-t p-2.5" style={{ borderColor: hairline }}>
+            <span className="font-mono text-xs" style={{ color: 'var(--ok)' }}>
+              $
+            </span>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               placeholder="block 203.0.113.42"
-              className="flex-1 bg-transparent outline-none text-xs font-mono text-slate-100 placeholder:text-slate-600"
+              className="flex-1 bg-transparent outline-none text-xs font-mono ink-1 placeholder:ink-4"
               autoFocus
               spellCheck={false}
             />
+            <span className="label-mono !text-[8px] hidden sm:block">type help</span>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </Page>
+  );
+}
+
+function Legend({ tone, label }: { tone: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] ink-3">
+      <span className="w-2 h-2 rounded-full" style={{ background: tone }} />
+      {label}
+    </span>
   );
 }

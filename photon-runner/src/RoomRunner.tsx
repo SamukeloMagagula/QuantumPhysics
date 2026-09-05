@@ -173,9 +173,10 @@ export function RoomRunner({ roomId, onExit }: RoomRunnerProps) {
   return (
     <div className="min-h-full px-4 py-8 md:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        <header className="a-rise">
-          <h1 className="h-display text-3xl md:text-4xl text-grad">{room.title}</h1>
-          <p className="text-sm ink-2 mt-1.5">{room.summary}</p>
+        <header className="pb-4 border-b" style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}>
+          <div className="label-mono mb-1.5">Room</div>
+          <h1 className="h-section text-[22px] md:text-[26px] ink-1">{room.title}</h1>
+          <p className="text-[13px] ink-2 mt-1.5">{room.summary}</p>
         </header>
 
         {celebration && (

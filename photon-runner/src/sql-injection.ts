@@ -270,7 +270,7 @@ const lab: Lab = {
             el('td', { class: 'py-1.5 pr-3' }, row.username),
             el('td', { class: 'py-1.5 pr-3' }, row.password),
             el('td', { class: 'py-1.5 pr-3' }, row.role),
-            el('td', { class: 'py-1.5 font-bold' }, matched ? '✅ MATCH' : '—')
+            el('td', { class: 'py-1.5 font-bold' }, matched ? 'MATCH' : '—')
           )
         );
       }
@@ -288,19 +288,19 @@ const lab: Lab = {
     submit.addEventListener('click', () => {
       const result = runQuery((user as HTMLInputElement).value, (pass as HTMLInputElement).value);
       if (result.error) {
-        status.textContent = '❌ Login failed — the database rejected this query.';
+        status.textContent = 'Login failed — the database rejected this query.';
         status.className = 'text-[var(--danger)]';
         return;
       }
       const first = result.rows.find((r) => r.matched);
       if (first) {
-        status.textContent = `✅ Access granted — logged in as ${first.user.username} (${first.user.role}). ${
+        status.textContent = `Access granted — logged in as ${first.user.username} (${first.user.role}). ${
           result.rows.filter((r) => r.matched).length > 1 ? 'The WHERE clause matched every row — that tautology is the bug.' : ''
         }`;
         status.className = 'text-[var(--ok)]';
         ctx.complete();
       } else {
-        status.textContent = '❌ Login failed. 0 rows matched — look at the WHERE match column above.';
+        status.textContent = 'Login failed. 0 rows matched — look at the WHERE match column above.';
         status.className = 'text-[var(--warn)]';
       }
     });

@@ -19,6 +19,7 @@ import { createGuestStore } from './labFramework';
 import { examForSection } from './labExams';
 import { examUnlocked, labsRemaining, loadExamProgress } from './labExam';
 import { ScoreRing } from './LabExamView';
+import { Meta, PageHeader } from './ui/Page';
 
 /**
  * The labs dashboard.
@@ -91,7 +92,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
   const overall = LABS.length ? Math.round((completed.length / LABS.length) * 100) : 0;
 
   return (
-    <div className="bg-scene bg-mesh min-h-full px-3 py-4 md:px-6 md:py-6">
+    <div className="bg-scene min-h-full px-3 py-4 md:px-6 md:py-6">
       <div className="max-w-[1500px] mx-auto grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_300px]">
         {/* ------------------------------------------------ sidebar */}
         <aside className="space-y-3">
@@ -156,56 +157,39 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
         {/* --------------------------------------------------- main */}
         <div className="space-y-4 min-w-0">
-          <div className="panel rounded-2xl px-4 py-3 flex items-center gap-4 flex-wrap">
-            <div className="min-w-0">
-              <div className="text-sm ink-1 font-semibold">
-                Welcome back<span style={{ color: 'var(--accent)' }}>.</span>
-              </div>
-              <div className="text-[11px] ink-3">Break it yourself, then prove you know why it broke.</div>
-            </div>
-            <div className="h-8 w-px hidden sm:block" style={{ background: 'rgb(var(--glass-border)/.2)' }} />
-            <StatusBit label="Section" value={active} tone="var(--accent)" />
-            <div className="h-8 w-px hidden sm:block" style={{ background: 'rgb(var(--glass-border)/.2)' }} />
-            <StatusBit
-              label="Remaining here"
-              value={left === 0 ? 'section complete' : `${left} lab${left === 1 ? '' : 's'}`}
-              tone={left === 0 ? 'var(--ok)' : 'var(--warn)'}
-            />
-            <div className="ml-auto h-section text-2xl ink-1 tabular-nums">{overall}%</div>
-          </div>
-
-          {/* Hero: the section you are in, and the next thing to do in it. */}
-          <section className="panel rounded-2xl p-5" style={{ ['--glow' as string]: metaFor(active).glow }}>
-            <div className="flex items-start gap-3 flex-wrap">
-              <span
-                className="grid place-items-center w-10 h-10 rounded-xl shrink-0"
-                style={{
-                  background: `color-mix(in oklab, ${metaFor(active).glow} 16%, transparent)`,
-                  color: metaFor(active).glow,
-                }}
-              >
-                {React.createElement(metaFor(active).Icon, { size: 20 })}
-              </span>
-              <div className="min-w-0 flex-1">
-                <h1 className="h-section text-xl ink-1">{active}</h1>
-                <p className="text-xs ink-3 mt-0.5">
-                  {labsHere.length} lab{labsHere.length === 1 ? '' : 's'}
-                  {exam ? ' · ends in a section test' : ''}
-                </p>
-              </div>
-              {nextLab && (
-                <button
-                  onClick={() => onOpenLab(nextLab.id)}
-                  className="btn btn-primary px-4 py-2 text-sm"
-                  style={{ ['--glow' as string]: metaFor(active).glow }}
-                >
+          {/* One header for the section, matching every other page in the
+              product. It used to be a "Welcome back" strip stacked on a hero
+              that repeated the section name directly underneath it. */}
+          <PageHeader
+            eyebrow="Security labs"
+            title={active}
+            description={`${labsHere.length} lab${labsHere.length === 1 ? '' : 's'}${
+              exam ? ', ending in a section test' : ''
+            }.`}
+            actions={
+              nextLab ? (
+                <button onClick={() => onOpenLab(nextLab.id)} className="btn btn-primary px-4 py-2 text-sm">
                   {completed.length === 0 ? 'Start' : 'Continue'} <ArrowRight size={13} />
                 </button>
-              )}
-            </div>
-
-            <SectionRail labs={labsHere.map((l) => ({ id: l.id, done: store.isComplete(l.id) }))} glow={metaFor(active).glow} />
-          </section>
+              ) : undefined
+            }
+            meta={
+              <>
+                <Meta
+                  label="Remaining here"
+                  value={left === 0 ? 'Section complete' : `${left} lab${left === 1 ? '' : 's'}`}
+                  tone={left === 0 ? 'var(--ok)' : undefined}
+                />
+                <Meta label="Overall" value={`${overall}%`} />
+                <div className="flex-1 min-w-[160px]">
+                  <SectionRail
+                    labs={labsHere.map((l) => ({ id: l.id, done: store.isComplete(l.id) }))}
+                    glow="var(--accent)"
+                  />
+                </div>
+              </>
+            }
+          />
 
           {/* Real readouts, not decoration. */}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -462,15 +446,6 @@ const Pill = ({ tone, children }: { tone: string; children: React.ReactNode }) =
   </span>
 );
 
-const StatusBit = ({ label, value, tone }: { label: string; value: string; tone: string }) => (
-  <div className="min-w-0">
-    <div className="label-mono !text-[8px] ink-4">{label}</div>
-    <div className="text-[12px] font-semibold truncate" style={{ color: tone }}>
-      {value}
-    </div>
-  </div>
-);
-
 function Metric({
   label,
   value,
@@ -521,7 +496,7 @@ function Bars({ values, tone }: { values: number[]; tone: string }) {
 function SectionRail({ labs, glow }: { labs: { id: string; done: boolean }[]; glow: string }) {
   if (labs.length === 0) return null;
   return (
-    <div className="flex items-center gap-0 mt-4">
+    <div className="flex items-center gap-0">
       {labs.map((l, i) => (
         <React.Fragment key={l.id}>
           {i > 0 && (

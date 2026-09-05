@@ -300,10 +300,12 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
   return (
     <div className="bg-scene bg-mesh min-h-full px-4 py-8 md:px-8">
       <div className="max-w-6xl mx-auto">
-        <header className="a-rise flex flex-wrap items-end justify-between gap-4 mb-6">
+        <header className="pb-4 mb-6 border-b flex flex-wrap items-end justify-between gap-4"
+          style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}>
           <div>
-            <h1 className="h-display text-4xl md:text-5xl text-grad">Character Creator</h1>
-            <p className="text-sm ink-2 mt-2">
+            <div className="label-mono mb-1.5">Appearance</div>
+            <h1 className="h-section text-[22px] md:text-[26px] ink-1">Character Creator</h1>
+            <p className="text-[13px] ink-2 mt-1.5">
               Build your operative. Drag the figure to spin it.
             </p>
           </div>

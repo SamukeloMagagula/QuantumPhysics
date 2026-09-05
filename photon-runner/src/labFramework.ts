@@ -60,7 +60,7 @@ export function mountLab(container: HTMLElement, lab: Lab, store: ProgressStore,
       explainZone.replaceChildren(
         el('h3', { class: 'text-base font-bold ink-1' }, 'Why it worked & how to defend'),
         el('div', { class: 'prose-room', html: lab.explain() }),
-        el('p', { class: DONE_TEXT }, '✅ Lab complete.')
+        el('p', { class: DONE_TEXT }, 'Lab complete')
       );
       store.markComplete(lab.id);
       onComplete?.(lab.id);

@@ -105,7 +105,7 @@ const lab: Lab = {
           el(
             'div',
             { class: `font-bold mt-1 ${textColorClass}` },
-            r.detected ? '🚨 Eavesdropper detected — abort and rekey!' : '✅ Channel clean — safe to keep the key.'
+            r.detected ? 'Eavesdropper detected — abort and rekey.' : 'Channel clean — safe to keep the key.'
           )
         )
       );

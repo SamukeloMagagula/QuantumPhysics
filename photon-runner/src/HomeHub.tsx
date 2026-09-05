@@ -11,12 +11,10 @@ import {
   Radio,
   Shield,
   Sparkles,
-  UserRound,
-  Users,
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 import { getCompletedScenes } from './campaignProgress';
-import { useTilt } from './useTilt';
+import { Card, Page, PageHeader, Section, Tag } from './ui/Page';
 
 export type ModeId =
   | 'campus'
@@ -39,162 +37,99 @@ interface ModeCard {
   tag: string;
   blurb: string;
   Icon: React.ComponentType<{ size?: number }>;
-  glow: string;
 }
 
 const FEATURED: ModeCard = {
   id: 'qkd-attack',
   title: 'Phantom Q Headquarters',
-  tag: 'Hacking sim · walk-in HQ',
+  tag: 'Hacking simulation · walk-in HQ',
   blurb:
-    'Walk the Phantom Q operations floor and step up to a console. You are Eve on a fibre BB84 link: tap the communications desk, find the countermeasure the target is missing, and build an attack out of what it cannot see — photon-number splitting, detector blinding, a trojan probe. Then read the headquarters status wall and work out who was listening.',
+    'Walk the operations floor and step up to a console. You are Eve on a fibre BB84 link: tap the ' +
+    'communications desk, find the countermeasure the target is missing, and build an attack out of what it ' +
+    'cannot see. Then read the status wall and work out who was listening.',
   Icon: Eye,
-  glow: '#fb7185',
 };
 
-const MODES: ModeCard[] = [
+/**
+ * The hub, grouped by what you are actually there to do.
+ *
+ * It used to be one flat grid of eight cards under a 96px wordmark, each card
+ * a different colour for no reason anyone could state. Grouping is what makes
+ * a hub navigable: you arrive knowing whether you want to learn something,
+ * practise something, or play with someone else, and the page is organised
+ * around that question rather than around the order the modes were built in.
+ */
+const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
   {
-    id: 'campus',
-    title: 'Research Campus',
-    tag: 'Explore · 3D hub',
-    blurb:
-      'Walk the grounds outside the facility — Quantum Lab, Security, the Research Lab, the Server Room — and step through a door to open that world.',
-    Icon: Building2,
-    glow: '#34d399',
+    title: 'Learn',
+    description: 'Guided material, worked through in order.',
+    modes: [
+      {
+        id: 'campaign',
+        title: 'Quantum Breach',
+        tag: 'Story campaign · single-player',
+        blurb:
+          'Symmetric and asymmetric cryptography the hard way — watch a shared key get intercepted, then a public key get spoofed.',
+        Icon: Lock,
+      },
+      {
+        id: 'rooms',
+        title: 'Symmetric Cryptography',
+        tag: 'Four-room learning path',
+        blurb: 'Caesar, brute force, frequency analysis, XOR and one-time pads. Points, badges and a leaderboard.',
+        Icon: BookOpen,
+      },
+      {
+        id: 'labs',
+        title: 'Security Labs',
+        tag: 'Ten labs · six section tests',
+        blurb:
+          'Carry out real scaled-down attacks — injection, phishing, denial of service, RSA — then sit the section test.',
+        Icon: FlaskConical,
+      },
+    ],
   },
   {
-    id: 'campaign',
-    title: 'Quantum Breach',
-    tag: 'Story campaign · single-player',
-    blurb:
-      'Learn symmetric and asymmetric cryptography the hard way — watch a shared key get intercepted, then a public key get spoofed — before you walk into a real BB84 exchange as Alice, Bob, or Eve.',
-    Icon: Lock,
-    glow: '#818cf8',
+    title: 'Explore and practise',
+    description: 'Open environments and short rounds.',
+    modes: [
+      {
+        id: 'campus',
+        title: 'Research Campus',
+        tag: 'Explore · 3D hub',
+        blurb: 'Walk the grounds outside the facility and step through a door to open that world.',
+        Icon: Building2,
+      },
+      {
+        id: 'quantum',
+        title: 'Quantum 3D Lab',
+        tag: 'Sandbox',
+        blurb: 'An optical bench you can touch — polarisation, superposition, and a live intercept readout.',
+        Icon: Sparkles,
+      },
+      {
+        id: 'defender',
+        title: 'Network Defender',
+        tag: 'Arcade round',
+        blurb: 'Hold the perimeter as intrusions escalate. A short reflex round between runs.',
+        Icon: Shield,
+      },
+    ],
   },
   {
-    id: 'qkd-multiplayer',
-    title: 'Quantum Intercept',
-    tag: 'Multiplayer · 2-3 players',
-    blurb: 'A real BB84 key exchange over the network — Alice sends, Bob receives, Eve secretly taps the line.',
-    Icon: Radio,
-    glow: '#60a5fa',
-  },
-  {
-    id: 'rooms',
-    title: 'Symmetric Cryptography',
-    tag: '4-room learning path',
-    blurb: 'Content-driven rooms that build on each other — Caesar, brute force, frequency analysis, XOR/OTP. Points, badges, leaderboard.',
-    Icon: BookOpen,
-    glow: '#22d3ee',
-  },
-  {
-    id: 'quantum',
-    title: 'Quantum 3D Lab',
-    tag: 'Sandbox',
-    blurb: 'An optical bench you can touch — polarization, superposition, and a live intercept readout.',
-    Icon: Sparkles,
-    glow: '#fbbf24',
-  },
-  {
-    id: 'labs',
-    title: 'Security Labs',
-    tag: '8 hands-on labs',
-    blurb: 'Carry out real scaled-down attacks: SQLi, XSS, phishing, RSA, password cracking, evil twin.',
-    Icon: FlaskConical,
-    glow: '#a78bfa',
-  },
-  {
-    id: 'defender',
-    title: 'Network Defender',
-    tag: 'Arcade',
-    blurb: 'Hold the perimeter as intrusions escalate. A short reflex round between runs.',
-    Icon: Shield,
-    glow: '#34d399',
-  },
-  {
-    id: 'customize',
-    title: 'Character Creator',
-    tag: 'Appearance',
-    blurb: 'Skin, hair, build, outfits and gear. Your operative carries into every mode.',
-    Icon: Palette,
-    glow: '#f472b6',
+    title: 'Multiplayer',
+    description: 'Played against other people, over the network.',
+    modes: [
+      {
+        id: 'qkd-multiplayer',
+        title: 'Quantum Intercept',
+        tag: 'Two to three players',
+        blurb: 'A real BB84 key exchange over the network — Alice sends, Bob receives, Eve secretly taps the line.',
+        Icon: Radio,
+      },
+    ],
   },
 ];
-
-/** A mode card with a mouse-tracked 3D tilt — split out from the MODES.map()
- * loop because useTilt() is a hook and hooks can't run inside a loop body. */
-function ModeCardButton({
-  mode,
-  tag,
-  index,
-  showComplete,
-  onOpen,
-}: {
-  mode: ModeCard;
-  tag: string;
-  index: number;
-  showComplete: boolean;
-  onOpen: (id: ModeId) => void;
-}) {
-  const tilt = useTilt(7);
-  return (
-    <button
-      ref={tilt.ref as React.RefObject<HTMLButtonElement>}
-      onClick={() => onOpen(mode.id)}
-      onPointerMove={tilt.onPointerMove}
-      onPointerLeave={tilt.onPointerLeave}
-      style={{ ['--glow' as string]: mode.glow, ['--i' as string]: index + 1 }}
-      className="card sheen glass group rounded-[22px] p-5 text-left flex flex-col gap-3 min-h-[204px]"
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className="grid place-items-center w-11 h-11 rounded-2xl transition-transform duration-300 group-hover:scale-110"
-          style={{ background: `color-mix(in oklab, ${mode.glow} 15%, transparent)`, color: mode.glow }}
-        >
-          <mode.Icon size={21} />
-        </span>
-        {showComplete && (
-          <span className="shrink-0" style={{ color: 'var(--ok)' }}>
-            <Check size={14} />
-          </span>
-        )}
-      </div>
-
-      <div>
-        <h3 className="h-section text-base ink-1">{mode.title}</h3>
-        <div className="label-mono !text-[9px] mt-0.5">{tag}</div>
-      </div>
-
-      <p className="text-xs ink-3 leading-relaxed flex-1">{mode.blurb}</p>
-
-      <span className="text-[11px] ink-4 group-hover:ink-1 transition-colors flex items-center gap-1">
-        Open <ArrowRight size={11} />
-      </span>
-    </button>
-  );
-}
-
-function PhotonRail() {
-  return (
-    <div className="relative h-px w-full max-w-md mx-auto my-5 overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(90deg, transparent, color-mix(in oklab, var(--accent) 55%, transparent), transparent)' }}
-      />
-      {[0, 0.95, 1.9].map((d, i) => (
-        <span
-          key={i}
-          className="a-streak absolute top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full"
-          style={{
-            animationDelay: `${d}s`,
-            background: 'var(--accent)',
-            boxShadow: '0 0 12px 3px color-mix(in oklab, var(--accent) 70%, transparent)',
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
 export function HomeHub({ onOpen }: HomeHubProps) {
   const you = getAppearance();
@@ -202,118 +137,123 @@ export function HomeHub({ onOpen }: HomeHubProps) {
   const campaignTag = !campaignDone.includes('scene1')
     ? 'Story campaign · single-player'
     : !campaignDone.includes('scene2')
-    ? 'Continue · Scene 2 of 3'
-    : 'Completed · replay anytime';
+    ? 'Continue · scene 2 of 3'
+    : 'Completed · replay any time';
 
   return (
-    <div className="bg-scene bg-mesh min-h-full px-4 py-12 md:px-8 md:py-16">
-      <div className="max-w-6xl mx-auto">
-        <header className="a-rise text-center mb-11">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-mono tracking-[0.16em] uppercase mb-6"
-            style={{
-              border: '1px solid color-mix(in oklab, var(--accent) 30%, transparent)',
-              background: 'color-mix(in oklab, var(--accent) 8%, transparent)',
-              color: 'var(--accent)',
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-            BB84 quantum cryptography
-          </div>
+    <Page width="wide">
+      <PageHeader
+        eyebrow="BB84 quantum cryptography"
+        title="Quantum Lab"
+        description="Learn how quantum key distribution actually works by playing it — as the sender, the receiver, or the spy that physics gives away."
+      />
 
-          <h1 className="h-display text-6xl md:text-8xl text-grad">QUANTUM LAB</h1>
-          <PhotonRail />
-          <p className="text-sm md:text-base ink-2 max-w-xl mx-auto leading-relaxed">
-            Learn how quantum key distribution actually works by playing it — as the sender, the
-            receiver, or the spy that physics gives away.
-          </p>
-        </header>
-
-        {/* -------- featured -------- */}
+      <Section title="Main game" description="Start here.">
         <button
           onClick={() => onOpen(FEATURED.id)}
-          style={{ ['--glow' as string]: FEATURED.glow }}
-          className="a-pop card sheen glass group w-full text-left rounded-[28px] p-6 md:p-9 mb-4"
+          className="card panel w-full rounded-xl p-5 text-left"
         >
-          <div className="flex flex-col md:flex-row md:items-center gap-6">
-            <div
-              className="a-float grid place-items-center w-20 h-20 rounded-3xl shrink-0"
-              style={{ background: `color-mix(in oklab, ${FEATURED.glow} 16%, transparent)`, color: FEATURED.glow }}
-            >
-              <FEATURED.Icon size={38} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2.5 mb-2">
-                <span
-                  className="text-[10px] font-mono font-bold px-2 py-1 rounded-md tracking-wider"
-                  style={{
-                    background: `color-mix(in oklab, ${FEATURED.glow} 16%, transparent)`,
-                    color: FEATURED.glow,
-                    border: `1px solid color-mix(in oklab, ${FEATURED.glow} 30%, transparent)`,
-                  }}
-                >
-                  MAIN GAME
-                </span>
-                <span className="label-mono !tracking-[.14em]">{FEATURED.tag}</span>
-              </div>
-              <h2 className="h-section text-3xl md:text-4xl ink-1 mb-2">{FEATURED.title}</h2>
-              <p className="text-sm ink-2 leading-relaxed max-w-2xl">{FEATURED.blurb}</p>
-            </div>
-
+          <div className="flex flex-col md:flex-row md:items-center gap-5">
             <span
-              className="btn btn-primary px-6 py-3 text-sm shrink-0 self-start md:self-center"
-              style={{ ['--glow' as string]: FEATURED.glow }}
+              className="grid place-items-center w-12 h-12 rounded-xl shrink-0"
+              style={{ background: 'color-mix(in oklab, var(--accent) 14%, transparent)', color: 'var(--accent)' }}
             >
-              Play <ArrowRight size={15} />
+              <FEATURED.Icon size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <Tag tone="var(--accent)">Main game</Tag>
+                <span className="label-mono !text-[9px]">{FEATURED.tag}</span>
+              </div>
+              <h2 className="h-section text-lg ink-1">{FEATURED.title}</h2>
+              <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{FEATURED.blurb}</p>
+            </div>
+            <span className="btn btn-primary px-4 py-2 text-sm shrink-0 self-start md:self-center">
+              Play <ArrowRight size={14} />
             </span>
           </div>
         </button>
+      </Section>
 
-        {/* -------- modes -------- */}
-        <div className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MODES.map((m, i) => {
-            const isCampaign = m.id === 'campaign';
-            const tag = isCampaign ? campaignTag : m.tag;
-            const campaignComplete = isCampaign && campaignDone.length === 2;
-            return (
-              <ModeCardButton
-                key={m.id}
-                mode={m}
-                tag={tag}
-                index={i}
-                showComplete={campaignComplete}
-                onOpen={onOpen}
-              />
-            );
-          })}
-        </div>
+      {GROUPS.map((group) => (
+        <Section key={group.title} title={group.title} description={group.description}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {group.modes.map((mode) => {
+              const isCampaign = mode.id === 'campaign';
+              return (
+                <ModeCard
+                  key={mode.id}
+                  mode={mode}
+                  tag={isCampaign ? campaignTag : mode.tag}
+                  complete={isCampaign && campaignDone.length === 2}
+                  onOpen={onOpen}
+                />
+              );
+            })}
+          </div>
+        </Section>
+      ))}
 
-        {/* -------- your operative -------- */}
+      <Section title="Your operative" description="Carried into every mode.">
         <button
           onClick={() => onOpen('customize')}
-          style={{ ['--glow' as string]: you.accentColor }}
-          className="a-rise card glass mt-4 w-full rounded-[22px] px-5 py-4 flex items-center gap-4 text-left"
+          className="card panel w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left"
         >
           <span
-            className="grid place-items-center w-11 h-11 rounded-full shrink-0 border"
+            className="w-9 h-9 rounded-full shrink-0 border"
             style={{ background: you.skinTone, borderColor: 'rgb(var(--glass-border)/.35)' }}
-          >
-            <UserRound size={18} style={{ color: 'rgba(0,0,0,.55)' }} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold ink-1 truncate">
-              {you.nickname.trim() || 'Unnamed operative'}
-            </div>
-            <div className="label-mono !text-[9px] truncate mt-0.5">
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-semibold ink-1 truncate">
+              {you.nickname?.trim() || 'Unnamed operative'}
+            </span>
+            <span className="label-mono !text-[9px] block mt-0.5">
               {you.build} · {you.hairStyle} · {you.outfit}
-            </div>
-          </div>
-          <span className="text-[11px] ink-4 flex items-center gap-1 shrink-0">
-            Edit <ArrowRight size={11} />
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] ink-3 shrink-0">
+            <Palette size={12} /> Edit
           </span>
         </button>
+      </Section>
+    </Page>
+  );
+}
+
+function ModeCard({
+  mode,
+  tag,
+  complete,
+  onOpen,
+}: {
+  mode: ModeCard;
+  tag: string;
+  complete: boolean;
+  onOpen: (id: ModeId) => void;
+}) {
+  return (
+    <Card as="button" onClick={() => onOpen(mode.id)}>
+      <div className="flex items-start justify-between gap-3">
+        <span
+          className="grid place-items-center w-9 h-9 rounded-lg shrink-0"
+          style={{ background: 'color-mix(in oklab, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
+        >
+          <mode.Icon size={17} />
+        </span>
+        {complete && (
+          <span style={{ color: 'var(--ok)' }}>
+            <Check size={14} />
+          </span>
+        )}
       </div>
-    </div>
+
+      <h3 className="text-[14px] font-semibold ink-1 mt-3">{mode.title}</h3>
+      <div className="label-mono !text-[9px] mt-1">{tag}</div>
+      <p className="text-[12px] ink-3 leading-relaxed mt-2 flex-1">{mode.blurb}</p>
+
+      <span className="text-[11px] ink-4 flex items-center gap-1 mt-3">
+        Open <ArrowRight size={11} />
+      </span>
+    </Card>
   );
 }

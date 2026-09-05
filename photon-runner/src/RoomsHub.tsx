@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Award, Check, Lock, Trophy } from 'lucide-react';
+import { ArrowRight, Check, Lock, Trophy } from 'lucide-react';
+import { Meta, Page, PageHeader, ProgressBar, Section } from './ui/Page';
 
 interface RoomCard {
   id: string;
@@ -75,57 +76,50 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
   const nextIdx = data.rooms.findIndex((r) => !r.completed);
 
   return (
-    <div className="bg-scene bg-mesh min-h-full px-4 py-10 md:px-8">
-      <div className="max-w-5xl mx-auto space-y-7">
-        <header className="a-rise">
-          <h1 className="h-display text-4xl md:text-5xl text-grad">{data.path.title}</h1>
-          <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">{data.path.description}</p>
-
-          <div className="mt-5 glass rounded-2xl p-4 flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex justify-between text-[11px] mb-2">
-                <span className="ink-3">Progress</span>
-                <span className="font-bold">
-                  {done} / {data.rooms.length}
-                </span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgb(var(--glass-tint)/.12)' }}>
-                <div
-                  className="h-full rounded-full transition-[width] duration-700 ease-out"
-                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' }}
-                />
-              </div>
-            </div>
-            <div className="h-section text-3xl ink-1 tabular-nums shrink-0">{pct}%</div>
-          </div>
-
-          <button
-            onClick={onOpenLeaderboard}
-            className="btn btn-ghost mt-4 px-4 py-2 text-xs inline-flex items-center gap-1.5"
-          >
+    <Page width="wide">
+      <PageHeader
+        eyebrow="Learning path"
+        title={data.path.title}
+        description={data.path.description}
+        actions={
+          <button onClick={onOpenLeaderboard} className="btn btn-ghost px-3 py-2 text-xs">
             <Trophy size={13} /> Leaderboard
           </button>
-        </header>
+        }
+        meta={
+          <>
+            <Meta label="Rooms completed" value={`${done} of ${data.rooms.length}`} />
+            <Meta label="Progress" value={`${pct}%`} tone={pct === 100 ? 'var(--ok)' : undefined} />
+            <div className="flex-1 min-w-[140px]">
+              <ProgressBar percent={pct} />
+            </div>
+          </>
+        }
+      />
 
+      <div className="space-y-7">
         {badges.length > 0 && (
-          <section className="a-rise glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
-            <span className="label-mono flex items-center gap-1.5">
-              <Award size={13} /> Badges
-            </span>
-            {badges.map((b) => (
-              <span
-                key={b.id}
-                title={b.name}
-                className="text-[11px] font-mono px-2 py-1 rounded-md"
-                style={{ background: 'rgb(var(--glass-tint)/.14)' }}
-              >
-                {b.icon} {b.name}
-              </span>
-            ))}
-          </section>
+          <Section title="Badges" description="Earned as you finish rooms.">
+            <div className="panel rounded-xl p-3 flex flex-wrap items-center gap-2">
+              {badges.map((b) => (
+                <span
+                  key={b.id}
+                  title={b.name}
+                  className="text-[11px] font-mono px-2 py-1 rounded border"
+                  style={{
+                    background: 'rgb(var(--glass-tint)/.1)',
+                    borderColor: 'rgb(var(--glass-border)/.2)',
+                  }}
+                >
+                  {b.name}
+                </span>
+              ))}
+            </div>
+          </Section>
         )}
 
-        <div className="stagger grid gap-3 sm:grid-cols-2">
+        <Section title="Rooms" description="Each one unlocks the next.">
+        <div className="grid gap-3 sm:grid-cols-2 items-stretch">
           {data.rooms.map((room, i) => {
             const locked = i > 0 && !data.rooms[i - 1].completed;
             const isNext = i === nextIdx;
@@ -135,11 +129,11 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
                 key={room.id}
                 onClick={() => !locked && onOpenRoom(room.id)}
                 disabled={locked}
-                style={{ ['--glow' as string]: tone, ['--i' as string]: i, opacity: locked ? 0.55 : 1 }}
-                className="card sheen glass group rounded-[18px] p-4 text-left disabled:cursor-not-allowed"
+                style={{ opacity: locked ? 0.5 : 1 }}
+                className="panel card rounded-xl p-4 h-full flex flex-col text-left disabled:cursor-not-allowed"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-sm font-semibold ink-1">{room.title}</div>
+                  <div className="text-[14px] font-semibold ink-1">{room.title}</div>
                   {room.completed ? (
                     <span className="shrink-0" style={{ color: 'var(--ok)' }}>
                       <Check size={14} />
@@ -150,8 +144,8 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
                     </span>
                   ) : null}
                 </div>
-                <p className="text-xs ink-3 mt-1.5 leading-relaxed">{room.summary}</p>
-                <div className="flex items-center gap-2 mt-2.5">
+                <p className="text-[12px] ink-3 mt-1.5 leading-relaxed flex-1">{room.summary}</p>
+                <div className="flex items-center gap-2 mt-3">
                   <span
                     className="text-[10px] font-mono px-2 py-0.5 rounded-md border"
                     style={{
@@ -173,7 +167,8 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
             );
           })}
         </div>
+        </Section>
       </div>
-    </div>
+    </Page>
   );
 }

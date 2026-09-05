@@ -52,7 +52,8 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
         <header className="a-rise flex items-start justify-between gap-4">
           <div>
             <div className="label-mono mb-2">Quantum Breach · Scene 2 of 3</div>
-            <h1 className="h-display text-4xl md:text-5xl text-grad">Asymmetric Cryptography</h1>
+            <div className="label-mono mb-1.5">Quantum Breach</div>
+            <h1 className="h-section text-[22px] md:text-[26px] ink-1">Asymmetric Cryptography</h1>
             <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">You can share the lock.</p>
           </div>
           <button onClick={onExit} className="btn btn-ghost px-4 py-2 text-xs shrink-0">
