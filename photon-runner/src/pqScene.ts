@@ -176,7 +176,9 @@ export const LAYER_FILES: Record<string, string> = {
  * wall is where error rates surface, and the coordination table is the
  * bench you work at.
  */
-export type StationKind = 'attack' | 'forensics' | 'campaign' | 'rack';
+/** `badge` is not a terminal: it is the reception kiosk that registers your
+ * trainee access card and unlocks the secured wings of the facility map. */
+export type StationKind = 'attack' | 'forensics' | 'campaign' | 'rack' | 'badge';
 
 export interface Hotspot {
   id: string;
@@ -297,7 +299,20 @@ const PROBE_COUNT = 12;
  */
 export interface FloorGeometry {
   walk: Poly;
+  /**
+   * Further walkable regions, unioned with `walk`. A single traced outline
+   * cannot describe a floor of many rooms joined by doorways without also
+   * tracing every wall as an obstacle; a room per polygon plus a small
+   * connector polygon per doorway can, and the doorways stay editable.
+   */
+  walks?: Poly[];
   obstacles: Poly[];
+}
+
+function onFloor(floor: FloorGeometry, x: number, y: number): boolean {
+  if (pointInPoly(x, y, floor.walk)) return true;
+  if (floor.walks) for (const w of floor.walks) if (pointInPoly(x, y, w)) return true;
+  return false;
 }
 
 /** The operations floor, traced from the illustration. */
@@ -323,13 +338,13 @@ export function canStandOn(
   rx = BODY_RADIUS.x,
   ry = BODY_RADIUS.y,
 ): boolean {
-  if (!pointInPoly(x, y, floor.walk)) return false;
+  if (!onFloor(floor, x, y)) return false;
   for (const ob of floor.obstacles) if (pointInPoly(x, y, ob)) return false;
   for (let i = 0; i < PROBE_COUNT; i++) {
     const a = (i / PROBE_COUNT) * Math.PI * 2;
     const px = x + Math.cos(a) * rx;
     const py = y + Math.sin(a) * ry;
-    if (!pointInPoly(px, py, floor.walk)) return false;
+    if (!onFloor(floor, px, py)) return false;
     for (const ob of floor.obstacles) if (pointInPoly(px, py, ob)) return false;
   }
   return true;

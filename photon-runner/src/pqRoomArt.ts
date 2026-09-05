@@ -1,4 +1,4 @@
-import { IsoView, isoDepth, isoPx } from './pqIso';
+import { IsoView, depthOf, isoPx } from './pqIso';
 import { SCENE_H, SCENE_W } from './pqScene';
 import { Prop, RoomSpec, propHeight } from './pqRooms';
 
@@ -153,8 +153,54 @@ class Brush {
     const C0 = this.p(x + w, y + d, z);
     const D0 = this.p(x, y + d, z);
     this.quad([D, C, C0, D0], shade(colour, FACE_Y), line);
-    this.quad([B, C, C0, B0], shade(colour, FACE_X), line);
+    // Seen from the front, a box shows no side face worth drawing.
+    if (this.view.mode !== 'plan') this.quad([B, C, C0, B0], shade(colour, FACE_X), line);
     this.quad([A, B, C, D], colour, line);
+  }
+
+  /**
+   * A flat label floating over the floor, in screen space — the room name
+   * plaques of the facility drawing, and the padlock badges over its shut
+   * doors. Not sheared into the projection on purpose: they are captions on
+   * the picture, not paint on a wall.
+   */
+  billboard(x: number, y: number, z: number, text: string, opts: { pad?: number; size?: number; fill?: string; ink?: string; glyph?: boolean } = {}): void {
+    const { ctx } = this;
+    const c = this.p(x, y, z);
+    const size = (opts.size ?? 0.42) * this.m;
+    ctx.save();
+    ctx.font = `700 ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tw = opts.glyph ? size * 1.1 : ctx.measureText(text).width;
+    const padX = (opts.pad ?? 0.6) * size;
+    const padY = 0.55 * size;
+    const bw = tw + padX * 2;
+    const bh = size + padY * 2;
+    ctx.beginPath();
+    ctx.roundRect(c[0] - bw / 2, c[1] - bh / 2, bw, bh, size * 0.35);
+    ctx.fillStyle = opts.fill ?? this.pal.accent;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = Math.max(1, size * 0.06);
+    ctx.stroke();
+    if (opts.glyph) {
+      // A padlock: shackle over a body.
+      const g = size * 0.62;
+      ctx.strokeStyle = opts.ink ?? '#ffffff';
+      ctx.lineWidth = Math.max(1.2, g * 0.16);
+      ctx.beginPath();
+      ctx.arc(c[0], c[1] - g * 0.25, g * 0.32, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = opts.ink ?? '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(c[0] - g * 0.5, c[1] - g * 0.2, g, g * 0.75, g * 0.12);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = opts.ink ?? '#ffffff';
+      ctx.fillText(text, c[0], c[1] + size * 0.04);
+    }
+    ctx.restore();
   }
 
   /** The top face alone — for anything laid flat on a surface. */
@@ -173,7 +219,8 @@ class Brush {
     ctx.save();
     ctx.translate(c[0], c[1]);
     ctx.beginPath();
-    ctx.ellipse(0, 0, r * this.view.tx * this.s * 1.414, r * this.view.ty * this.s * 1.414, 0, 0, Math.PI * 2);
+    const k = this.view.mode === 'plan' ? 1 : 1.414;
+    ctx.ellipse(0, 0, r * this.view.tx * this.s * k, r * this.view.ty * this.s * k, 0, 0, Math.PI * 2);
     ctx.fillStyle = colour;
     ctx.fill();
     if (outline) {
@@ -201,15 +248,22 @@ class Brush {
     heightM: number,
     colour: string,
   ): void {
-    const { ctx, view, s } = this;
+    const { ctx } = this;
     const K = 100;
     const origin = wall === 'right' ? this.p(u, 0, z) : this.p(0, u, z);
+    // One metre along the wall and one metre down it, as screen vectors —
+    // whatever the projection.
+    const along = wall === 'right' ? this.p(u + 1, 0, z) : this.p(0, u - 1, z);
+    const down = wall === 'right' ? this.p(u, 0, z - 1) : this.p(0, u, z - 1);
     ctx.save();
-    if (wall === 'right') {
-      ctx.setTransform((view.tx * s) / K, (view.ty * s) / K, 0, (view.tz * s) / K, origin[0], origin[1]);
-    } else {
-      ctx.setTransform((view.tx * s) / K, (-view.ty * s) / K, 0, (view.tz * s) / K, origin[0], origin[1]);
-    }
+    ctx.setTransform(
+      (along[0] - origin[0]) / K,
+      (along[1] - origin[1]) / K,
+      (down[0] - origin[0]) / K,
+      (down[1] - origin[1]) / K,
+      origin[0],
+      origin[1],
+    );
     ctx.font = `700 ${heightM * K}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -308,7 +362,81 @@ export function doorSignHalfSpan(width: number, label: string): number {
   return Math.max(width / 2 + 0.2, span / 2 + 0.25);
 }
 
+/**
+ * The building seen in plan: a full-height back wall, thin side walls
+ * leaning out with the perspective, and a low front wall with windows —
+ * cut away wherever an annex (the entrance walkway) meets it.
+ */
+function paintShell(b: Brush, spec: RoomSpec): void {
+  const { pal } = b;
+  const { w, d } = spec;
+  const H = spec.wall;
+  const low = 1.35;
+  b.box(-WALL_T, -WALL_T, 0, w + WALL_T * 2, WALL_T, H, pal.wall);
+  b.box(-WALL_T, -WALL_T, 0, WALL_T, d + WALL_T * 2, H * 0.55, pal.wall);
+  b.box(w, -WALL_T, 0, WALL_T, d + WALL_T * 2, H * 0.55, pal.wall);
+  b.box(-WALL_T - 0.05, -WALL_T - 0.05, H, w + WALL_T * 2 + 0.1, WALL_T + 0.1, 0.16, pal.cap);
+  b.quad([b.p(0, 0, 0.13), b.p(w, 0, 0.13), b.p(w, 0, 0), b.p(0, 0, 0)], pal.skirt);
+  for (const door of spec.doors) paintDoorway(b, door.wall, door.at, door.width ?? 1.6, door.label);
+
+  // Front wall, in segments between the annexes.
+  const cuts = (spec.annex ?? []).map((a) => [a.x, a.x + a.w] as const).sort((p, q) => p[0] - q[0]);
+  let x0 = -WALL_T;
+  const segs: [number, number][] = [];
+  for (const [c0, c1] of cuts) {
+    if (c0 > x0) segs.push([x0, c0]);
+    x0 = c1;
+  }
+  if (x0 < w + WALL_T) segs.push([x0, w + WALL_T]);
+  for (const [a, c] of segs) {
+    b.box(a, d, 0, c - a, WALL_T, low, pal.wall);
+    b.box(a - 0.03, d - 0.03, low, c - a + 0.06, WALL_T + 0.06, 0.12, pal.cap);
+    // Windows along the run.
+    const span = c - a;
+    const n = Math.max(1, Math.floor(span / 3.2));
+    for (let i = 0; i < n; i++) {
+      const wx = a + (span / n) * i + (span / n) * 0.18;
+      const ww = (span / n) * 0.64;
+      b.quad(
+        [b.p(wx, d + WALL_T, low - 0.18), b.p(wx + ww, d + WALL_T, low - 0.18), b.p(wx + ww, d + WALL_T, 0.35), b.p(wx, d + WALL_T, 0.35)],
+        '#a9cfe0',
+        shade(pal.wall, 0.6),
+      );
+    }
+  }
+  // The annex floor itself, as paving outside the building.
+  for (const a of spec.annex ?? []) {
+    b.slabTop(a.x, a.y, 0, a.w, a.d, shade(pal.floor, 0.97), pal.grout);
+    b.quad([b.p(a.x, a.y + a.d, 0), b.p(a.x + a.w, a.y + a.d, 0), b.p(a.x + a.w, a.y + a.d, -SLAB), b.p(a.x, a.y + a.d, -SLAB)], shade(pal.slab, FACE_Y));
+    const T = 1.5;
+    b.ctx.save();
+    b.ctx.strokeStyle = pal.grout;
+    b.ctx.lineWidth = Math.max(0.5, b.m * 0.008);
+    for (let i = 1; i * T < a.w; i++) {
+      const s0 = b.p(a.x + i * T, a.y);
+      const s1 = b.p(a.x + i * T, a.y + a.d);
+      b.ctx.beginPath();
+      b.ctx.moveTo(s0[0], s0[1]);
+      b.ctx.lineTo(s1[0], s1[1]);
+      b.ctx.stroke();
+    }
+    for (let j = 1; j * T < a.d; j++) {
+      const s0 = b.p(a.x, a.y + j * T);
+      const s1 = b.p(a.x + a.w, a.y + j * T);
+      b.ctx.beginPath();
+      b.ctx.moveTo(s0[0], s0[1]);
+      b.ctx.lineTo(s1[0], s1[1]);
+      b.ctx.stroke();
+    }
+    b.ctx.restore();
+  }
+}
+
 function paintWalls(b: Brush, spec: RoomSpec): void {
+  if (b.view.mode === 'plan') {
+    paintShell(b, spec);
+    return;
+  }
   const { pal } = b;
   const { w, d } = spec;
   const H = spec.wall;
@@ -584,6 +712,37 @@ function paintProp(b: Brush, p: Prop): void {
       drawChair(b, p.x, p.y, p.w, p.d, p.face ?? 3);
       break;
 
+    case 'wall':
+      b.box(p.x, p.y, 0, p.w, p.d, h, pal.wall);
+      b.box(p.x - 0.03, p.y - 0.03, h, p.w + 0.06, p.d + 0.06, 0.12, pal.cap, false);
+      break;
+
+    case 'door':
+    case 'lockdoor': {
+      // A door leaf standing in its opening, drawn a little shorter than
+      // the wall so the lintel above it reads. Padlocks are added in the
+      // caption pass, over everything.
+      const leaf = '#7a5c3f';
+      const across = p.w >= p.d;
+      b.box(p.x, p.y, 0, p.w, p.d, h, leaf);
+      if (across) {
+        b.quad(
+          [b.p(p.x + 0.25, p.y + p.d, h - 0.35), b.p(p.x + p.w / 2 - 0.06, p.y + p.d, h - 0.35), b.p(p.x + p.w / 2 - 0.06, p.y + p.d, h - 0.9), b.p(p.x + 0.25, p.y + p.d, h - 0.9)],
+          '#8fb7c9',
+        );
+        b.quad(
+          [b.p(p.x + p.w / 2 + 0.06, p.y + p.d, h - 0.35), b.p(p.x + p.w - 0.25, p.y + p.d, h - 0.35), b.p(p.x + p.w - 0.25, p.y + p.d, h - 0.9), b.p(p.x + p.w / 2 + 0.06, p.y + p.d, h - 0.9)],
+          '#8fb7c9',
+        );
+      }
+      b.box(p.x - 0.08, p.y - 0.08, h, p.w + 0.16, p.d + 0.16, 0.1, shade(pal.wall, 0.7), false);
+      break;
+    }
+
+    case 'plaque':
+      // Deferred to the caption pass.
+      break;
+
     case 'kiosk':
       b.box(p.x + p.w * 0.25, p.y + p.d * 0.25, 0, p.w * 0.5, p.d * 0.5, h - 0.34, METAL, false);
       b.box(p.x, p.y, h - 0.34, p.w, p.d, 0.34, PANEL);
@@ -690,12 +849,23 @@ export function paintRoom(
   paintWalls(b, spec);
 
   // Wall fittings hang on the walls that were just drawn; floor furniture is
-  // sorted far to near so nearer pieces lap the ones behind them.
-  const onWall = (p: Prop) => (p.z ?? 0) > 0 || p.kind === 'entrance';
+  // sorted far to near so nearer pieces lap the ones behind them. In plan
+  // the partition walls are furniture too, and a screen hung on one has to
+  // wait for its wall, so everything goes through the one depth sort.
+  const plan = view.mode === 'plan';
+  const onWall = (p: Prop) => !plan && ((p.z ?? 0) > 0 || p.kind === 'entrance');
   for (const p of spec.props) if (p.kind !== 'rug' && onWall(p)) paintProp(b, p);
-  const standing = spec.props.filter((p) => p.kind !== 'rug' && !onWall(p));
-  standing.sort((a, c) => isoDepth(a.x, a.y, a.w, a.d) - isoDepth(c.x, c.y, c.w, c.d));
+  const standing = spec.props.filter((p) => p.kind !== 'rug' && p.kind !== 'plaque' && !onWall(p));
+  standing.sort((a, c) => depthOf(view, a.x, a.y, a.w, a.d) - depthOf(view, c.x, c.y, c.w, c.d));
   for (const p of standing) paintProp(b, p);
+
+  // Captions over everything: room plaques and the padlocks on shut doors.
+  for (const p of spec.props) {
+    if (p.kind === 'plaque') b.billboard(p.x, p.y, 0.4, p.text ?? '', { size: plan ? 0.72 : 0.42 });
+    if (p.kind === 'lockdoor') {
+      b.billboard(p.x + p.w / 2, p.y + p.d / 2, propHeight(p) + 1.1, '', { glyph: true, size: 0.9, pad: 0.35, fill: '#f4f6f8', ink: '#1e2f52' });
+    }
+  }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }

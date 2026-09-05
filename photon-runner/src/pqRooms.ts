@@ -12,8 +12,22 @@ import {
   type Poly,
   type Vec2,
 } from './pqScene';
-import { DEFAULT_FRAME, IsoView, fitIso, isoNorm, isoRectPoly } from './pqIso';
+import { DEFAULT_FRAME, IsoMode, IsoView, fitIso, isoNorm, isoRectPoly } from './pqIso';
 import type { IsoFacing, NpcDef } from './pqNpc';
+import {
+  FACILITY_ASPECT,
+  FACILITY_DOORWAYS,
+  FACILITY_HOTSPOTS,
+  FACILITY_LOCKED,
+  FACILITY_OBSTACLES,
+  FACILITY_OPS_DOOR,
+  FACILITY_PEOPLE,
+  FACILITY_ROOMS,
+  FACILITY_SCREENS,
+  FACILITY_SPAWN,
+  FACILITY_W,
+  FACILITY_H,
+} from './pqFacility';
 
 /**
  * The rest of the building.
@@ -32,9 +46,9 @@ import type { IsoFacing, NpcDef } from './pqNpc';
  * Nothing is traced twice, so nothing can disagree with itself.
  */
 
-export type RoomId = 'reception' | 'ops' | 'bullpen' | 'briefing' | 'breakroom' | 'server';
+export type RoomId = 'facility' | 'reception' | 'ops' | 'bullpen' | 'briefing' | 'breakroom' | 'server';
 
-export const START_ROOM: RoomId = 'reception';
+export const START_ROOM: RoomId = 'facility';
 
 export type PropKind =
   | 'rug'
@@ -59,7 +73,11 @@ export type PropKind =
   | 'wallsign'
   | 'wallscreen'
   | 'whiteboard'
-  | 'entrance';
+  | 'entrance'
+  | 'wall'
+  | 'door'
+  | 'lockdoor'
+  | 'plaque';
 
 /**
  * A single piece of the room, as a box standing on the floor.
@@ -148,6 +166,15 @@ export interface RoomSpec {
   wall: number;
   /** Cool grey for the machine rooms, warm office grey everywhere else. */
   palette: 'office' | 'cool';
+  /** Projection. Single rooms are drawn isometric; a whole building of
+   * rooms is drawn in plan, from the front and above. */
+  mode?: IsoMode;
+  /** Extra floor outside the main rectangle — an entrance walkway. */
+  annex?: { x: number; y: number; w: number; d: number }[];
+  /** Places inside the room that lead to another room entirely. */
+  portals?: { to: RoomId; label: string; x: number; y: number }[];
+  /** Drawn-figure scale; a whole building is seen from further back. */
+  actorScale?: number;
   spawn: [number, number];
   props: Prop[];
   doors: DoorSpec[];
@@ -176,8 +203,17 @@ export interface Room {
   id: RoomId;
   name: string;
   kicker: string;
-  art: { kind: 'image'; src: string } | { kind: 'iso'; spec: RoomSpec; view: IsoView };
+  art: { kind: 'image'; src: string; aspect: number } | { kind: 'iso'; spec: RoomSpec; view: IsoView };
   floor: FloorGeometry;
+  /**
+   * Doorways that start shut. Each is walkable once the player has
+   * registered an access card; until then its polygon is added to the
+   * obstacles. Only the facility overview has any.
+   */
+  locks?: { id: string; label: string; poly: Poly }[];
+  /** Scales the drawn people. The overview is drawn from much further
+   * back than the operations floor, so its figures are smaller. */
+  actorScale?: number;
   spawn: Vec2;
   doors: Door[];
   /** Consoles. Only the operations floor has any — the game is played there. */
@@ -220,9 +256,13 @@ const DEFAULT_HEIGHT: Record<PropKind, number> = {
   wallscreen: 1.2,
   whiteboard: 1.4,
   entrance: 2.5,
+  wall: 2.7,
+  door: 2.2,
+  lockdoor: 2.2,
+  plaque: 0,
 };
 
-const NON_SOLID: PropKind[] = ['rug', 'wallsign', 'wallscreen', 'whiteboard', 'entrance', 'cupboard', 'chair'];
+const NON_SOLID: PropKind[] = ['rug', 'wallsign', 'wallscreen', 'whiteboard', 'entrance', 'cupboard', 'chair', 'door', 'plaque'];
 
 export function propHeight(p: Prop): number {
   return p.h ?? DEFAULT_HEIGHT[p.kind];
@@ -579,6 +619,7 @@ const SERVER: RoomSpec = {
   ],
 };
 
+
 export const ROOM_SPECS: RoomSpec[] = [RECEPTION, BULLPEN, BRIEFING, BREAKROOM, SERVER];
 
 // ---------------------------------------------------------------------------
@@ -590,8 +631,8 @@ export const ROOM_SPECS: RoomSpec[] = [RECEPTION, BULLPEN, BRIEFING, BREAKROOM, 
 const OPS_DOORS: Door[] = [
   {
     id: 'ops-reception',
-    to: 'reception',
-    label: 'Reception',
+    to: 'facility',
+    label: 'Facility',
     anchor: { x: 0.107, y: 0.392 },
     approach: { x: 0.148, y: 0.452 },
     hitRadius: DOOR_RADIUS,
@@ -839,8 +880,21 @@ function buildGlows(v: IsoView, spec: RoomSpec): Glow[] {
 }
 
 export function buildRoom(spec: RoomSpec): Room {
-  const view = fitIso(spec.w, spec.d, spec.wall, DEFAULT_FRAME);
+  const view = fitIso(spec.w, spec.d, spec.wall, DEFAULT_FRAME, spec.mode ?? 'iso');
   const inset = WALL_INSET;
+  // A padlocked door is solid only while it is locked, so it is kept out of
+  // the plain obstacle list and handed to the scene as a lock instead.
+  const locks = spec.props
+    .filter((p) => p.kind === 'lockdoor')
+    .map((p, i) => ({ id: p.id ?? `lock-${i}`, label: p.text ?? 'Secured wing', poly: propPoly(view, p) }));
+  const portals: Door[] = (spec.portals ?? []).map((pt) => ({
+    id: `${spec.id}-${pt.to}`,
+    to: pt.to,
+    label: pt.label,
+    anchor: isoNorm(view, pt.x, pt.y, 1.6),
+    approach: isoNorm(view, pt.x, pt.y),
+    hitRadius: DOOR_RADIUS,
+  }));
   return {
     id: spec.id,
     name: spec.name,
@@ -848,10 +902,13 @@ export function buildRoom(spec: RoomSpec): Room {
     art: { kind: 'iso', spec, view },
     floor: {
       walk: isoRectPoly(view, inset, inset, spec.w - inset * 2, spec.d - inset * 2),
-      obstacles: spec.props.filter(propSolid).map((p) => propPoly(view, p)),
+      walks: (spec.annex ?? []).map((a) => isoRectPoly(view, a.x + inset, a.y - inset, a.w - inset * 2, a.d)),
+      obstacles: spec.props.filter((p) => p.kind !== 'lockdoor' && propSolid(p)).map((p) => propPoly(view, p)),
     },
+    locks: locks.length ? locks : undefined,
+    actorScale: spec.actorScale,
     spawn: isoNorm(view, spec.spawn[0], spec.spawn[1]),
-    doors: buildDoors(view, spec),
+    doors: [...buildDoors(view, spec), ...portals],
     hotspots: [],
     npcs: buildPeople(view, spec),
     depthLayers: [],
@@ -863,7 +920,7 @@ const OPS: Room = {
   id: 'ops',
   name: 'Operations Floor',
   kicker: 'phantom q · headquarters',
-  art: { kind: 'image', src: '/pq/hq-master.jpg' },
+  art: { kind: 'image', src: '/pq/hq-master.jpg', aspect: 1568 / 1003 },
   floor: OPS_FLOOR,
   spawn: { ...SPAWN },
   doors: OPS_DOORS,
@@ -881,7 +938,49 @@ const OPS: Room = {
   })),
 };
 
-export const ROOMS: Room[] = [OPS, ...ROOM_SPECS.map(buildRoom)];
+/**
+ * The whole building at once — the client's facility illustration. Rooms
+ * are individual walk polygons joined by doorway connectors; Central
+ * Operations additionally opens onto the detailed Page 8 floor.
+ */
+const FACILITY: Room = {
+  id: 'facility',
+  name: 'Phantom Q Facility',
+  kicker: 'headquarters · all wings',
+  art: { kind: 'image', src: '/pq/facility-master.jpg', aspect: FACILITY_ASPECT },
+  floor: {
+    walk: FACILITY_ROOMS.walkway,
+    walks: [...Object.values(FACILITY_ROOMS), ...FACILITY_DOORWAYS],
+    obstacles: FACILITY_OBSTACLES,
+  },
+  locks: FACILITY_LOCKED,
+  actorScale: 0.55,
+  spawn: { ...FACILITY_SPAWN },
+  doors: [
+    {
+      id: 'facility-ops',
+      to: 'ops',
+      label: 'Operations Floor',
+      anchor: FACILITY_OPS_DOOR.anchor,
+      approach: FACILITY_OPS_DOOR.approach,
+      hitRadius: DOOR_RADIUS,
+    },
+  ],
+  hotspots: FACILITY_HOTSPOTS,
+  npcs: FACILITY_PEOPLE,
+  depthLayers: [],
+  glows: FACILITY_SCREENS.map((s, i) => ({
+    poly: [
+      [s.x / FACILITY_W, s.y / FACILITY_H],
+      [(s.x + s.w) / FACILITY_W, s.y / FACILITY_H],
+      [(s.x + s.w) / FACILITY_W, (s.y + s.h) / FACILITY_H],
+      [s.x / FACILITY_W, (s.y + s.h) / FACILITY_H],
+    ] as Poly,
+    phase: s.phase + i * 0.1,
+  })),
+};
+
+export const ROOMS: Room[] = [FACILITY, OPS, ...ROOM_SPECS.filter((r) => r.id !== 'reception').map(buildRoom)];
 
 export function getRoom(id: RoomId): Room {
   return ROOMS.find((r) => r.id === id) ?? ROOMS[0];

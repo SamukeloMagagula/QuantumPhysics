@@ -57,7 +57,8 @@ const BASE = '/pq';
 const WALK_SPEED = 0.155; // normalised units per second at the near edge
 
 interface Sprites {
-  hq: HTMLImageElement;
+  /** Room backgrounds, keyed by the src their room declares. */
+  images: Record<string, HTMLImageElement>;
   walk: HTMLImageElement;
   idle: HTMLImageElement;
   idleLeft: HTMLImageElement;
@@ -66,7 +67,28 @@ interface Sprites {
 
 type Prompt =
   | { kind: 'station'; station: StationKind; kicker: string; label: string; id: string }
-  | { kind: 'door'; to: RoomId; kicker: string; label: string; id: string };
+  | { kind: 'door'; to: RoomId; kicker: string; label: string; id: string }
+  | { kind: 'locked'; kicker: string; label: string; id: string };
+
+/** A room's floor as it currently stands: shut doors are solid. */
+function floorOf(room: Room, unlocked: boolean) {
+  if (!room.locks || unlocked) return room.floor;
+  return { ...room.floor, obstacles: [...room.floor.obstacles, ...room.locks.map((l) => l.poly)] };
+}
+
+function aspectOf(room: Room): number {
+  return room.art.kind === 'image' ? room.art.aspect : SCENE_ASPECT;
+}
+
+/** Which shut door, if any, the player is standing at. */
+function lockAt(room: Room, pos: Vec2): { id: string; label: string } | null {
+  for (const l of room.locks ?? []) {
+    const cx = l.poly.reduce((a, p) => a + p[0], 0) / l.poly.length;
+    const cy = l.poly.reduce((a, p) => a + p[1], 0) / l.poly.length;
+    if (Math.hypot(cx - pos.x, cy - pos.y) < 0.045) return l;
+  }
+  return null;
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -78,8 +100,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 async function loadSprites(): Promise<Sprites> {
-  const [hq, walk, idle, idleLeft] = await Promise.all([
+  const [hq, facility, walk, idle, idleLeft] = await Promise.all([
     loadImage(`${BASE}/hq-master.jpg`),
+    loadImage(`${BASE}/facility-master.jpg`),
     loadImage(`${BASE}/operator-walk.png`),
     loadImage(`${BASE}/operator-idle.png`),
     loadImage(`${BASE}/operator-idle-left.png`),
@@ -87,7 +110,13 @@ async function loadSprites(): Promise<Sprites> {
   const entries = await Promise.all(
     Object.entries(LAYER_FILES).map(async ([k, f]) => [k, await loadImage(`${BASE}/layers/${f}`)] as const)
   );
-  return { hq, walk, idle, idleLeft, layers: Object.fromEntries(entries) };
+  return {
+    images: { '/pq/hq-master.jpg': hq, '/pq/facility-master.jpg': facility },
+    walk,
+    idle,
+    idleLeft,
+    layers: Object.fromEntries(entries),
+  };
 }
 
 /**
@@ -141,6 +170,11 @@ export function PhantomQScene() {
   const promptRef = useRef<Prompt | null>(null);
   const npcs = useRef<Npc[]>(createNpcs(getRoom(START_ROOM).npcs));
   const fade = useRef(0);
+  // The trainee access card. Registered at the reception kiosk, after which
+  // the padlocked wings of the facility open.
+  const unlocked = useRef(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const resizeRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let alive = true;
@@ -169,6 +203,7 @@ export function PhantomQScene() {
     npcs.current = createNpcs(next.npcs);
     promptRef.current = null;
     fade.current = 1;
+    resizeRef.current();
     held.current.clear();
     setPrompt(null);
     setRoomId(to);
@@ -187,8 +222,12 @@ export function PhantomQScene() {
       if (k === 'e' && !seated.current && promptRef.current) {
         e.preventDefault();
         const p = promptRef.current;
-        if (p.kind === 'station') setStation(p.station);
-        else enterRoom(p.to);
+        if (p.kind === 'station' && p.station === 'badge') {
+          unlocked.current = true;
+          setNotice('Trainee access card registered — secured wings unlocked.');
+          window.setTimeout(() => setNotice(null), 4200);
+        } else if (p.kind === 'station') setStation(p.station);
+        else if (p.kind === 'door') enterRoom(p.to);
       }
       if (k === 'escape' && seated.current) standUp();
     };
@@ -248,8 +287,9 @@ export function PhantomQScene() {
       const ch = parent.clientHeight;
       // Letterbox to the artwork's aspect so the traced map stays aligned
       // with the image no matter the window shape.
-      const scale = Math.min(cw / SCENE_ASPECT, ch);
-      const w = scale * SCENE_ASPECT;
+      const aspect = aspectOf(room.current);
+      const scale = Math.min(cw / aspect, ch);
+      const w = scale * aspect;
       const h = scale;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
@@ -257,6 +297,7 @@ export function PhantomQScene() {
       canvas.height = Math.round(h * dpr);
     };
     resize();
+    resizeRef.current = resize;
     window.addEventListener('resize', resize);
 
     const frame = (now: number) => {
@@ -297,7 +338,7 @@ export function PhantomQScene() {
           // Vertical steps move "into" the room, which is a shorter screen
           // distance than sideways travel on this projection.
           const next = resolveMoveOn(
-            here.floor,
+            floorOf(here, unlocked.current),
             pos.current,
             (dx / len) * speed,
             (dy / len) * speed * 0.62
@@ -328,10 +369,13 @@ export function PhantomQScene() {
         // the walls and the consoles are what the game is played at.
         const hit = stationAt(here, pos.current);
         const door = hit ? null : doorAt(here, pos.current);
+        const lock = hit || door || unlocked.current ? null : lockAt(here, pos.current);
         const next: Prompt | null = hit
           ? { kind: 'station', station: hit.station, kicker: hit.kicker, label: hit.label, id: hit.id }
           : door
           ? { kind: 'door', to: door.to, kicker: 'DOORWAY', label: `Enter ${door.label}`, id: door.id }
+          : lock
+          ? { kind: 'locked', kicker: 'LOCKED', label: `${lock.label} — register at Reception`, id: `lock-${lock.id}` }
           : null;
         if (next?.id !== promptRef.current?.id) {
           promptRef.current = next;
@@ -360,7 +404,7 @@ export function PhantomQScene() {
 
       const art = artOf(here);
       if (art) ctx.drawImage(art, 0, 0, W, H);
-      else ctx.drawImage(sprites.hq, 0, 0, W, H);
+      else if (here.art.kind === 'image') ctx.drawImage(sprites.images[here.art.src], 0, 0, W, H);
 
       // Screen glows: a slow pulse over the video walls, so the room is not
       // a completely static photograph.
@@ -458,7 +502,7 @@ export function PhantomQScene() {
         const [px, py] = toPx(wx, wy);
         // Height in image space, scaled with depth so they shrink toward the
         // back wall the way the drawn figures do.
-        const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(wy));
+        const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(wy)) * (here.actorScale ?? 1);
 
         if (isNpc && n) {
           const walking = isWalking(n);
@@ -631,6 +675,17 @@ export function PhantomQScene() {
             </div>
           </div>
 
+          {notice && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 pointer-events-none">
+              <div
+                className="rounded-2xl px-4 py-2 text-xs font-semibold"
+                style={{ background: 'rgba(10,16,26,.88)', border: '1px solid rgba(94,200,232,.5)', color: '#bfe6f5' }}
+              >
+                {notice}
+              </div>
+            </div>
+          )}
+
           {prompt && (
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
               <div
@@ -641,7 +696,7 @@ export function PhantomQScene() {
                   className="grid place-items-center w-6 h-6 rounded-md text-[11px] font-bold"
                   style={{ background: '#5ec8e8', color: '#04121a' }}
                 >
-                  E
+                  {prompt.kind === 'locked' ? '🔒' : 'E'}
                 </span>
                 <span>
                   <span className="block text-[8.5px] tracking-[.16em]" style={{ color: '#8fa6bd' }}>

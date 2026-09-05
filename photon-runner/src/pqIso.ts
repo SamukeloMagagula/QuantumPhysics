@@ -24,7 +24,16 @@ import { SCENE_H, SCENE_W, type Poly, type Vec2 } from './pqScene';
  * room, drawn or traced.
  */
 
+/**
+ * `iso` is the 2:1 dimetric view of the illustration; `plan` is a near
+ * top-down oblique — the building seen from the front and above, walls
+ * standing straight up, which is how the client's facility drawing is
+ * composed and the only projection in which eleven rooms stay readable.
+ */
+export type IsoMode = 'iso' | 'plan';
+
 export interface IsoView {
+  mode: IsoMode;
   /** Logical px per world metre along screen-x. */
   tx: number;
   /** Along screen-y. Half of `tx` — that ratio is what makes it 2:1. */
@@ -34,7 +43,13 @@ export interface IsoView {
   /** Logical-px position of world origin (0, 0, 0). */
   ox: number;
   oy: number;
+  /** Plan mode only: the room's centre line in metres, about which the
+   * near edge spreads wider than the far one. */
+  cx: number;
 }
+
+/** Plan-mode perspective: how much wider each metre of depth makes the floor. */
+const SPREAD = 0.0045;
 
 /** A logical-pixel box the fitted room is centred inside. */
 export interface IsoFrame {
@@ -53,6 +68,12 @@ export interface IsoFrame {
 export const DEFAULT_FRAME: IsoFrame = { x0: 86, y0: 34, x1: 1482, y1: 946 };
 
 export function isoPx(v: IsoView, x: number, y: number, z = 0): Vec2 {
+  if (v.mode === 'plan') {
+    // A touch of perspective: the near edge is wider than the far one, so
+    // the side walls lean outward the way they do in the drawing.
+    const spread = 1 + y * SPREAD;
+    return { x: v.ox + (v.cx + (x - v.cx) * spread) * v.tx, y: v.oy + y * v.ty - z * v.tz };
+  }
   return { x: v.ox + (x - y) * v.tx, y: v.oy + (x + y) * v.ty - z * v.tz };
 }
 
@@ -70,9 +91,26 @@ export function isoNorm(v: IsoView, x: number, y: number, z = 0): Vec2 {
  * from the same place: a big room simply draws smaller, exactly as it would
  * if the camera were fixed.
  */
-export function fitIso(w: number, d: number, h: number, frame: IsoFrame = DEFAULT_FRAME): IsoView {
+export function fitIso(
+  w: number,
+  d: number,
+  h: number,
+  frame: IsoFrame = DEFAULT_FRAME,
+  mode: IsoMode = 'iso',
+): IsoView {
   const fw = frame.x1 - frame.x0;
   const fh = frame.y1 - frame.y0;
+  if (mode === 'plan') {
+    // Depth is foreshortened to 0.72 and walls rise at 0.6 of a metre's
+    // width; the near edge is spread wider by the perspective above.
+    const wide = w * (1 + d * SPREAD);
+    const tx = Math.min(fw / wide, fh / (d * 0.72 + h * 0.6));
+    const ty = tx * 0.72;
+    const tz = tx * 0.6;
+    const ox = frame.x0 + (fw - wide * tx) / 2 + ((wide - w) / 2) * tx;
+    const oy = frame.y0 + h * tz + (fh - (d * ty + h * tz)) / 2;
+    return { mode, tx, ty, tz, ox, oy, cx: w / 2 };
+  }
   // With ty = tx/2 and tz = tx, the projected room spans (w + d) across and
   // (w + d)/2 + h down, both in units of tx.
   const tx = Math.min(fw / (w + d), fh / ((w + d) / 2 + h));
@@ -83,11 +121,13 @@ export function fitIso(w: number, d: number, h: number, frame: IsoFrame = DEFAUL
   const top = -h * tz; // relative to oy
   const bottom = (w + d) * ty;
   return {
+    mode,
     tx,
     ty,
     tz,
     ox: frame.x0 + (fw - (right - left)) / 2 - left,
     oy: frame.y0 + (fh - (bottom - top)) / 2 - top,
+    cx: w / 2,
   };
 }
 
@@ -112,6 +152,11 @@ export function isoRectPoly(v: IsoView, x: number, y: number, w: number, d: numb
 /** Painter's-algorithm key: bigger is nearer the camera. */
 export function isoDepth(x: number, y: number, w = 0, d = 0): number {
   return x + w / 2 + (y + d / 2);
+}
+
+/** The same key for whichever projection the view uses. */
+export function depthOf(v: IsoView, x: number, y: number, w = 0, d = 0): number {
+  return v.mode === 'plan' ? y + d : isoDepth(x, y, w, d);
 }
 
 /** Metres per normalised screen unit across the room's widest axis — used to
