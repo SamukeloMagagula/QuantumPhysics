@@ -3,7 +3,8 @@
 A browser-based platform for teaching quantum key distribution — by attacking
 it. Entirely TypeScript: a walkable headquarters wrapped around a
 terminal-driven **QKD hacking simulation**, plus a narrative campaign,
-hardware-diagnosis labs, and a set of standalone security labs.
+hardware-diagnosis labs, and a security-labs section with end-of-section
+tests.
 
 The central idea is that BB84's guarantee is best understood from the
 attacker's side. You play Eve on a fibre link: scan the target, work out
@@ -27,7 +28,7 @@ canvas can be any size. A sprite operator walks the floor feet-anchored,
 and cropped furniture layers are re-drawn over him when he steps behind
 them, which is what gives a flat image real depth.
 
-Three consoles in the room:
+Four stations in the room:
 
 ### Communications console — the attack terminal
 
@@ -113,10 +114,50 @@ because no evidence establishes anyone read the file — it is in question,
 which is as far as the evidence goes. Every misplacement explains where the
 statement belongs and why, because the why is the lesson.
 
+Not all of it is desk work. Some tasks are physical, and the campaign says
+so: the capture chain is rebuilt at the **equipment row**, which means
+standing up, walking across the floor and working there. The desk shows the
+briefing and withholds the task until you are at the hardware, and the stage
+clock keeps running while you walk, because the walk is part of the run. A
+run therefore lives outside the panel — standing up does not destroy it, and
+sitting down anywhere resumes exactly where you left off.
+
+Two of the hands-on tasks are worth calling out:
+
+- **Seat the capture chain.** Pick a module up, carry it, seat it in a bay.
+  Put the splitter where the tap goes and it explains the chain rather than
+  buzzing: nothing downstream sees anything until the line lands on the tap.
+- **Handle a phishing attempt.** A message arrives from a lookalike domain
+  claiming to be Phantom Q Security and asking for your training credential.
+  Taking the right action on instinct is refused — a report you cannot
+  describe is one that gets set aside — so you have to find what is actually
+  wrong with it first. Two of its five details are deliberately not tells.
+  Note who did *not* send it: the bible fixes Eve as authorised security
+  support, so the message only claims to be security, and it is defeated with
+  the habit the Prologue taught — authorised activity is logged, so check the
+  log rather than the letterhead.
+
 Evidence carries between stages: an investigation opens with the artefacts
 already earned, never an empty board.
 
 The hardware bench (below) is reachable from this same workstation.
+
+### The floor is shared
+
+Walking into headquarters puts you in the same room as anyone else who is
+there — no lobby, no room code. You see each other's name tag and movement,
+with the same depth ordering as the local player, so someone stepping behind
+a desk is occluded by it correctly.
+
+Presence is deliberately ephemeral and held in memory rather than the
+database: a position with a four-second shelf life has no business being
+written to SQLite several times a second, and a position from a session that
+ended is worse than none. It is also never a dependency — with no API
+running, the link reports nobody, backs off, and the scene plays exactly as
+it does single-player.
+
+Campaign runs remain per-player. You see each other move; the stage, clock
+and case board are still your own.
 
 ### Hardware bench
 
@@ -140,9 +181,60 @@ is an optics fault — Eve cannot damage one basis and leave the other clean.
 - **Quantum Intercept** — networked 3-player BB84 with hidden Alice/Bob/Eve
   roles and a post-round accusation vote.
 - **Symmetric Cryptography** — a four-room guided learning path.
-- **Security Labs** — standalone challenges: SQL injection, XSS, phishing,
-  password cracking, Wi-Fi evil twin, Caesar cipher, RSA factoring, BB84.
 - **Network Defender**, **Quantum 3D Lab**, **Character Creator**.
+
+## Security Labs
+
+Ten labs across six sections, each one something you carry out rather than
+read about, and each section closing with a test.
+
+| Section | Labs |
+|---|---|
+| Foundations | Why Encryption Matters |
+| Web Attacks | SQL injection, XSS |
+| Social Engineering & Passwords | Phishing spotter, password cracking |
+| Wireless | Wi-Fi evil twin |
+| Network & Availability | Denial of service |
+| Cryptography | Caesar cipher, RSA factoring, BB84 |
+
+**Why Encryption Matters** sends a message in the clear and shows all four
+hops on the path displaying it while Eve's capture log fills with your
+plaintext; then the same message encrypted, carried by the same hops, opened
+by Bob. It is explicit that its repeating-key XOR is a teaching toy, and it
+closes by naming the bill just run up — the same key had to be at both ends
+first, which is the key distribution problem and the reason public-key
+cryptography exists.
+
+**Denial of Service** puts you in charge of a site through three waves, with
+rate limiting, caching, upstream scrubbing and capacity to configure before
+each. Each wave defeats a different defence: a single loud source falls to a
+strict per-source limit and is *not* solved by buying servers; a botnet
+blunts per-source limits, because spread across enough machines each source
+looks nearly human; amplification saturates the link, where nothing you own
+downstream of it matters. The arithmetic is pure and the balance is pinned by
+tests — including that wave three is unwinnable by every setup without
+upstream filtering.
+
+### Section tests
+
+Six tests, 31 questions, covering why encryption matters, symmetric and
+asymmetric, injection and XSS, phishing and passwords, wireless, denial of
+service, and BB84. Nearly every wrong option is something a reasonable person
+actually believes — "the padlock means the site is safe", "HTTPS hides which
+sites you visit", "quantum key distribution stops the interception" — because
+a distractor nobody would pick tests nothing.
+
+Two rules shape the marking, both carried over from the campaign:
+
+- **Every question returns its reasoning, right or wrong.** Someone who
+  guessed correctly needs the reason more than someone who reasoned their way
+  to a wrong answer.
+- **Failing is not a dead end.** Attempts are unlimited and the best score is
+  kept. Options are reshuffled per attempt, so a retake cannot be passed by
+  remembering that the answer was third from the top.
+
+A test unlocks once its section's labs are done. Handing it out earlier would
+make it a vocabulary quiz rather than a check on practice.
 
 ## Run it
 
@@ -162,7 +254,17 @@ them separately: `npm run dev:client` / `npm run dev:server`.
 
 The headquarters scene is 2D and resolution-independent: it letterboxes to
 the artwork's aspect and draws at device pixel ratio, so it stays sharp on
-any display without a GPU budget.
+any display without a GPU budget. A shallow parallax camera gives it depth
+without touching the art — the frame is overscanned a couple of percent and
+panned against the player with a slight dolly front to back. The furniture
+layers deliberately do *not* pan further than the background: they are crops
+of the same illustration, so offsetting them would ghost them against the
+furniture already painted in, and exact registration is worth more than the
+extra depth cue.
+
+The whole app is theme-aware. Every surface, including the labs, is drawn
+from one set of tokens, so the light/dark toggle in the top bar covers all of
+it.
 
 The remaining 3D modes (Research Campus, Quantum 3D Lab, and the retired
 facility) share a four-tier quality setting — Balanced, High, Ultra and 4K —
@@ -186,9 +288,13 @@ Everything lives under `photon-runner/`:
   - `campaignStages.ts` — the stage/level layer: unlock chain, par times,
     best-time records, the carried case file, and persistence.
   - `campaignExercises.ts` — the interactive mechanics (timeline ordering,
-    fact/assumption and CIA classification, file transfer) with their
-    grading rules. Pure, so every exercise is gradeable in tests.
-  - `CampaignPanel.tsx` — Workstation 04's screen and the case board.
+    fact/assumption and CIA classification, file transfer, seating a rack,
+    handling a phish) with their grading rules. Pure, so every exercise is
+    gradeable in tests.
+  - `campaignSession.ts` — the run in progress, held outside React so
+    standing up and walking to another station does not destroy it.
+  - `CampaignPanel.tsx` / `CampaignHandsOn.tsx` — Workstation 04's screen,
+    the case board, and the physical tasks.
   - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
     footprints, depth ordering, hotspots and the walk rules. Pure, so the
     map is unit-tested by flood fill rather than discovered by walking into
@@ -203,10 +309,19 @@ Everything lives under `photon-runner/`:
     office props, SDF text, holographic panels, particles, shaders.
   - `engine/` — the reusable layer: game state, scene manager, entity
     registry, interaction registry, asset manager, zone access.
-  - `lab*.ts` + the individual challenge files — the standalone security labs.
+  - `labRegistry.ts` / `labFramework.ts` / `labStyles.ts` + the individual
+    challenge files — the security labs and the shell they run in.
+  - `labExam.ts` / `labExams.ts` — the section tests: marking, progress and
+    unlocking, plus the authored questions. Pure, so a paper can be marked
+    in a test without a DOM.
+  - `LabsHub.tsx` / `LabRunner.tsx` / `LabExamView.tsx` — the labs dashboard,
+    the lab shell and sitting a test.
   - `campaignScene*.ts` / `Campaign*.tsx` — Quantum Breach.
   - `qkdEngine.ts`, `qkdService.ts`, `qkdRoutes.ts` — BB84 and Quantum
     Intercept multiplayer.
+  - `floorPresence.ts` / `floorRoutes.ts` / `floorClient.ts` — the shared
+    headquarters floor: who is standing where, and the client that reports
+    and interpolates it.
   - `server*.ts` — the Express + better-sqlite3 API (guest identity).
 - **`public/pq/`** — the client's Page 8 artwork: master image, the eight
   furniture layers used for depth, and the operator sprite sheets.
@@ -231,9 +346,10 @@ npm test
 npm run build
 ```
 
-524 tests. The pure logic — attack simulation, forensics, labs, scene map
-and walk rules, BB84 engine — is covered directly; the rendering is verified
-by running the app rather than by unit test.
+628 tests. The pure logic — attack simulation, forensics, labs and their
+tests, the DDoS balance, scene map and walk rules, floor presence, BB84
+engine — is covered directly; the rendering is verified by running the app
+rather than by unit test.
 
 ## Tech
 
