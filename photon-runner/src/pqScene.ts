@@ -128,6 +128,27 @@ export function frontEdgeY(poly: Poly, x: number): number | null {
   return best;
 }
 
+/**
+ * The y of a polygon's farthest (smallest-y) edge in the column at `x`. For
+ * a tabletop this is the edge nearest the back wall — which is what hides a
+ * person sitting on the far side of it, since everything of them below the
+ * table's far edge is behind the table.
+ */
+export function backEdgeY(poly: Poly, x: number): number | null {
+  let best: number | null = null;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (xi === xj) continue;
+    const lo = Math.min(xi, xj);
+    const hi = Math.max(xi, xj);
+    if (x < lo || x > hi) continue;
+    const y = yi + ((x - xi) / (xj - xi)) * (yj - yi);
+    if (best === null || y < best) best = y;
+  }
+  return best;
+}
+
 /** Should this layer be drawn over an actor whose feet are at (x, y)? */
 export function layerCoversActor(layer: DepthLayer, x: number, y: number): boolean {
   if (layer.alwaysFront) return true;
@@ -265,7 +286,25 @@ export function pointInPoly(x: number, y: number, poly: Poly): boolean {
 const PROBE_COUNT = 12;
 
 /**
- * Can the actor's body occupy this point?
+ * One room's walkable floor: the outer boundary and everything solid
+ * standing on it.
+ *
+ * The traced constants below are this scene's own floor. Splitting the shape
+ * out from the rules is what lets the wings added in `pqRooms.ts` — which
+ * derive their polygons from an isometric plan rather than tracing them —
+ * be walked by exactly the same code, rather than growing a second, subtly
+ * different movement model that only applies to some rooms.
+ */
+export interface FloorGeometry {
+  walk: Poly;
+  obstacles: Poly[];
+}
+
+/** The operations floor, traced from the illustration. */
+export const OPS_FLOOR: FloorGeometry = { walk: WALK_POLY, obstacles: OBSTACLES };
+
+/**
+ * Can a body occupy this point on `floor`?
  *
  * Tested as an ellipse rather than a point, because the client's boundaries
  * hug the furniture exactly and expect the body radius to supply the
@@ -277,17 +316,28 @@ const PROBE_COUNT = 12;
  * body plainly does not fit — and the actor walks through solid furniture
  * on the diagonal.
  */
-export function canStand(x: number, y: number, rx = BODY_RADIUS.x, ry = BODY_RADIUS.y): boolean {
-  if (!pointInPoly(x, y, WALK_POLY)) return false;
-  for (const ob of OBSTACLES) if (pointInPoly(x, y, ob)) return false;
+export function canStandOn(
+  floor: FloorGeometry,
+  x: number,
+  y: number,
+  rx = BODY_RADIUS.x,
+  ry = BODY_RADIUS.y,
+): boolean {
+  if (!pointInPoly(x, y, floor.walk)) return false;
+  for (const ob of floor.obstacles) if (pointInPoly(x, y, ob)) return false;
   for (let i = 0; i < PROBE_COUNT; i++) {
     const a = (i / PROBE_COUNT) * Math.PI * 2;
     const px = x + Math.cos(a) * rx;
     const py = y + Math.sin(a) * ry;
-    if (!pointInPoly(px, py, WALK_POLY)) return false;
-    for (const ob of OBSTACLES) if (pointInPoly(px, py, ob)) return false;
+    if (!pointInPoly(px, py, floor.walk)) return false;
+    for (const ob of floor.obstacles) if (pointInPoly(px, py, ob)) return false;
   }
   return true;
+}
+
+/** `canStandOn` against the operations floor. */
+export function canStand(x: number, y: number, rx = BODY_RADIUS.x, ry = BODY_RADIUS.y): boolean {
+  return canStandOn(OPS_FLOOR, x, y, rx, ry);
 }
 
 /**
@@ -295,11 +345,22 @@ export function canStand(x: number, y: number, rx = BODY_RADIUS.x, ry = BODY_RAD
  * each axis alone. Without the per-axis fallback, brushing a desk at an
  * angle stops the actor dead, which reads as the controls having failed.
  */
-export function resolveMove(from: Vec2, dx: number, dy: number): Vec2 {
-  if (canStand(from.x + dx, from.y + dy)) return { x: from.x + dx, y: from.y + dy };
-  if (dx !== 0 && canStand(from.x + dx, from.y)) return { x: from.x + dx, y: from.y };
-  if (dy !== 0 && canStand(from.x, from.y + dy)) return { x: from.x, y: from.y + dy };
+export function resolveMoveOn(
+  floor: FloorGeometry,
+  from: Vec2,
+  dx: number,
+  dy: number,
+  rx = BODY_RADIUS.x,
+  ry = BODY_RADIUS.y,
+): Vec2 {
+  if (canStandOn(floor, from.x + dx, from.y + dy, rx, ry)) return { x: from.x + dx, y: from.y + dy };
+  if (dx !== 0 && canStandOn(floor, from.x + dx, from.y, rx, ry)) return { x: from.x + dx, y: from.y };
+  if (dy !== 0 && canStandOn(floor, from.x, from.y + dy, rx, ry)) return { x: from.x, y: from.y + dy };
   return { ...from };
+}
+
+export function resolveMove(from: Vec2, dx: number, dy: number): Vec2 {
+  return resolveMoveOn(OPS_FLOOR, from, dx, dy);
 }
 
 /** Which hotspot, if any, is close enough to offer. Nearest wins. */

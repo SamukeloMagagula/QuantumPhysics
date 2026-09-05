@@ -1,23 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ACTOR,
-  DEPTH_LAYERS,
   Facing,
-  HOTSPOTS,
-  Hotspot,
   LAYER_FILES,
   SCENE_ASPECT,
   SCENE_H,
   SCENE_W,
-  SCREENS,
-  SPAWN,
   StationKind,
   Vec2,
   depthScale,
-  hotspotAt,
   layerCoversActor,
-  resolveMove,
+  resolveMoveOn,
 } from './pqScene';
+import {
+  Room,
+  ROOMS,
+  RoomId,
+  START_ROOM,
+  arrivalFrom,
+  doorAt,
+  getRoom,
+  stationAt,
+} from './pqRooms';
+import { artSize, paintRoom } from './pqRoomArt';
+import { Npc, createNpcs, isWalking, lookAt, updateNpcs } from './pqNpc';
+import { drawContactShadow, drawPerson, drawSpeech } from './pqPeople';
 import { QkdConsole } from './QkdConsole';
 import { ForensicsPanel } from './ForensicsPanel';
 import { CampaignPanel } from './CampaignPanel';
@@ -25,18 +32,25 @@ import { RemoteActor, connectFloor } from './floorClient';
 import { AttackState } from './qkdAttack';
 
 /**
- * Phantom Q HQ, rendered the way the client specified: the illustration is
- * the world.
+ * Phantom Q HQ.
  *
- * There is no 3D here by design — their handoff is explicit that the scene
+ * The operations floor is rendered the way the client specified: the
+ * illustration is the world. Their handoff is explicit that *that* scene
  * must not be rebuilt in an engine ("the Page 8 image is the visual world;
- * demarcation supplies spatial data"). So this draws the master image, walks
- * a sprite actor over a traced floor, and re-draws cropped furniture layers
- * on top of him when he is behind them, which is what gives a flat image
- * depth.
+ * demarcation supplies spatial data"), so it still draws the master image,
+ * walks a sprite actor over the traced floor, and re-draws cropped furniture
+ * layers on top of him when he is behind them.
  *
- * Our own game is unchanged underneath: the three consoles open the same
- * attack / forensics / hardware terminals as before.
+ * What the illustration could not supply is the rest of the building, which
+ * it nonetheless draws four doors and two "TO OTHER WINGS" arrows into. Those
+ * wings are in `pqRooms.ts`, authored as floor plans and painted by
+ * `pqRoomArt.ts` in the same flat isometric language — and you now arrive in
+ * reception rather than materialising at a desk. Both kinds of room are the
+ * same thing to this component: a background, a walkable polygon, some doors
+ * and some people.
+ *
+ * Our own game is unchanged underneath: the three consoles on the operations
+ * floor open the same attack / forensics / hardware terminals as before.
  */
 
 const BASE = '/pq';
@@ -49,6 +63,10 @@ interface Sprites {
   idleLeft: HTMLImageElement;
   layers: Record<string, HTMLImageElement>;
 }
+
+type Prompt =
+  | { kind: 'station'; station: StationKind; kicker: string; label: string; id: string }
+  | { kind: 'door'; to: RoomId; kicker: string; label: string; id: string };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -72,21 +90,57 @@ async function loadSprites(): Promise<Sprites> {
   return { hq, walk, idle, idleLeft, layers: Object.fromEntries(entries) };
 }
 
+/**
+ * Painted rooms, kept as ready-to-blit canvases.
+ *
+ * A drawn room costs a few milliseconds of 2D work once and nothing
+ * thereafter, which is what keeps a wing exactly as cheap to be standing in
+ * as the photographed floor. Two are held: the one you are in and the one
+ * you just came from, because doubling back through a door is the single
+ * most likely next move.
+ */
+function createArtCache() {
+  const cache = new Map<RoomId, HTMLCanvasElement>();
+  return (room: Room): HTMLCanvasElement | null => {
+    if (room.art.kind !== 'iso') return null;
+    const hit = cache.get(room.id);
+    if (hit) return hit;
+    const { width, height } = artSize();
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    paintRoom(ctx, room.art.spec, room.art.view, width, height);
+    while (cache.size >= 2) {
+      const oldest = cache.keys().next().value as RoomId | undefined;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+    cache.set(room.id, canvas);
+    return canvas;
+  };
+}
+
 export function PhantomQScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [sprites, setSprites] = useState<Sprites | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<Hotspot | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [station, setStation] = useState<StationKind | null>(null);
   const [session, setSession] = useState<AttackState | null>(null);
+  const [roomId, setRoomId] = useState<RoomId>(START_ROOM);
 
   // Mutable per-frame state, deliberately outside React: the render loop
   // runs at 60fps and must not queue a re-render per frame.
-  const pos = useRef<Vec2>({ ...SPAWN });
+  const room = useRef<Room>(getRoom(START_ROOM));
+  const pos = useRef<Vec2>({ ...getRoom(START_ROOM).spawn });
   const facing = useRef<Facing>('forward');
   const held = useRef<Set<string>>(new Set());
   const seated = useRef(false);
-  const promptRef = useRef<Hotspot | null>(null);
+  const promptRef = useRef<Prompt | null>(null);
+  const npcs = useRef<Npc[]>(createNpcs(getRoom(START_ROOM).npcs));
+  const fade = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -104,6 +158,22 @@ export function PhantomQScene() {
 
   const standUp = useCallback(() => setStation(null), []);
 
+  /** Walk through a door: you arrive at the one that leads back. */
+  const enterRoom = useCallback((to: RoomId) => {
+    const from = room.current.id;
+    if (to === from) return;
+    const next = getRoom(to);
+    room.current = next;
+    pos.current = arrivalFrom(from, to);
+    facing.current = 'forward';
+    npcs.current = createNpcs(next.npcs);
+    promptRef.current = null;
+    fade.current = 1;
+    held.current.clear();
+    setPrompt(null);
+    setRoomId(to);
+  }, []);
+
   // ---- input ----
   useEffect(() => {
     const MOVE = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
@@ -116,7 +186,9 @@ export function PhantomQScene() {
       }
       if (k === 'e' && !seated.current && promptRef.current) {
         e.preventDefault();
-        setStation(promptRef.current.station);
+        const p = promptRef.current;
+        if (p.kind === 'station') setStation(p.station);
+        else enterRoom(p.to);
       }
       if (k === 'escape' && seated.current) standUp();
     };
@@ -130,7 +202,7 @@ export function PhantomQScene() {
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', blur);
     };
-  }, [standUp]);
+  }, [standUp, enterRoom]);
 
   // ---- render loop ----
   useEffect(() => {
@@ -142,6 +214,8 @@ export function PhantomQScene() {
     // Other people on the same floor. Presence is optional: if the API is not
     // there, this reports nobody and the scene plays exactly as before.
     const floor = connectFloor();
+    const artOf = createArtCache();
+    artOf(room.current);
 
     let raf = 0;
     let last = performance.now();
@@ -190,7 +264,9 @@ export function PhantomQScene() {
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
       clock += dt;
+      if (fade.current > 0) fade.current = Math.max(0, fade.current - dt * 3.2);
 
+      const here = room.current;
       const W = canvas.width;
       const H = canvas.height;
       const toPx = (nx: number, ny: number) => [nx * W, ny * H] as const;
@@ -220,7 +296,12 @@ export function PhantomQScene() {
           const speed = WALK_SPEED * depthScale(pos.current.y) * dt;
           // Vertical steps move "into" the room, which is a shorter screen
           // distance than sideways travel on this projection.
-          const next = resolveMove(pos.current, (dx / len) * speed, (dy / len) * speed * 0.62);
+          const next = resolveMoveOn(
+            here.floor,
+            pos.current,
+            (dx / len) * speed,
+            (dy / len) * speed * 0.62
+          );
           pos.current = next;
           stepPhase += dt * ACTOR.stepsPerSecond;
           // Left/right read more strongly than depth, so they win the sprite.
@@ -234,19 +315,32 @@ export function PhantomQScene() {
         // asserted from an automated browser session the way PerfOverlay
         // exposes frame stats. Stripped from production builds.
         if (import.meta.env.DEV) {
-          (window as unknown as { __pq?: unknown }).__pq = { x: pos.current.x, y: pos.current.y };
+          (window as unknown as { __pq?: unknown }).__pq = {
+            x: pos.current.x,
+            y: pos.current.y,
+            room: here.id,
+          };
         }
 
-        floor.report(pos.current.x, pos.current.y, facing.current, held.current.size > 0);
+        floor.report(pos.current.x, pos.current.y, facing.current, held.current.size > 0, here.id);
 
-        const hit = hotspotAt(pos.current);
-        if (hit?.id !== promptRef.current?.id) {
-          promptRef.current = hit;
-          setPrompt(hit);
+        // A console wins over a door when both are in reach: the doors sit on
+        // the walls and the consoles are what the game is played at.
+        const hit = stationAt(here, pos.current);
+        const door = hit ? null : doorAt(here, pos.current);
+        const next: Prompt | null = hit
+          ? { kind: 'station', station: hit.station, kicker: hit.kicker, label: hit.label, id: hit.id }
+          : door
+          ? { kind: 'door', to: door.to, kicker: 'DOORWAY', label: `Enter ${door.label}`, id: door.id }
+          : null;
+        if (next?.id !== promptRef.current?.id) {
+          promptRef.current = next;
+          setPrompt(next);
         }
       }
 
       const moving = !seated.current && held.current.size > 0;
+      updateNpcs(npcs.current, dt);
 
       // ---- draw ----
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -264,21 +358,27 @@ export function PhantomQScene() {
         -H * (scale - 1) * 0.5 - cam.y * CAM.overscan * CAM.sway * CAM.tilt * H
       );
 
-      ctx.drawImage(sprites.hq, 0, 0, W, H);
+      const art = artOf(here);
+      if (art) ctx.drawImage(art, 0, 0, W, H);
+      else ctx.drawImage(sprites.hq, 0, 0, W, H);
 
       // Screen glows: a slow pulse over the video walls, so the room is not
       // a completely static photograph.
-      for (const s of SCREENS) {
-        const a = 0.06 + 0.05 * Math.sin(clock * 1.4 + s.phase);
+      for (const g of here.glows) {
+        const a = 0.06 + 0.05 * Math.sin(clock * 1.4 + g.phase);
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = `rgba(120,200,255,${a.toFixed(3)})`;
-        ctx.fillRect((s.x / SCENE_W) * W, (s.y / SCENE_H) * H, (s.w / SCENE_W) * W, (s.h / SCENE_H) * H);
+        ctx.beginPath();
+        ctx.moveTo(g.poly[0][0] * W, g.poly[0][1] * H);
+        for (let i = 1; i < g.poly.length; i++) ctx.lineTo(g.poly[i][0] * W, g.poly[i][1] * H);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       }
 
       // Hotspot markers, drawn under the actor.
-      for (const h of HOTSPOTS) {
+      for (const h of here.hotspots) {
         const [ax, ay] = toPx(h.anchor.x, h.anchor.y);
         const pulse = 0.5 + 0.5 * Math.sin(clock * 2 + h.anchor.x * 10);
         const active = promptRef.current?.id === h.id;
@@ -294,20 +394,47 @@ export function PhantomQScene() {
         ctx.fill();
       }
 
+      // Door markers: a chevron over the opening, so a way out is visible
+      // from across the room rather than discovered by walking into walls.
+      for (const d of here.doors) {
+        const [ax, ay] = toPx(d.anchor.x, d.anchor.y);
+        const active = promptRef.current?.id === d.id;
+        const bob = Math.sin(clock * 2.2 + d.anchor.x * 8) * W * 0.0022;
+        const r = W * (active ? 0.011 : 0.0082);
+        ctx.save();
+        ctx.translate(ax, ay + bob);
+        ctx.beginPath();
+        ctx.moveTo(-r, -r * 0.5);
+        ctx.lineTo(0, r * 0.55);
+        ctx.lineTo(r, -r * 0.5);
+        ctx.strokeStyle = active ? 'rgba(140,230,255,.95)' : 'rgba(190,215,235,.62)';
+        ctx.lineWidth = Math.max(1.6, W * 0.0021);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // ---- actors ----
-      // Everyone on the floor, drawn back to front so a person nearer the
-      // camera overlaps one further away.
+      // Everyone in the room, drawn back to front so a person nearer the
+      // camera overlaps one further away. The player and any remote players
+      // use the authored sprite sheet; the staff are drawn.
       floor.tick(dt);
-      const cast = [
+      type Member =
+        | { y: number; kind: 'sprite'; x: number; facing: Facing; walking: boolean; phase: number; name: string | null }
+        | { y: number; kind: 'npc'; npc: Npc };
+      const cast: Member[] = [
         {
+          kind: 'sprite' as const,
           x: pos.current.x,
           y: pos.current.y,
           facing: facing.current,
           walking: moving,
           phase: stepPhase,
-          name: null as string | null,
+          name: null,
         },
         ...floor.actors().map((a: RemoteActor) => ({
+          kind: 'sprite' as const,
           x: a.x,
           y: a.y,
           facing: a.facing,
@@ -315,63 +442,101 @@ export function PhantomQScene() {
           phase: a.phase,
           name: a.name as string | null,
         })),
+        ...npcs.current.map((n) => ({ kind: 'npc' as const, y: n.mode === 'seated' && n.def.seat ? n.def.seat.pos.y : n.pos.y, npc: n })),
       ].sort((a, b) => a.y - b.y);
 
+      // Speech is collected and drawn last, so a bubble is never covered by
+      // whoever happens to be standing in front of the speaker.
+      const bubbles: { x: number; y: number; text: string; px: number; fade: number }[] = [];
+
       for (const who of cast) {
-        const [px, py] = toPx(who.x, who.y);
+        const isNpc = who.kind === 'npc';
+        const n = isNpc ? who.npc : null;
+        const seatedNow = n !== null && n.mode === 'seated' && n.def.seat !== null;
+        const wx = seatedNow ? n!.def.seat!.pos.x : isNpc ? n!.pos.x : who.x;
+        const wy = who.y;
+        const [px, py] = toPx(wx, wy);
         // Height in image space, scaled with depth so they shrink toward the
         // back wall the way the drawn figures do.
-        const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(who.y));
+        const h = (ACTOR.visibleHeight / SCENE_H) * H * (0.82 + 0.24 * depthScale(wy));
 
-        let sheet: HTMLImageElement;
-        let rect: [number, number, number, number];
-        if (who.walking) {
-          const frames = ACTOR.walkFrames[who.facing];
-          rect = frames[Math.floor(who.phase) % frames.length];
-          sheet = sprites.walk;
-        } else if (who.facing === 'left') {
-          rect = ACTOR.idleLeftSource;
-          sheet = sprites.idleLeft;
-        } else {
-          rect = ACTOR.idleFrames[who.facing === 'backward' ? 'backward' : who.facing === 'right' ? 'right' : 'forward'];
-          sheet = sprites.idle;
-        }
-        const [sx, sy, sw, sh] = rect;
-        const w = h * (sw / sh);
-        // Feet are the anchor, per the client's actor contract.
-        const drawX = px - w / 2;
-        const drawY = py - h;
+        if (isNpc && n) {
+          const walking = isWalking(n);
+          if (!seatedNow) drawContactShadow(ctx, px, py, h);
+          drawPerson(ctx, {
+            x: px,
+            y: py,
+            h,
+            facing: seatedNow ? n.def.seat!.facing : n.facing,
+            pose: seatedNow ? 'sit' : walking ? 'walk' : 'stand',
+            phase: walking ? n.phase : n.clock,
+            look: lookAt(n.def.look),
+            clipY: seatedNow && n.def.seat!.clipY != null ? n.def.seat!.clipY * H : null,
+            chair: seatedNow ? n.def.seat!.chair : undefined,
+          });
+          if (n.say) {
+            bubbles.push({
+              x: px,
+              y: py - h * (seatedNow ? 0.86 : 1),
+              text: n.say,
+              px: Math.max(9, h * 0.13),
+              fade: Math.min(1, n.sayFor / 0.5),
+            });
+          }
+        } else if (!isNpc) {
+          let sheet: HTMLImageElement;
+          let rect: [number, number, number, number];
+          if (who.walking) {
+            const frames = ACTOR.walkFrames[who.facing];
+            rect = frames[Math.floor(who.phase) % frames.length];
+            sheet = sprites.walk;
+          } else if (who.facing === 'left') {
+            rect = ACTOR.idleLeftSource;
+            sheet = sprites.idleLeft;
+          } else {
+            rect =
+              ACTOR.idleFrames[
+                who.facing === 'backward' ? 'backward' : who.facing === 'right' ? 'right' : 'forward'
+              ];
+            sheet = sprites.idle;
+          }
+          const [sx, sy, sw, sh] = rect;
+          const w = h * (sw / sh);
+          // Feet are the anchor, per the client's actor contract.
+          const drawX = px - w / 2;
+          const drawY = py - h;
 
-        // Contact shadow, so they sit on the floor rather than floating.
-        ctx.save();
-        ctx.globalAlpha = 0.28;
-        ctx.fillStyle = '#0d1520';
-        ctx.beginPath();
-        ctx.ellipse(px, py, w * 0.34, w * 0.13, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        ctx.drawImage(sheet, sx, sy, sw, sh, drawX, drawY, w, h);
-
-        // Name tag over other people only — you know who you are.
-        if (who.name) {
-          const fontPx = Math.max(9, h * 0.115);
+          // Contact shadow, so they sit on the floor rather than floating.
           ctx.save();
-          ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          const padX = fontPx * 0.5;
-          const tw = ctx.measureText(who.name).width;
-          const ty = drawY - fontPx * 0.9;
-          ctx.globalAlpha = 0.72;
-          ctx.fillStyle = '#0b1420';
+          ctx.globalAlpha = 0.28;
+          ctx.fillStyle = '#0d1520';
           ctx.beginPath();
-          ctx.roundRect(px - tw / 2 - padX, ty - fontPx * 0.75, tw + padX * 2, fontPx * 1.5, fontPx * 0.6);
+          ctx.ellipse(px, py, w * 0.34, w * 0.13, 0, 0, Math.PI * 2);
           ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = '#bfe6f5';
-          ctx.fillText(who.name, px, ty);
           ctx.restore();
+
+          ctx.drawImage(sheet, sx, sy, sw, sh, drawX, drawY, w, h);
+
+          // Name tag over other people only — you know who you are.
+          if (who.name) {
+            const fontPx = Math.max(9, h * 0.115);
+            ctx.save();
+            ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const padX = fontPx * 0.5;
+            const tw = ctx.measureText(who.name).width;
+            const ty = drawY - fontPx * 0.9;
+            ctx.globalAlpha = 0.72;
+            ctx.fillStyle = '#0b1420';
+            ctx.beginPath();
+            ctx.roundRect(px - tw / 2 - padX, ty - fontPx * 0.75, tw + padX * 2, fontPx * 1.5, fontPx * 0.6);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#bfe6f5';
+            ctx.fillText(who.name, px, ty);
+            ctx.restore();
+          }
         }
 
         // ---- depth layers ----
@@ -379,8 +544,8 @@ export function PhantomQScene() {
         // This is what makes a flat illustration read as a space you are
         // inside of, and doing it per actor keeps the ordering right when two
         // people are on opposite sides of the same desk.
-        for (const layer of DEPTH_LAYERS) {
-          if (!layerCoversActor(layer, who.x, who.y)) continue;
+        for (const layer of here.depthLayers) {
+          if (!layerCoversActor(layer, wx, wy)) continue;
           const img = sprites.layers[layer.src];
           if (!img) continue;
           const [bx, by, bw, bh] = layer.box;
@@ -388,7 +553,16 @@ export function PhantomQScene() {
         }
       }
 
+      for (const b of bubbles) drawSpeech(ctx, b.x, b.y, b.text, b.px, b.fade);
+
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      // A short wipe across a doorway, which also covers the few milliseconds
+      // a room costs to paint the first time it is entered.
+      if (fade.current > 0) {
+        ctx.fillStyle = `rgba(10,13,18,${(fade.current * 0.92).toFixed(3)})`;
+        ctx.fillRect(0, 0, W, H);
+      }
     };
 
     raf = requestAnimationFrame(frame);
@@ -398,6 +572,8 @@ export function PhantomQScene() {
       window.removeEventListener('resize', resize);
     };
   }, [sprites]);
+
+  const here = getRoom(roomId);
 
   if (error) {
     return (
@@ -424,10 +600,34 @@ export function PhantomQScene() {
         <>
           <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
             <div className="glass rounded-2xl px-4 py-2 text-center">
-              <div className="label-mono !text-[9px]">phantom q · headquarters</div>
-              <p className="text-[11px] ink-3 mt-0.5">
-                WASD to walk · <span className="ink-1 font-semibold">E</span> at a console
+              <div className="label-mono !text-[9px]">{here.kicker}</div>
+              <p className="text-[13px] font-semibold mt-0.5" style={{ color: '#e6eef7' }}>
+                {here.name}
               </p>
+              <p className="text-[11px] ink-3 mt-0.5">
+                WASD to walk · <span className="ink-1 font-semibold">E</span> at a console or doorway
+              </p>
+            </div>
+          </div>
+
+          <div className="absolute top-4 left-4 pointer-events-none hidden sm:block">
+            <div className="glass rounded-2xl px-3 py-2">
+              <div className="label-mono !text-[8.5px] mb-1.5">building</div>
+              <ul className="space-y-1">
+                {ROOMS.map((r) => (
+                  <li
+                    key={r.id}
+                    className="text-[11px] flex items-center gap-2"
+                    style={{ color: r.id === roomId ? '#8fe0ff' : '#8fa6bd' }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: r.id === roomId ? '#5ec8e8' : 'rgba(143,166,189,.4)' }}
+                    />
+                    {r.name}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
 

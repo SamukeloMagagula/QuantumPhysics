@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import {
   FloorStore,
+  cleanRoom,
   createFloorStore,
   heartbeat,
   leave,
@@ -23,6 +24,7 @@ export function mountFloorRoutes(app: Express, store: FloorStore = createFloorSt
   app.post('/api/floor/hq', (req, res) => {
     const user = req.user!;
     const now = Date.now();
+    const room = cleanRoom(req.body?.room);
     const ok = heartbeat(store, now, {
       userId: user.id,
       name: user.display_name,
@@ -30,12 +32,16 @@ export function mountFloorRoutes(app: Express, store: FloorStore = createFloorSt
       y: req.body?.y,
       facing: req.body?.facing,
       walking: req.body?.walking,
+      room,
     });
-    res.json({ ok, peers: peersOn(store, now, user.id) });
+    // Only the people in the same room: coordinates are per-room, so a peer
+    // from another wing has nowhere meaningful to be drawn here.
+    res.json({ ok, peers: peersOn(store, now, user.id, room) });
   });
 
   app.get('/api/floor/hq', (req, res) => {
-    res.json({ peers: peersOn(store, Date.now(), req.user!.id) });
+    const room = req.query.room === undefined ? undefined : cleanRoom(req.query.room);
+    res.json({ peers: peersOn(store, Date.now(), req.user!.id, room) });
   });
 
   app.delete('/api/floor/hq', (req, res) => {

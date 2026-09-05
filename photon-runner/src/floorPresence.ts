@@ -21,6 +21,12 @@ export interface Peer {
   y: number;
   facing: Facing;
   walking: boolean;
+  /**
+   * Which room of the building they are standing in. Coordinates are
+   * normalised per room, so a position without one is meaningless the moment
+   * the headquarters stopped being a single room.
+   */
+  room: string;
   /** Epoch ms of the last heartbeat. */
   at: number;
 }
@@ -57,6 +63,16 @@ export function cleanName(raw: unknown): string {
   return (s || 'Operative').slice(0, 24);
 }
 
+/**
+ * Room ids come off the wire, so they are treated as untrusted text rather
+ * than looked up against the room registry: presence should not break the
+ * day somebody adds a wing to one deploy and not another.
+ */
+export function cleanRoom(raw: unknown): string {
+  const s = String(raw ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return (s || 'ops').slice(0, 24);
+}
+
 export interface HeartbeatInput {
   userId: number;
   name: string | null;
@@ -64,6 +80,7 @@ export interface HeartbeatInput {
   y: unknown;
   facing?: unknown;
   walking?: unknown;
+  room?: unknown;
 }
 
 /**
@@ -90,6 +107,7 @@ export function heartbeat(store: FloorStore, now: number, input: HeartbeatInput)
     y,
     facing: FACINGS.includes(input.facing as Facing) ? (input.facing as Facing) : 'forward',
     walking: Boolean(input.walking),
+    room: cleanRoom(input.room),
     at: now,
   });
   return true;
@@ -105,11 +123,15 @@ export function prune(store: FloorStore, now: number): void {
 /**
  * Everyone currently on the floor except the caller, freshest first. Prunes
  * as it goes, so presence expires without needing a background timer.
+ *
+ * Pass `room` to get only the people in it — which is what a client wants,
+ * since drawing someone at their break-room coordinates on the operations
+ * floor would put them inside a desk.
  */
-export function peersOn(store: FloorStore, now: number, exceptUserId?: number): Peer[] {
+export function peersOn(store: FloorStore, now: number, exceptUserId?: number, room?: string): Peer[] {
   prune(store, now);
   return [...store.peers.values()]
-    .filter((p) => p.userId !== exceptUserId)
+    .filter((p) => p.userId !== exceptUserId && (room === undefined || p.room === room))
     .sort((a, b) => b.at - a.at);
 }
 

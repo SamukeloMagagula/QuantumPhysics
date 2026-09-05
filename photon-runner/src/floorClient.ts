@@ -29,13 +29,15 @@ export interface RemoteActor {
   targetY: number;
   facing: Facing;
   walking: boolean;
+  /** Which room they are standing in. */
+  room: string;
   /** Own step animation phase, so two people do not march in lockstep. */
   phase: number;
 }
 
 export interface FloorLink {
-  /** Called from the render loop with the local position. */
-  report(x: number, y: number, facing: Facing, walking: boolean): void;
+  /** Called from the render loop with the local position and room. */
+  report(x: number, y: number, facing: Facing, walking: boolean, room: string): void;
   /** Smoothed peers, safe to read every frame. */
   actors(): RemoteActor[];
   /** Advance the interpolation. */
@@ -52,7 +54,7 @@ function approach(current: number, target: number, dt: number, rate: number): nu
 
 export function connectFloor(fetchImpl: typeof fetch = fetch): FloorLink {
   const remotes = new Map<number, RemoteActor>();
-  let latest = { x: 0.5, y: 0.7, facing: 'forward' as Facing, walking: false };
+  let latest = { x: 0.5, y: 0.7, facing: 'forward' as Facing, walking: false, room: 'ops' };
   let live = false;
   let stopped = false;
   let timer = 0;
@@ -70,6 +72,7 @@ export function connectFloor(fetchImpl: typeof fetch = fetch): FloorLink {
         existing.targetY = p.y;
         existing.facing = p.facing;
         existing.walking = p.walking;
+        existing.room = p.room;
         existing.name = p.name;
       } else {
         // Someone who has just appeared starts where they are rather than
@@ -83,6 +86,7 @@ export function connectFloor(fetchImpl: typeof fetch = fetch): FloorLink {
           targetY: p.y,
           facing: p.facing,
           walking: p.walking,
+          room: p.room,
           phase: Math.random() * 4,
         });
       }
@@ -113,8 +117,11 @@ export function connectFloor(fetchImpl: typeof fetch = fetch): FloorLink {
   timer = setTimeout(beat, 0) as unknown as number;
 
   return {
-    report(x, y, facing, walking) {
-      latest = { x, y, facing, walking };
+    report(x, y, facing, walking, room) {
+      // Changing room teleports you in normalised coordinates, so anyone we
+      // were smoothing toward is dropped rather than slid across the screen.
+      if (room !== latest.room) remotes.clear();
+      latest = { x, y, facing, walking, room };
     },
     actors() {
       return [...remotes.values()];
