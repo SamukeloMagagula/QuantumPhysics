@@ -178,7 +178,7 @@ export const LAYER_FILES: Record<string, string> = {
  */
 /** `badge` is not a terminal: it is the reception kiosk that registers your
  * trainee access card and unlocks the secured wings of the facility map. */
-export type StationKind = 'attack' | 'forensics' | 'campaign' | 'rack' | 'badge';
+export type StationKind = 'attack' | 'forensics' | 'campaign' | 'rack' | 'badge' | 'hardware';
 
 export interface Hotspot {
   id: string;

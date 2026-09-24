@@ -14,6 +14,8 @@ import {
 } from './pqScene';
 import { DEFAULT_FRAME, IsoMode, IsoView, fitIso, isoNorm, isoRectPoly } from './pqIso';
 import type { IsoFacing, NpcDef } from './pqNpc';
+import { GENERATED_ENTRANCES, GENERATED_ROOMS } from './pqGeneratedRooms';
+import { EXPANSION_ROOMS, EXPANSION_LINKS } from './pqExpansionRooms';
 import {
   FACILITY_ASPECT,
   FACILITY_DOORWAYS,
@@ -35,7 +37,7 @@ import {
  * The Page 8 illustration draws four doors and two "TO OTHER WINGS" arrows,
  * and until now all six led nowhere: the game was one room with the word
  * "headquarters" written on the wall. This module is the other side of
- * those doors — a reception you start in, the analyst bay, a briefing room,
+ * those doors — the facility entrance, the analyst bay, a briefing room,
  * the break room, and the core the racks live in.
  *
  * The operations floor keeps its authored artwork and its hand-traced map;
@@ -46,7 +48,9 @@ import {
  * Nothing is traced twice, so nothing can disagree with itself.
  */
 
-export type RoomId = 'facility' | 'reception' | 'ops' | 'bullpen' | 'briefing' | 'breakroom' | 'server';
+export type RoomId = 'facility' | 'ops' | 'bullpen' | 'briefing' | 'breakroom' | 'server'
+  | 'crypto-lab' | 'comms-centre' | 'soc-room' | 'engineering-room' | 'quantum-wing'
+  | 'server-hall' | 'cryogenics-lab' | 'secure-archive' | 'power-control-room';
 
 export const START_ROOM: RoomId = 'facility';
 
@@ -183,6 +187,7 @@ export interface RoomSpec {
 
 /** A door you can stand in front of and walk through. */
 export interface Door {
+  requiresAccess?: boolean;
   id: string;
   to: RoomId;
   label: string;
@@ -199,7 +204,17 @@ export interface Glow {
   phase: number;
 }
 
+export interface ImageProp {
+  id: string;
+  src: string;
+  /** Normalized image box, with a separate floor footprint for collision. */
+  box: [number, number, number, number];
+  footprint: Poly;
+  depth: number;
+}
+
 export interface Room {
+  imageProps?: ImageProp[];
   id: RoomId;
   name: string;
   kicker: string;
@@ -275,102 +290,6 @@ export function propSolid(p: Prop): boolean {
 // ---------------------------------------------------------------------------
 // Floor plans
 // ---------------------------------------------------------------------------
-
-const RECEPTION: RoomSpec = {
-  id: 'reception',
-  name: 'Reception',
-  kicker: 'ground floor · visitor entrance',
-  w: 17,
-  d: 12,
-  wall: 3.6,
-  palette: 'office',
-  spawn: [7.6, 6.4],
-  props: [
-    { kind: 'rug', x: 10.4, y: 5.2, w: 5.0, d: 5.4 },
-    { kind: 'counter', id: 'counter', x: 2.2, y: 1.7, w: 5.2, d: 1.25, face: 1 },
-    { kind: 'wallsign', x: 2.2, y: 0, w: 6.0, d: 0.16, z: 1.95, text: 'PHANTOM Q' },
-    { kind: 'wallscreen', x: 0, y: 2.6, w: 0.16, d: 3.4, z: 1.5 },
-    { kind: 'entrance', x: 0, y: 6.8, w: 0.22, d: 3.2 },
-    { kind: 'kiosk', x: 8.5, y: 1.2, w: 0.75, d: 0.75 },
-    { kind: 'barrier', x: 11.5, y: 2.5, w: 1.2, d: 0.55 },
-    { kind: 'barrier', x: 14.3, y: 2.5, w: 1.2, d: 0.55 },
-    { kind: 'sofa', id: 'sofaA', x: 11.1, y: 5.9, w: 3.0, d: 0.95, face: 1 },
-    { kind: 'lowtable', x: 11.9, y: 7.4, w: 1.7, d: 1.2 },
-    { kind: 'armchair', x: 10.8, y: 8.6, w: 1.0, d: 0.95, face: 3 },
-    { kind: 'armchair', x: 14.6, y: 8.6, w: 1.0, d: 0.95, face: 3 },
-    { kind: 'plant', x: 0.9, y: 4.5, w: 0.85, d: 0.85, h: 1.55 },
-    { kind: 'plant', x: 15.7, y: 5.1, w: 0.85, d: 0.85, h: 1.55 },
-    { kind: 'plant', x: 8.6, y: 10.2, w: 0.85, d: 0.85 },
-    { kind: 'plant', x: 1.0, y: 1.0, w: 0.8, d: 0.8, h: 1.4 },
-    { kind: 'cabinet', x: 4.4, y: 10.3, w: 2.4, d: 0.85 },
-  ],
-  doors: [{ to: 'ops', label: 'Operations Floor', wall: 'right', at: 13.5 }],
-  people: [
-    {
-      id: 'rc-desk',
-      name: 'Iris',
-      look: 2,
-      seat: { x: 4.6, y: 1.05, facing: 'sw', behind: 'counter' },
-      lines: ['Welcome to Phantom Q.', 'Sign in at the kiosk, please.', "They're expecting you on the floor."],
-    },
-    {
-      id: 'rc-wait-a',
-      name: 'Adeyemi',
-      look: 5,
-      seat: { x: 11.9, y: 6.95, facing: 'sw' },
-      lines: ['Half nine, they said.', 'Second time this week.'],
-    },
-    {
-      id: 'rc-wait-b',
-      name: 'Halvorsen',
-      look: 10,
-      seat: { x: 13.4, y: 6.95, facing: 'sw' },
-      lines: ['Is the badge printer fixed?'],
-    },
-    {
-      id: 'rc-guard',
-      name: 'Okoro',
-      look: 3,
-      route: [
-        [3.0, 4.6],
-        [9.2, 4.6],
-        [9.2, 9.4],
-        [3.2, 9.4],
-      ],
-      speed: 1.15,
-      dwell: 2.2,
-      lines: ['Badges visible, please.'],
-    },
-    {
-      id: 'rc-courier',
-      name: 'Bassey',
-      look: 9,
-      route: [
-        [2.6, 8.8],
-        [6.6, 6.2],
-        [10.4, 4.2],
-        [13.5, 3.7],
-        [13.5, 2.0],
-      ],
-      speed: 1.5,
-      dwell: 1.4,
-    },
-    {
-      id: 'rc-staff',
-      name: 'Whitlock',
-      look: 6,
-      route: [
-        [13.5, 2.2],
-        [13.5, 3.7],
-        [10.2, 5.0],
-        [5.2, 7.0],
-        [2.4, 8.6],
-      ],
-      speed: 1.3,
-      dwell: 3.0,
-    },
-  ],
-};
 
 const BULLPEN: RoomSpec = {
   id: 'bullpen',
@@ -620,7 +539,8 @@ const SERVER: RoomSpec = {
 };
 
 
-export const ROOM_SPECS: RoomSpec[] = [RECEPTION, BULLPEN, BRIEFING, BREAKROOM, SERVER];
+// Reception is now part of the illustrated facility, rather than a separate wing.
+export const ROOM_SPECS: RoomSpec[] = [BULLPEN, BRIEFING, BREAKROOM, SERVER];
 
 // ---------------------------------------------------------------------------
 // The operations floor — the client's artwork, its traced map, and the four
@@ -950,13 +870,14 @@ const FACILITY: Room = {
   art: { kind: 'image', src: '/pq/facility-master.jpg', aspect: FACILITY_ASPECT },
   floor: {
     walk: FACILITY_ROOMS.walkway,
-    walks: [...Object.values(FACILITY_ROOMS), ...FACILITY_DOORWAYS],
+    walks: [...Object.values(FACILITY_ROOMS), ...FACILITY_DOORWAYS, ...FACILITY_LOCKED.map(l => l.poly)],
     obstacles: FACILITY_OBSTACLES,
   },
   locks: FACILITY_LOCKED,
   actorScale: 0.55,
   spawn: { ...FACILITY_SPAWN },
   doors: [
+    ...GENERATED_ENTRANCES,
     {
       id: 'facility-ops',
       to: 'ops',
@@ -966,7 +887,7 @@ const FACILITY: Room = {
       hitRadius: DOOR_RADIUS,
     },
   ],
-  hotspots: FACILITY_HOTSPOTS,
+  hotspots: FACILITY_HOTSPOTS.filter(h => h.station === 'badge' || h.station === 'campaign'),
   npcs: FACILITY_PEOPLE,
   depthLayers: [],
   glows: FACILITY_SCREENS.map((s, i) => ({
@@ -980,7 +901,21 @@ const FACILITY: Room = {
   })),
 };
 
-export const ROOMS: Room[] = [FACILITY, OPS, ...ROOM_SPECS.filter((r) => r.id !== 'reception').map(buildRoom)];
+export const ROOMS: Room[] = [FACILITY, OPS, ...GENERATED_ROOMS, ...ROOM_SPECS.map(buildRoom), ...EXPANSION_ROOMS].map(room => ({
+  ...room,
+  doors: [...room.doors, ...EXPANSION_LINKS.filter(link => link.from === room.id).map(link => link.door)],
+}));
+
+/** The same geometry drives movement and access tests. Closed connectors
+ * are obstacles; unlocked connectors remain part of the walkable floor. */
+export function floorOf(room: Room, unlocked: boolean): FloorGeometry {
+  if (!room.locks || unlocked) return room.floor;
+  return { ...room.floor, obstacles: [...room.floor.obstacles, ...room.locks.map(l => l.poly)] };
+}
+
+export function doorLocked(door: Door, unlocked: boolean): boolean {
+  return Boolean(door.requiresAccess && !unlocked);
+}
 
 export function getRoom(id: RoomId): Room {
   return ROOMS.find((r) => r.id === id) ?? ROOMS[0];

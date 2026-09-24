@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PostFx, applyEnvironment, createPostFx } from './postFx';
 import { getTier, profile } from './sceneQuality';
+import { preloadSceneFont } from './sceneText';
 
 /**
  * The contract a game implements. GameEngine knows nothing about BB84,
@@ -60,6 +61,8 @@ export class GameEngine {
   private lastFrameMs = 0;
 
   constructor(opts: EngineOptions = {}) {
+    // Warm signage when a 3D mode opens, so the home page never loads WebGL just for text.
+    preloadSceneFont();
     this.opts = opts;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0b0a0c);

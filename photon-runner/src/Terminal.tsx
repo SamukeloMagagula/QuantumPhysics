@@ -11,7 +11,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import type { ActiveTerminal, CommsMessage } from './quantumHeist';
+import type { ActiveTerminal, CommsMessage } from './features/legacy-heist/quantumHeist';
 
 interface TerminalProps {
   terminal: ActiveTerminal;

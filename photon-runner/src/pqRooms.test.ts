@@ -46,9 +46,9 @@ function segmentClear(floor: FloorGeometry, a: Vec2, b: Vec2): string | null {
 }
 
 describe('room registry', () => {
-  it('starts the player in reception', () => {
-    expect(START_ROOM).toBe('reception');
-    expect(getRoom(START_ROOM).id).toBe('reception');
+  it('starts the player at the facility entrance', () => {
+    expect(START_ROOM).toBe('facility');
+    expect(getRoom(START_ROOM).id).toBe('facility');
   });
 
   it('adds wings without losing the authored operations floor', () => {
@@ -60,7 +60,7 @@ describe('room registry', () => {
   });
 
   it('falls back to a real room for an unknown id', () => {
-    expect(getRoom('nowhere' as RoomId).id).toBe('ops');
+    expect(getRoom('nowhere' as RoomId).id).toBe(START_ROOM);
   });
 
   it('gives every room a spawn point its own walk rules accept', () => {
@@ -109,6 +109,20 @@ describe('doors', () => {
     }
   });
 
+  it('can reach every expansion console without crossing a prop', () => {
+    for (const room of ROOMS.filter(r => r.imageProps?.length)) {
+      const cells = flood(room.floor, room.spawn);
+      for (const hotspot of room.hotspots) {
+        expect(near(cells, hotspot.approach), `${hotspot.id} is unreachable`).toBe(true);
+      }
+      for (const prop of room.imageProps ?? []) {
+        const x = prop.footprint.reduce((sum, p) => sum + p[0], 0) / prop.footprint.length;
+        const y = prop.footprint.reduce((sum, p) => sum + p[1], 0) / prop.footprint.length;
+        expect(canStandOn(room.floor, x, y), `${prop.id} does not block movement`).toBe(false);
+      }
+    }
+  });
+
   it('offers a door when standing on its approach point', () => {
     for (const room of ROOMS) {
       for (const door of room.doors) {
@@ -127,7 +141,7 @@ describe('doors', () => {
     }
   });
 
-  it('reaches every room from reception', () => {
+  it('reaches every room from the facility entrance', () => {
     const seen = new Set<RoomId>([START_ROOM]);
     const queue: RoomId[] = [START_ROOM];
     while (queue.length) {
@@ -138,7 +152,7 @@ describe('doors', () => {
         queue.push(door.to);
       }
     }
-    for (const r of ROOMS) expect(seen.has(r.id), `${r.id} is cut off from reception`).toBe(true);
+    for (const r of ROOMS) expect(seen.has(r.id), `${r.id} is cut off from the facility entrance`).toBe(true);
   });
 });
 

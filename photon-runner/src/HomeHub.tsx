@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
-import { getCompletedScenes } from './campaignProgress';
+import { getCompletedScenes } from './features/campaign/campaignProgress';
 import { Card, Page, PageHeader, Section, Tag } from './ui/Page';
 
 export type ModeId =

@@ -1,32 +1,38 @@
-import React, { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useRef, useSyncExternalStore, lazy, Suspense } from 'react';
 import { TopNav, Section } from './TopNav';
 import { HomeHub, ModeId } from './HomeHub';
-import { CustomizeScreen } from './CustomizeScreen';
-import { LabsHub } from './LabsHub';
-import { LabRunner } from './LabRunner';
-import { LabExamView } from './LabExamView';
-import { NetworkDefenderScreen } from './NetworkDefenderScreen';
-import { QuantumPhenomenaLab } from './QuantumPhenomenaLab';
-import { PhantomQScene } from './PhantomQScene';
-import { RoomsHub } from './RoomsHub';
-import { RoomRunner } from './RoomRunner';
-import { Leaderboard } from './Leaderboard';
-import { QkdLobby, type QkdRole } from './QkdLobby';
-import { QkdGameScreen } from './QkdGameScreen';
-import { CampaignScene1 } from './CampaignScene1';
-import { CampaignScene2 } from './CampaignScene2';
-import { CampusScreen } from './CampusScreen';
-import { QuantumLabScreen } from './QuantumLabScreen';
-import { nextCampaignScreen } from './campaignProgress';
+import { nextCampaignScreen } from './features/campaign/campaignProgress';
 import { useTheme } from './theme';
 import { SceneManager } from './engine/SceneManager';
 
+import type { RoomId } from './pqRooms';
+import type { QkdRole } from './QkdLobby';
+
+const CustomizeScreen = lazy(() => import('./CustomizeScreen').then(m => ({ default: m.CustomizeScreen })));
+const LabsHub = lazy(() => import('./LabsHub').then(m => ({ default: m.LabsHub })));
+const LabRunner = lazy(() => import('./LabRunner').then(m => ({ default: m.LabRunner })));
+const LabExamView = lazy(() => import('./LabExamView').then(m => ({ default: m.LabExamView })));
+const NetworkDefenderScreen = lazy(() => import('./NetworkDefenderScreen').then(m => ({ default: m.NetworkDefenderScreen })));
+const QuantumPhenomenaLab = lazy(() => import('./features/quantum/QuantumPhenomenaLab').then(m => ({ default: m.QuantumPhenomenaLab })));
+const PhantomQScene = lazy(() => import('./PhantomQScene').then(m => ({ default: m.PhantomQScene })));
+const RoomsHub = lazy(() => import('./RoomsHub').then(m => ({ default: m.RoomsHub })));
+const RoomRunner = lazy(() => import('./RoomRunner').then(m => ({ default: m.RoomRunner })));
+const Leaderboard = lazy(() => import('./Leaderboard').then(m => ({ default: m.Leaderboard })));
+const QkdLobby = lazy(() => import('./QkdLobby').then(m => ({ default: m.QkdLobby })));
+const QkdGameScreen = lazy(() => import('./QkdGameScreen').then(m => ({ default: m.QkdGameScreen })));
+const CampaignScene1 = lazy(() => import('./features/campaign/CampaignScene1').then(m => ({ default: m.CampaignScene1 })));
+const CampaignScene2 = lazy(() => import('./features/campaign/CampaignScene2').then(m => ({ default: m.CampaignScene2 })));
+const CampusScreen = lazy(() => import('./CampusScreen').then(m => ({ default: m.CampusScreen })));
+const QuantumLabScreen = lazy(() => import('./QuantumLabScreen').then(m => ({ default: m.QuantumLabScreen })));
+const ServerHall3DScreen = lazy(() => import('./ServerHall3DScreen').then(m => ({ default: m.ServerHall3DScreen })));
+
 type Screen =
+  | { name: 'server-hall-3d' }
   | { name: 'home' }
   | { name: 'campus' }
   | { name: 'quantum-lab-interior' }
   | { name: 'customize' }
-  | { name: 'qkd-attack' }
+  | { name: 'qkd-attack'; roomId?: RoomId }
   | { name: 'labs' }
   | { name: 'lab'; labId: string }
   | { name: 'lab-exam'; examId: string }
@@ -46,6 +52,7 @@ function sectionOf(screen: Screen): Section {
     case 'campus':
       return 'home';
     case 'qkd-attack':
+    case 'server-hall-3d':
       return 'qkd-attack';
     case 'labs':
     case 'lab':
@@ -72,6 +79,7 @@ function sectionOf(screen: Screen): Section {
 }
 
 const BREADCRUMBS: Record<Screen['name'], string> = {
+  'server-hall-3d': 'Phantom Q · Server Hall 3D',
   home: '',
   campus: 'Research Campus',
   'quantum-lab-interior': 'Quantum Lab',
@@ -97,6 +105,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
 // click handler inside this component. App.tsx renders whatever
 // SceneManager says is current instead of owning that state itself.
 const SCREEN_IDS: Screen['name'][] = [
+  'server-hall-3d',
   'home',
   'campus',
   'quantum-lab-interior',
@@ -205,7 +214,7 @@ export default function App() {
   const showBack = screen.name !== 'home';
   // These own the viewport (3D canvas + overlays); everything else scrolls.
   const immersive =
-    screen.name === 'campus' || screen.name === 'quantum-lab-interior' || screen.name === 'qkd-attack';
+    screen.name === 'campus' || screen.name === 'quantum-lab-interior' || screen.name === 'qkd-attack' || screen.name === 'server-hall-3d';
 
   return (
     <div
@@ -222,13 +231,15 @@ export default function App() {
       />
 
       <main ref={mainRef} className={`flex-1 min-h-0 ${immersive ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <Suspense fallback={<p role="status" className="p-6 ink-2">Loading…</p>}>
         {screen.name === 'home' && <HomeHub onOpen={openMode} />}
         {screen.name === 'campus' && <CampusScreen onEnterBuilding={(sceneId) => go(sceneId as Screen['name'])} />}
         {screen.name === 'quantum-lab-interior' && (
           <QuantumLabScreen onOpenSimulator={() => go('quantum-scene')} />
         )}
         {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
-        {screen.name === 'qkd-attack' && <PhantomQScene />}
+        {screen.name === 'qkd-attack' && <PhantomQScene initialRoom={screen.roomId} />}
+        {screen.name === 'server-hall-3d' && <ServerHall3DScreen onBack={() => go('qkd-attack', { roomId: 'comms-centre' })} onSelectRoom={roomId => go('qkd-attack', { roomId })} />}
         {screen.name === 'labs' && (
           <LabsHub
             onOpenLab={(labId) => go('lab', { labId })}
@@ -255,6 +266,7 @@ export default function App() {
           <CampaignScene1 onNext={() => go('campaign-scene2')} onExit={goHome} />
         )}
         {screen.name === 'campaign-scene2' && <CampaignScene2 onNext={() => go('qkd-lobby')} onExit={goHome} />}
+        </Suspense>
       </main>
     </div>
   );

@@ -1,0 +1,36 @@
+# Additional subsection concepts
+
+Generated with the built-in image generation tool using `photon-runner/public/pq/facility-master.jpg` as a style reference. These are concept backgrounds, not yet integrated into gameplay. All four preserve the elevated cutaway view, pale tiled floors, perimeter equipment and a clear entrance. Final collision tracing and foreground/door layers remain separate work.
+
+## Communications Centre
+
+[Saved image](communications-centre.png)
+
+### Exact prompt
+
+Use case: stylized-concept. Asset type: standalone room background concept for a 2D facility exploration game. Reference image: architectural style only; create a close-up of ONE subsection, not the entire building. Landscape 3:2 composition, elevated near-orthographic front-facing cutaway view matching the reference, off-white walls, pale square floor tiles, dark equipment, grounded architectural illustration, soft neutral lighting. Show the entire room, with front wall cut away and a clear open entrance threshold at front center. Keep generous empty walkable central floor connecting entrance to every workstation. Furniture primarily against perimeter walls, realistic human proportions, distinct readable silhouettes, small white margin outside cutaway room. No people, no labels, no text, no logos, no padlock icons, no arrows, no UI, no collage. Subject: COMMUNICATIONS CENTRE. A curved bank of radio and fibre-link consoles along the rear wall, blue signal-wave monitors above them, headset-equipped operator desks and tucked chairs, a wall-mounted world connectivity visualization without text, compact network patch racks on the left, a fibre testing station on the right with neatly routed cables. Restrained blue and teal instrument glow. Functional modern communications room, not a spaceship bridge. Distinguish it through radio equipment, fibre patch bays and signal monitoring.
+
+## Security Operations Centre
+
+[Saved image](security-operations-centre.png)
+
+### Exact prompt
+
+Use case: stylized-concept. Asset type: standalone room background concept for a 2D facility exploration game. Reference image: architectural style only; create a close-up of ONE subsection, not the entire building. Landscape 3:2 composition, elevated near-orthographic front-facing cutaway view matching the reference, off-white walls, pale square floor tiles, dark equipment, grounded architectural illustration, soft neutral lighting. Show the entire room, with front wall cut away and a clear open entrance threshold at front center. Keep generous empty walkable central floor connecting entrance to every workstation. Furniture primarily against perimeter walls, realistic human proportions, distinct readable silhouettes, small white margin outside cutaway room. No people, no labels, no text, no logos, no padlock icons, no arrows, no UI, no collage. Subject: SECURITY OPERATIONS CENTRE. A wall of surveillance and network-monitoring screens with abstract graphs, a few small CCTV views of empty facility corridors, and a network topology display without readable text. Two separated straight analyst desk banks against the rear left and rear right walls, dual monitors and neatly tucked black chairs, a compact digital forensics bench with a laptop and secured evidence equipment at the left side, a locked equipment cabinet on the right. Wide unbroken central aisle and generous circulation space. Blue displays with very restrained amber alert details; calm professional incident response room. Distinct from the communications room: straight desks, CCTV and forensics, not radio equipment or a curved console.
+
+## Engineering Workshop
+
+[Saved image](engineering-workshop.png)
+
+### Exact prompt
+
+Use case: stylized-concept. Asset type: standalone room background concept for a 2D facility exploration game. Reference image: architectural style only; create a close-up of ONE subsection, not the entire building. Landscape 3:2 composition, elevated near-orthographic front-facing cutaway view matching the reference, off-white walls, pale square floor tiles, dark equipment, grounded architectural illustration, soft neutral lighting. Show the entire room, with front wall cut away and a clear open entrance threshold at front center. Keep generous empty walkable central floor connecting entrance to every workstation. Furniture primarily against perimeter walls, realistic human proportions, distinct readable silhouettes, small white margin outside cutaway room. No people, no labels, no text, no logos, no padlock icons, no arrows, no UI, no collage. Subject: ENGINEERING WORKSHOP. Practical electronics maintenance room with warm wooden workbenches against the back and left walls, organized tool pegboards, soldering stations, oscilloscopes, anti-static mats, a partially disassembled desktop computer, neatly arranged components in small bins, grey rolling tool cabinets parked under benches, and a repair rack with accessible cable patch panels against the right wall. One compact equipment trolley parked at the side, never in the central aisle. A few warm task lamps, steel and wood textures with subtle yellow equipment details; restrained blue instrument displays. Clean believable working laboratory, welcoming and slightly used, no clutter across the walkable floor. Make its tools and repair benches visibly different from the monitoring-console rooms.
+
+## Quantum Wing
+
+[Saved image](quantum-wing.png)
+
+### Exact prompt
+
+Use case: stylized-concept. Asset type: standalone room background concept for a 2D facility exploration game. Reference image: architectural style only; create a close-up of ONE subsection, not the entire building. Landscape 3:2 composition, elevated near-orthographic front-facing cutaway view matching the reference, off-white walls, pale square floor tiles, dark equipment, grounded architectural illustration, soft neutral lighting. Show the entire room, with front wall cut away and a clear open entrance threshold at front center. Keep generous empty walkable central floor connecting entrance to every workstation. Furniture primarily against perimeter walls, realistic human proportions, distinct readable silhouettes, small white margin outside cutaway room. No people, no labels, no text, no logos, no padlock icons, no arrows, no UI, no collage. Subject: QUANTUM WING, a realistic quantum optics and key-distribution teaching laboratory. Two substantial black optical breadboard benches positioned along the left and right sides, each with neatly arranged small mirrors, polarizer mounts, beam splitters, fibre couplers and enclosed detector modules. Delicate visible blue alignment-light accents confined to the benches, not giant glowing beams. Rear wall has a compact instrument rack, timing electronics, two computer monitors displaying abstract photon-count plots without readable text, and a glass-front cabinet with spare optical components. A short clear safety-glass screen at one bench edge and organized enclosed fibre cable trays. Cool clean laboratory mood with restrained teal and blue instrumentation. Keep the central passage completely free from entrance to rear console. No science-fiction reactors, no floating holograms, no atom-symbol props, no people.
+

@@ -182,7 +182,7 @@ export const FACILITY_PEOPLE: NpcDef[] = [
   npc('fc-soc', 'Marchetti', 3, { x: 1235, y: 405, facing: 'ne' }, [], 0, ['SOC is green.']),
   npc('fc-comms', 'Lindqvist', 8, { x: 1040, y: 200, facing: 'ne' }, [], 0, ['Line looks clean.']),
   npc('fc-walk', 'Halloran', 6, null, [[700, 320], [700, 530], [1010, 530], [1010, 320]], 0.04, ['Stand-up in five.']),
-  npc('fc-guard', 'Okoro', 9, null, [[712, 960], [712, 750], [622, 720], [622, 600]], 0.035, ['Badges visible, please.']),
+  npc('fc-guard', 'Okoro', 9, null, [[712, 960], [712, 712], [820, 712], [820, 600]], 0.035, ['Badges visible, please.']),
   npc('fc-comms-walk', 'Petrov', 11, null, [[910, 236], [1330, 236]], 0.03),
-  npc('fc-runner', 'Adeyinka', 5, { x: 900, y: 470, facing: 'ne' }, [[980, 530], [980, 320], [960, 262], [960, 236]], 0.038, ['Comms wants the numbers.']),
+  npc('fc-runner', 'Adeyinka', 5, { x: 972, y: 470, facing: 'ne' }, [[972, 320], [960, 320], [960, 262], [960, 236]], 0.038, ['Comms wants the numbers.']),
 ];

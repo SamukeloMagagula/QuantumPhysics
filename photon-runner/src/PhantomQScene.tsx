@@ -14,20 +14,25 @@ import {
 } from './pqScene';
 import {
   Room,
-  ROOMS,
+  ImageProp,
   RoomId,
   START_ROOM,
   arrivalFrom,
   doorAt,
   getRoom,
   stationAt,
+  floorOf,
+  doorLocked,
 } from './pqRooms';
+import { FacilityNavigation } from './FacilityNavigation';
+import { SceneManager } from './engine/SceneManager';
+import { HardwareLabPanel } from './HardwareLabPanel';
 import { artSize, paintRoom } from './pqRoomArt';
 import { Npc, createNpcs, isWalking, lookAt, updateNpcs } from './pqNpc';
 import { drawContactShadow, drawPerson, drawSpeech } from './pqPeople';
 import { QkdConsole } from './QkdConsole';
 import { ForensicsPanel } from './ForensicsPanel';
-import { CampaignPanel } from './CampaignPanel';
+import { CampaignPanel } from './features/campaign/CampaignPanel';
 import { RemoteActor, connectFloor } from './floorClient';
 import { AttackState } from './qkdAttack';
 
@@ -71,11 +76,6 @@ type Prompt =
   | { kind: 'locked'; kicker: string; label: string; id: string };
 
 /** A room's floor as it currently stands: shut doors are solid. */
-function floorOf(room: Room, unlocked: boolean) {
-  if (!room.locks || unlocked) return room.floor;
-  return { ...room.floor, obstacles: [...room.floor.obstacles, ...room.locks.map((l) => l.poly)] };
-}
-
 function aspectOf(room: Room): number {
   return room.art.kind === 'image' ? room.art.aspect : SCENE_ASPECT;
 }
@@ -151,7 +151,7 @@ function createArtCache() {
   };
 }
 
-export function PhantomQScene() {
+export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: RoomId }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [sprites, setSprites] = useState<Sprites | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +159,10 @@ export function PhantomQScene() {
   const [station, setStation] = useState<StationKind | null>(null);
   const [session, setSession] = useState<AttackState | null>(null);
   const [roomId, setRoomId] = useState<RoomId>(START_ROOM);
+  const [loadingRoom, setLoadingRoom] = useState<string | null>(null);
+  const tourRef = useRef(false);
+  const spritesRef = useRef<Sprites | null>(null);
+  const roomRequest = useRef(0);
 
   // Mutable per-frame state, deliberately outside React: the render loop
   // runs at 60fps and must not queue a re-render per frame.
@@ -179,10 +183,13 @@ export function PhantomQScene() {
   useEffect(() => {
     let alive = true;
     loadSprites()
-      .then((s) => alive && setSprites(s))
+      .then((s) => {
+        if (alive) { spritesRef.current = s; setSprites(s); }
+      })
       .catch((e) => alive && setError(e.message));
     return () => {
       alive = false;
+      roomRequest.current++;
     };
   }, []);
 
@@ -193,12 +200,36 @@ export function PhantomQScene() {
   const standUp = useCallback(() => setStation(null), []);
 
   /** Walk through a door: you arrive at the one that leads back. */
-  const enterRoom = useCallback((to: RoomId) => {
+  const enterRoom = useCallback(async (to: RoomId, preview = false) => {
+    if (to === 'server-hall') { SceneManager.load('server-hall-3d'); return; }
     const from = room.current.id;
     if (to === from) return;
     const next = getRoom(to);
+    const assets = spritesRef.current;
+    if (!assets) return;
+    const request = ++roomRequest.current;
+    held.current.clear();
+    setLoadingRoom(next.name);
+    try {
+      const sources = [
+        ...(next.art.kind === 'image' ? [next.art.src] : []),
+        ...(next.imageProps ?? []).map(prop => prop.src),
+      ];
+      await Promise.all(sources.map(async src => {
+        if (!assets.images[src]) assets.images[src] = await loadImage(src);
+      }));
+    } catch {
+      if (request === roomRequest.current) {
+        setLoadingRoom(null);
+        setNotice(`Could not load ${next.name}. Please try again.`);
+      }
+      return;
+    }
+    if (request !== roomRequest.current) return;
+    const leavingTour = tourRef.current && to === 'facility';
+    tourRef.current = preview || (tourRef.current && !leavingTour);
     room.current = next;
-    pos.current = arrivalFrom(from, to);
+    pos.current = preview || leavingTour ? { ...next.spawn } : arrivalFrom(from, to);
     facing.current = 'forward';
     npcs.current = createNpcs(next.npcs);
     promptRef.current = null;
@@ -207,12 +238,21 @@ export function PhantomQScene() {
     held.current.clear();
     setPrompt(null);
     setRoomId(to);
+    setLoadingRoom(null);
+    setNotice(null);
+    setStation(null);
   }, []);
+
+  useEffect(() => {
+    if (sprites && initialRoom !== START_ROOM) void enterRoom(initialRoom, true);
+  }, [sprites, initialRoom, enterRoom]);
 
   // ---- input ----
   useEffect(() => {
     const MOVE = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
     const down = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, button, summary, [contenteditable="true"]')) return;
       const k = e.key.toLowerCase();
       if (MOVE.has(k)) {
         e.preventDefault();
@@ -372,12 +412,14 @@ export function PhantomQScene() {
         const lock = hit || door || unlocked.current ? null : lockAt(here, pos.current);
         const next: Prompt | null = hit
           ? { kind: 'station', station: hit.station, kicker: hit.kicker, label: hit.label, id: hit.id }
+          : door && doorLocked(door, unlocked.current)
+          ? { kind: 'locked', kicker: 'ACCESS REQUIRED', label: `${door.label} — register at Reception`, id: `lock-${door.id}` }
           : door
           ? { kind: 'door', to: door.to, kicker: 'DOORWAY', label: `Enter ${door.label}`, id: door.id }
           : lock
           ? { kind: 'locked', kicker: 'LOCKED', label: `${lock.label} — register at Reception`, id: `lock-${lock.id}` }
           : null;
-        if (next?.id !== promptRef.current?.id) {
+        if (next?.id !== promptRef.current?.id || next?.kind !== promptRef.current?.kind) {
           promptRef.current = next;
           setPrompt(next);
         }
@@ -443,6 +485,7 @@ export function PhantomQScene() {
       for (const d of here.doors) {
         const [ax, ay] = toPx(d.anchor.x, d.anchor.y);
         const active = promptRef.current?.id === d.id;
+        const locked = doorLocked(d, unlocked.current);
         const bob = Math.sin(clock * 2.2 + d.anchor.x * 8) * W * 0.0022;
         const r = W * (active ? 0.011 : 0.0082);
         ctx.save();
@@ -451,7 +494,7 @@ export function PhantomQScene() {
         ctx.moveTo(-r, -r * 0.5);
         ctx.lineTo(0, r * 0.55);
         ctx.lineTo(r, -r * 0.5);
-        ctx.strokeStyle = active ? 'rgba(140,230,255,.95)' : 'rgba(190,215,235,.62)';
+        ctx.strokeStyle = locked ? 'rgba(255,180,90,.85)' : active ? 'rgba(140,230,255,.95)' : 'rgba(190,215,235,.62)';
         ctx.lineWidth = Math.max(1.6, W * 0.0021);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -465,6 +508,7 @@ export function PhantomQScene() {
       // use the authored sprite sheet; the staff are drawn.
       floor.tick(dt);
       type Member =
+        | { y: number; kind: 'prop'; prop: ImageProp }
         | { y: number; kind: 'sprite'; x: number; facing: Facing; walking: boolean; phase: number; name: string | null }
         | { y: number; kind: 'npc'; npc: Npc };
       const cast: Member[] = [
@@ -487,6 +531,7 @@ export function PhantomQScene() {
           name: a.name as string | null,
         })),
         ...npcs.current.map((n) => ({ kind: 'npc' as const, y: n.mode === 'seated' && n.def.seat ? n.def.seat.pos.y : n.pos.y, npc: n })),
+        ...(here.imageProps ?? []).map(prop => ({ kind: 'prop' as const, y: prop.depth, prop })),
       ].sort((a, b) => a.y - b.y);
 
       // Speech is collected and drawn last, so a bubble is never covered by
@@ -494,6 +539,12 @@ export function PhantomQScene() {
       const bubbles: { x: number; y: number; text: string; px: number; fade: number }[] = [];
 
       for (const who of cast) {
+        if (who.kind === 'prop') {
+          const [x, y, w, h] = who.prop.box;
+          const img = sprites.images[who.prop.src];
+          if (img) ctx.drawImage(img, x * W, y * H, w * W, h * H);
+          continue;
+        }
         const isNpc = who.kind === 'npc';
         const n = isNpc ? who.npc : null;
         const seatedNow = n !== null && n.mode === 'seated' && n.def.seat !== null;
@@ -634,6 +685,10 @@ export function PhantomQScene() {
     <div className="relative h-full w-full overflow-hidden grid place-items-center" style={{ background: '#0a0d12' }}>
       <canvas ref={canvasRef} className="block" />
 
+      {loadingRoom && <div role="status" className="absolute inset-0 grid place-items-center bg-black/60 text-white">
+        Loading {loadingRoom}…
+      </div>}
+
       {!sprites && (
         <div className="absolute inset-0 grid place-items-center">
           <p className="text-sm ink-3">Loading Phantom Q HQ…</p>
@@ -642,6 +697,8 @@ export function PhantomQScene() {
 
       {sprites && !station && (
         <>
+          <FacilityNavigation roomId={roomId} disabled={Boolean(loadingRoom)}
+            onSelect={id => { void enterRoom(id, true); }} />
           <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
             <div className="glass rounded-2xl px-4 py-2 text-center">
               <div className="label-mono !text-[9px]">{here.kicker}</div>
@@ -651,27 +708,6 @@ export function PhantomQScene() {
               <p className="text-[11px] ink-3 mt-0.5">
                 WASD to walk · <span className="ink-1 font-semibold">E</span> at a console or doorway
               </p>
-            </div>
-          </div>
-
-          <div className="absolute top-4 left-4 pointer-events-none hidden sm:block">
-            <div className="glass rounded-2xl px-3 py-2">
-              <div className="label-mono !text-[8.5px] mb-1.5">building</div>
-              <ul className="space-y-1">
-                {ROOMS.map((r) => (
-                  <li
-                    key={r.id}
-                    className="text-[11px] flex items-center gap-2"
-                    style={{ color: r.id === roomId ? '#8fe0ff' : '#8fa6bd' }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: r.id === roomId ? '#5ec8e8' : 'rgba(143,166,189,.4)' }}
-                    />
-                    {r.name}
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
 
@@ -692,6 +728,11 @@ export function PhantomQScene() {
                 className="rounded-2xl px-4 py-2.5 flex items-center gap-3"
                 style={{ background: 'rgba(10,16,26,.88)', border: '1px solid rgba(255,255,255,.16)' }}
               >
+                {(prompt.kind === 'door' || prompt.kind === 'locked') && <div
+                  role="img" aria-label={prompt.kind === 'locked' ? 'Closed security door' : 'Open doorway'}
+                  className="w-16 h-16 shrink-0 rounded-lg bg-white"
+                  style={{ backgroundImage: 'url(/pq/rooms/door-states.png)', backgroundSize: '200% 100%',
+                    backgroundPosition: prompt.kind === 'locked' ? 'left center' : 'right center' }} />}
                 <span
                   className="grid place-items-center w-6 h-6 rounded-md text-[11px] font-bold"
                   style={{ background: '#5ec8e8', color: '#04121a' }}
@@ -725,6 +766,7 @@ export function PhantomQScene() {
             {station === 'forensics' && <ForensicsPanel session={session} onClose={standUp} />}
             {station === 'campaign' && <CampaignPanel onClose={standUp} />}
             {station === 'rack' && <CampaignPanel onClose={standUp} place="rack" />}
+            {station === 'hardware' && <HardwareLabPanel onClose={standUp} />}
           </div>
         </div>
       )}

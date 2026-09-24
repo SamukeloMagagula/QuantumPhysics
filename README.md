@@ -273,69 +273,52 @@ and 4k shadow maps.
 
 ## What's here
 
-Everything lives under `photon-runner/`:
+Everything lives under `photon-runner/`. Tests sit beside the modules they cover.
 
-- **`src/`** — all TypeScript/TSX (client, server and tests) in one flat
-  directory.
-  - `qkdAttack.ts` / `qkdAttackCommands.ts` — the attack simulation and its
-    command layer. Both pure and deterministic given an RNG, which is why the
-    whole game is playable and assertable in tests without a DOM.
-  - `qkdForensics.ts` — post-hack evidence and the accusation verdict.
-  - `hardwareLabs.ts` — the diagnosis labs, both tracks.
-  - `campaignStory.ts` — the campaign: chapters, beats, choices, evidence,
-    clearance and the information boundary. Pure and serialisable, so the
-    whole story is playable and assertable in tests.
-  - `campaignStages.ts` — the stage/level layer: unlock chain, par times,
-    best-time records, the carried case file, and persistence.
-  - `campaignExercises.ts` — the interactive mechanics (timeline ordering,
-    fact/assumption and CIA classification, file transfer, seating a rack,
-    handling a phish) with their grading rules. Pure, so every exercise is
-    gradeable in tests.
-  - `campaignSession.ts` — the run in progress, held outside React so
-    standing up and walking to another station does not destroy it.
-  - `CampaignPanel.tsx` / `CampaignHandsOn.tsx` — Workstation 04's screen,
-    the case board, and the physical tasks.
-  - `pqScene.ts` — the Page 8 scene model: walkable polygon, traced object
-    footprints, depth ordering, hotspots and the walk rules. Pure, so the
-    map is unit-tested by flood fill rather than discovered by walking into
-    a wall.
-  - `PhantomQScene.tsx` — the canvas renderer: master image, sprite actor,
-    depth layers, hotspot prompts.
-  - `sceneComputerRoom.ts` — the earlier 3D facility, kept for reference.
-  - `GameEngine.ts` / `postFx.ts` / `sceneQuality.ts` — Three.js scene and
-    render loop, post-processing chain (GTAO → bloom → ACES → grade → SMAA),
-    and the quality tiers.
-  - `scene*.ts` — procedural world building: characters, maps, materials,
-    office props, SDF text, holographic panels, particles, shaders.
-  - `engine/` — the reusable layer: game state, scene manager, entity
-    registry, interaction registry, asset manager, zone access.
-  - `labRegistry.ts` / `labFramework.ts` / `labStyles.ts` + the individual
-    challenge files — the security labs and the shell they run in.
-  - `labExam.ts` / `labExams.ts` — the section tests: marking, progress and
-    unlocking, plus the authored questions. Pure, so a paper can be marked
-    in a test without a DOM.
-  - `LabsHub.tsx` / `LabRunner.tsx` / `LabExamView.tsx` — the labs dashboard,
-    the lab shell and sitting a test.
-  - `campaignScene*.ts` / `Campaign*.tsx` — Quantum Breach.
-  - `qkdEngine.ts`, `qkdService.ts`, `qkdRoutes.ts` — BB84 and Quantum
-    Intercept multiplayer.
-  - `floorPresence.ts` / `floorRoutes.ts` / `floorClient.ts` — the shared
-    headquarters floor: who is standing where, and the client that reports
-    and interpolates it.
-  - `server*.ts` — the Express + better-sqlite3 API (guest identity).
-- **`public/pq/`** — the client's Page 8 artwork: master image, the eight
-  furniture layers used for depth, and the operator sprite sheets.
-- **`public/fonts/`** — Inter (SIL OFL), bundled rather than CDN-fetched so
-  in-world text never silently fails offline.
-- **`data/`** — the server's SQLite database (gitignored, created on first run).
+- **`src/server/`** — Express API, SQLite schema and storage, guest identity,
+  production configuration, room grading and multiplayer services. The entry
+  point is `serverIndex.ts`; `serverConfig.ts` validates startup settings.
+- **`src/features/campaign/`** — campaign story, stages, exercises, persistence,
+  workstation panels and Quantum Breach scenes. Rules remain independent of React.
+- **`src/features/quantum/`** — the quantum simulator screen, its controller
+  hook (`useQuantumPhenomena.ts`) and Eve's report panels (`EveReports.tsx`).
+- **`src/features/legacy-heist/`** and **`src/server/legacy/`** — the retired
+  social-deduction mode and its opt-in API. It remains covered by tests.
+- **`src/engine/`** — reusable state, scene, asset and interaction registries.
+- **`src/ui/`** — shared page components.
+- **`src/App.tsx`** — navigation and lazy loading for individual screens.
+  The home screen does not eagerly load the WebGL engine or its font builder.
+- **`src/pq*.ts`**, **`PhantomQScene.tsx`** — headquarters artwork,
+  geometry, NPCs and rendering. The facility entrance is the starting room;
+  reception is part of that illustration, not a separate active wing.
+- **`src/qkdAttack*.ts`**, **`qkdForensics.ts`**, **`qkdEngine.ts`** —
+  attack simulation, evidence and shared BB84 rules.
+- **`src/lab*.ts`**, individual challenge modules and lab screens — security
+  exercises, section tests and browser-local progress.
+- **`src/GameEngine.ts`**, **`scene*.ts`**, **`postFx.ts`** — 3D rendering,
+  procedural scenes, quality settings and post-processing.
+- **`public/pq/`** — facility and operations artwork, depth layers and sprites.
+- **`public/fonts/`** — bundled Inter fonts (SIL OFL).
+- **`data/`** — SQLite database, created on first run and gitignored.
 
-### Retired
+## Production
 
-`quantumHeist*.ts`, `HeistScreen.tsx`, `HeistLobby.tsx` and
-`HeistMultiplayerLobby.tsx` are the previous main game — an Among-Us-style
-social-deduction mode built on the same BB84 engine. It is no longer reachable
-from the UI. The source is kept for reference; the server-side heist routes
-still exist and are still tested.
+Build with `npm run build`, then run `npm start`. Supply a persistent,
+randomly generated `SECRET_KEY` of at least 32 characters through your
+deployment environment or secret manager. Startup fails before opening the
+database if the production secret is missing, too short, or the development
+fallback. Keep the same secret across restarts to preserve guest identities;
+rotating it invalidates their cookies.
+
+Serve production through HTTPS: production identity cookies are Secure,
+HttpOnly and SameSite=Lax. `PORT` defaults to 8787 and `DB_PATH` defaults
+to `photon-runner/data/app.db`. Moving the server source has not changed
+the database or built-client locations.
+
+The retired heist API is disabled by default. Set `ENABLE_LEGACY_HEIST=true`
+only when deliberately running that legacy mode. Unknown API routes return
+JSON 404 responses. Any seated Quantum Intercept player may start their game;
+unseated guests are rejected before its state changes.
 
 ## Develop
 
@@ -346,7 +329,7 @@ npm test
 npm run build
 ```
 
-628 tests. The pure logic — attack simulation, forensics, labs and their
+Run the suite for the current test count. The pure logic — attack simulation, forensics, labs and their
 tests, the DDoS balance, scene map and walk rules, floor presence, BB84
 engine — is covered directly; the rendering is verified by running the app
 rather than by unit test.
