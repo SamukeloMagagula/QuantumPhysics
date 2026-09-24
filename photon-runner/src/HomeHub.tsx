@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowRight,
   BookOpen,
+  Boxes,
   Building2,
   Check,
   Eye,
@@ -25,7 +26,8 @@ export type ModeId =
   | 'customize'
   | 'rooms'
   | 'qkd-multiplayer'
-  | 'campaign';
+  | 'campaign'
+  | 'facility3d';
 
 interface HomeHubProps {
   onOpen: (mode: ModeId) => void;
@@ -113,6 +115,14 @@ const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
         tag: 'Arcade round',
         blurb: 'Hold the perimeter as intrusions escalate. A short reflex round between runs.',
         Icon: Shield,
+      },
+      {
+        id: 'facility3d',
+        title: '3D Facility',
+        tag: 'Walkthrough · 10 rooms',
+        blurb:
+          'Every Phantom Q room, rebuilt to scale from its 3D reference sheet — headquarters, the labs, the server hall, the archive. Walk it in real 3D.',
+        Icon: Boxes,
       },
     ],
   },

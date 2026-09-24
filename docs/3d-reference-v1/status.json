@@ -1,0 +1,29 @@
+{
+  "completed": [
+    "room-headquarters",
+    "room-server-hall",
+    "room-cryptography-lab",
+    "room-communications-centre",
+    "room-security-operations",
+    "room-engineering-workshop",
+    "room-quantum-wing",
+    "room-cryogenics-lab",
+    "room-secure-archive",
+    "room-power-control",
+    "prop-desk",
+    "prop-server-cabinet",
+    "prop-workstation-cluster",
+    "prop-door",
+    "prop-reception-desk"
+  ],
+  "pending": [
+    "prop-chair",
+    "prop-monitor",
+    "prop-plant",
+    "prop-locker",
+    "prop-storage-cabinet",
+    "scale-grid-guide",
+    "material-palette"
+  ],
+  "blockedBy": "image_generation_usage_limit"
+}

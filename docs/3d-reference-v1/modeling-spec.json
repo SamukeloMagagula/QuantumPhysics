@@ -1,0 +1,89 @@
+{
+  "units": "metres",
+  "axes": {
+    "up": "+Y",
+    "east": "+X",
+    "north": "-Z"
+  },
+  "grid": 0.5,
+  "tileModule": 0.6,
+  "ceilingHeight": 3.2,
+  "wallThickness": 0.2,
+  "doorClearance": {
+    "width": 1,
+    "height": 2.1
+  },
+  "circulationWidth": 1.2,
+  "materials": {
+    "wallPaint": "#D8DCDD",
+    "floorCeramic": "#C7C8C3",
+    "grout": "#929590",
+    "paintedSteel": "#727C86",
+    "equipmentCharcoal": "#242D38",
+    "blackPolymer": "#151B23",
+    "oakBase": "#B99162",
+    "upholstery": "#30343B",
+    "screenBlue": "#164C72",
+    "ledCyan": "#54C8E8",
+    "safetyYellow": "#D6AE36",
+    "foliageGreen": "#42663B"
+  },
+  "props": {
+    "desk": [
+      1.6,
+      0.8,
+      0.75
+    ],
+    "serverCabinet": [
+      0.6,
+      1,
+      2
+    ],
+    "workstationCluster": [
+      3.2,
+      1.6,
+      1.25
+    ],
+    "doorFrame": [
+      1.1,
+      0.2,
+      2.2
+    ],
+    "receptionDesk": [
+      2.4,
+      0.9,
+      1.1
+    ],
+    "chair": [
+      0.65,
+      0.65,
+      1.1
+    ],
+    "monitor": [
+      0.62,
+      0.2,
+      0.48
+    ],
+    "plant": [
+      0.45,
+      0.45,
+      1.2
+    ],
+    "locker": [
+      0.8,
+      0.5,
+      1.8
+    ],
+    "storageCabinet": [
+      1.2,
+      0.5,
+      2
+    ]
+  },
+  "dimensionOrder": [
+    "width",
+    "depth",
+    "height"
+  ],
+  "status": "Proposed modeling targets; not measurements inferred from concept paintings"
+}

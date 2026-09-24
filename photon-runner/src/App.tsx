@@ -25,9 +25,11 @@ const CampaignScene2 = lazy(() => import('./features/campaign/CampaignScene2').t
 const CampusScreen = lazy(() => import('./CampusScreen').then(m => ({ default: m.CampusScreen })));
 const QuantumLabScreen = lazy(() => import('./QuantumLabScreen').then(m => ({ default: m.QuantumLabScreen })));
 const ServerHall3DScreen = lazy(() => import('./ServerHall3DScreen').then(m => ({ default: m.ServerHall3DScreen })));
+const Facility3DScreen = lazy(() => import('./Facility3DScreen').then(m => ({ default: m.Facility3DScreen })));
 
 type Screen =
   | { name: 'server-hall-3d' }
+  | { name: 'facility-3d' }
   | { name: 'home' }
   | { name: 'campus' }
   | { name: 'quantum-lab-interior' }
@@ -54,6 +56,8 @@ function sectionOf(screen: Screen): Section {
     case 'qkd-attack':
     case 'server-hall-3d':
       return 'qkd-attack';
+    case 'facility-3d':
+      return 'facility3d';
     case 'labs':
     case 'lab':
     case 'lab-exam':
@@ -80,6 +84,7 @@ function sectionOf(screen: Screen): Section {
 
 const BREADCRUMBS: Record<Screen['name'], string> = {
   'server-hall-3d': 'Phantom Q · Server Hall 3D',
+  'facility-3d': 'Phantom Q · 3D Facility',
   home: '',
   campus: 'Research Campus',
   'quantum-lab-interior': 'Quantum Lab',
@@ -106,6 +111,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
 // SceneManager says is current instead of owning that state itself.
 const SCREEN_IDS: Screen['name'][] = [
   'server-hall-3d',
+  'facility-3d',
   'home',
   'campus',
   'quantum-lab-interior',
@@ -195,6 +201,9 @@ export default function App() {
       case 'qkd-multiplayer':
         go('qkd-lobby');
         break;
+      case 'facility3d':
+        go('facility-3d');
+        break;
       case 'campaign': {
         const next = nextCampaignScreen();
         go(next === 'campaign-scene1' ? 'campaign-scene1' : 'campaign-scene2');
@@ -214,7 +223,8 @@ export default function App() {
   const showBack = screen.name !== 'home';
   // These own the viewport (3D canvas + overlays); everything else scrolls.
   const immersive =
-    screen.name === 'campus' || screen.name === 'quantum-lab-interior' || screen.name === 'qkd-attack' || screen.name === 'server-hall-3d';
+    screen.name === 'campus' || screen.name === 'quantum-lab-interior' || screen.name === 'qkd-attack' ||
+    screen.name === 'server-hall-3d' || screen.name === 'facility-3d';
 
   return (
     <div
@@ -240,6 +250,7 @@ export default function App() {
         {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
         {screen.name === 'qkd-attack' && <PhantomQScene initialRoom={screen.roomId} />}
         {screen.name === 'server-hall-3d' && <ServerHall3DScreen onBack={() => go('qkd-attack', { roomId: 'comms-centre' })} onSelectRoom={roomId => go('qkd-attack', { roomId })} />}
+        {screen.name === 'facility-3d' && <Facility3DScreen onBack={goHome} />}
         {screen.name === 'labs' && (
           <LabsHub
             onOpenLab={(labId) => go('lab', { labId })}
