@@ -6,6 +6,32 @@ function keyEvent(type: 'keydown' | 'keyup', key: string): KeyboardEvent {
 }
 
 describe('createKeyboardMovementInput sprint', () => {
+  it('leaves text entry and button activation to the focused control', () => {
+    const scheme = createKeyboardMovementInput();
+    const onMove = vi.fn(), onInteract = vi.fn();
+    scheme.attach(document.body, { onMove, onInteract });
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(onMove).not.toHaveBeenCalled();
+    expect(onInteract).not.toHaveBeenCalled();
+    input.remove();
+    scheme.detach();
+  });
+
+  it('interacts once per press and stops movement when focus enters a control', () => {
+    const scheme = createKeyboardMovementInput();
+    const onMove = vi.fn(), onInteract = vi.fn();
+    scheme.attach(document.body, { onMove, onInteract });
+    window.dispatchEvent(keyEvent('keydown', 'e'));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', repeat: true }));
+    expect(onInteract).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(keyEvent('keydown', 'w'));
+    window.dispatchEvent(new FocusEvent('focusin'));
+    expect(onMove).toHaveBeenLastCalledWith(0, 0, false);
+    scheme.detach();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });

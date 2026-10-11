@@ -40,7 +40,7 @@ interface RoomRunnerProps {
   onExit: () => void;
 }
 
-type Feedback = { state: 'idle' } | { state: 'checking' } | { state: 'wrong' } | { state: 'right'; result: AnswerResult };
+type Feedback = { state: 'idle' } | { state: 'checking' } | { state: 'wrong' } | { state: 'error'; message: string } | { state: 'right'; result: AnswerResult };
 
 function QuestionForm({
   roomId,
@@ -69,9 +69,10 @@ function QuestionForm({
         body: JSON.stringify({ taskId, questionId: question.id, answer: value }),
       });
       if (res.status === 429) {
-        setFeedback({ state: 'wrong' });
+        setFeedback({ state: 'error', message: 'Too many checks at once. Wait a moment and try again. Your answer is still here.' });
         return;
       }
+      if (!res.ok) throw new Error('Answer service unavailable');
       const result = (await res.json()) as AnswerResult;
       if (result.correct) {
         setFeedback({ state: 'right', result });
@@ -80,7 +81,7 @@ function QuestionForm({
         setFeedback({ state: 'wrong' });
       }
     } catch {
-      setFeedback({ state: 'wrong' });
+      setFeedback({ state: 'error', message: 'We could not check your answer. Check your connection and try again. Your answer is still here.' });
     }
   };
 
@@ -117,6 +118,7 @@ function QuestionForm({
               Not quite — try again.
             </p>
           )}
+          {feedback.state === 'error' && <p role="alert" className="text-xs" style={{ color: 'var(--warn)' }}>{feedback.message}</p>}
           {question.hint && (
             <button
               type="button"

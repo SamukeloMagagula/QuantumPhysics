@@ -22,10 +22,12 @@ export function createKeyboardMovementInput(): InputScheme {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey ||
+      (e.target instanceof Element && e.target.closest('input,textarea,select,button,summary,[contenteditable]:not([contenteditable="false"])'))) return;
     const key = e.key.toLowerCase();
     if (INTERACT_KEYS.has(key)) {
       e.preventDefault();
-      callbacks?.onInteract();
+      if (!e.repeat) callbacks?.onInteract();
       return;
     }
     if (!MOVE_KEYS.has(key) && !SPRINT_KEYS.has(key)) return;
@@ -53,11 +55,13 @@ export function createKeyboardMovementInput(): InputScheme {
       window.addEventListener('keydown', handleKeyDown);
       window.addEventListener('keyup', handleKeyUp);
       window.addEventListener('blur', handleBlur);
+      window.addEventListener('focusin', handleBlur);
     },
     detach() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focusin', handleBlur);
       held.clear();
       callbacks = null;
     },

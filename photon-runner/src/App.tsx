@@ -1,20 +1,30 @@
 import React, { useCallback, useEffect, useRef, useSyncExternalStore, lazy, Suspense } from 'react';
 import { TopNav, Section } from './TopNav';
-import { HomeHub, ModeId } from './HomeHub';
+import type { ModeId } from './HomeHub';
+import { WorldMap } from './WorldMap';
+import { ActivityOverlay } from './ActivityOverlay';
+import type { WorldActivity } from './worldLayout';
+import { QkdConsole } from './QkdConsole';
+import { HardwareLabPanel } from './HardwareLabPanel';
+import { ForensicsPanel } from './ForensicsPanel';
+import { completeAssignment, saveFacilityStory } from './facilityStory';
+import type { AttackState } from './qkdAttack';
+import { useState } from 'react';
 import { nextCampaignScreen } from './features/campaign/campaignProgress';
 import { useTheme } from './theme';
 import { SceneManager } from './engine/SceneManager';
+import { ASSIGNMENTS, readFacilityStory } from './facilityStory';
 
 import type { RoomId } from './pqRooms';
 import type { QkdRole } from './QkdLobby';
 
 const CustomizeScreen = lazy(() => import('./CustomizeScreen').then(m => ({ default: m.CustomizeScreen })));
+const FirstMission = lazy(() => import('./FirstMission').then(m => ({ default: m.FirstMission })));
 const LabsHub = lazy(() => import('./LabsHub').then(m => ({ default: m.LabsHub })));
 const LabRunner = lazy(() => import('./LabRunner').then(m => ({ default: m.LabRunner })));
 const LabExamView = lazy(() => import('./LabExamView').then(m => ({ default: m.LabExamView })));
 const NetworkDefenderScreen = lazy(() => import('./NetworkDefenderScreen').then(m => ({ default: m.NetworkDefenderScreen })));
 const QuantumPhenomenaLab = lazy(() => import('./features/quantum/QuantumPhenomenaLab').then(m => ({ default: m.QuantumPhenomenaLab })));
-const PhantomQScene = lazy(() => import('./PhantomQScene').then(m => ({ default: m.PhantomQScene })));
 const RoomsHub = lazy(() => import('./RoomsHub').then(m => ({ default: m.RoomsHub })));
 const RoomRunner = lazy(() => import('./RoomRunner').then(m => ({ default: m.RoomRunner })));
 const Leaderboard = lazy(() => import('./Leaderboard').then(m => ({ default: m.Leaderboard })));
@@ -22,12 +32,12 @@ const QkdLobby = lazy(() => import('./QkdLobby').then(m => ({ default: m.QkdLobb
 const QkdGameScreen = lazy(() => import('./QkdGameScreen').then(m => ({ default: m.QkdGameScreen })));
 const CampaignScene1 = lazy(() => import('./features/campaign/CampaignScene1').then(m => ({ default: m.CampaignScene1 })));
 const CampaignScene2 = lazy(() => import('./features/campaign/CampaignScene2').then(m => ({ default: m.CampaignScene2 })));
-const CampusScreen = lazy(() => import('./CampusScreen').then(m => ({ default: m.CampusScreen })));
-const QuantumLabScreen = lazy(() => import('./QuantumLabScreen').then(m => ({ default: m.QuantumLabScreen })));
-const ServerHall3DScreen = lazy(() => import('./ServerHall3DScreen').then(m => ({ default: m.ServerHall3DScreen })));
-const Facility3DScreen = lazy(() => import('./Facility3DScreen').then(m => ({ default: m.Facility3DScreen })));
 
 type Screen =
+  | { name: 'first-mission' }
+  | { name: 'mission-console' }
+  | { name: 'hardware' }
+  | { name: 'forensics' }
   | { name: 'server-hall-3d' }
   | { name: 'facility-3d' }
   | { name: 'home' }
@@ -54,6 +64,10 @@ function sectionOf(screen: Screen): Section {
     case 'campus':
       return 'home';
     case 'qkd-attack':
+    case 'mission-console':
+    case 'hardware':
+    case 'forensics':
+    case 'first-mission':
     case 'server-hall-3d':
       return 'qkd-attack';
     case 'facility-3d':
@@ -83,6 +97,10 @@ function sectionOf(screen: Screen): Section {
 }
 
 const BREADCRUMBS: Record<Screen['name'], string> = {
+  'mission-console': 'Mission control',
+  hardware: 'Engineering workshop',
+  forensics: 'Signal evidence',
+  'first-mission': 'Operation 01 · Find the meeting place',
   'server-hall-3d': 'Phantom Q · Server Hall 3D',
   'facility-3d': 'Phantom Q · 3D Facility',
   home: '',
@@ -110,6 +128,8 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
 // click handler inside this component. App.tsx renders whatever
 // SceneManager says is current instead of owning that state itself.
 const SCREEN_IDS: Screen['name'][] = [
+  'mission-console', 'hardware', 'forensics',
+  'first-mission',
   'server-hall-3d',
   'facility-3d',
   'home',
@@ -163,6 +183,14 @@ export default function App() {
   const screen = useScreen();
   const { theme, toggle } = useTheme();
   const mainRef = useRef<HTMLElement>(null);
+  const [session, setSession] = useState<AttackState | null>(null);
+  const task = ASSIGNMENTS[readFacilityStory().completed];
+  const recordSession = useCallback((next: AttackState | null) => {
+    setSession(next);
+    const story = readFacilityStory();
+    const current = ASSIGNMENTS[story.completed];
+    if (current && next) saveFacilityStory(completeAssignment({ ...story, access: true }, next, current.room));
+  }, []);
 
   // `<main>` is one persistent scroll container across every screen — React
   // just swaps which child renders inside it, so a screen you scrolled down
@@ -177,11 +205,14 @@ export default function App() {
 
   const openMode = useCallback((mode: ModeId) => {
     switch (mode) {
+      case 'first-mission':
+        go(readFacilityStory().completed > 0 && readFacilityStory().completed < ASSIGNMENTS.length ? 'mission-console' : 'first-mission');
+        break;
       case 'campus':
         go('campus');
         break;
       case 'qkd-attack':
-        go('qkd-attack');
+        go('qkd-attack', { roomId: readFacilityStory().access ? ASSIGNMENTS[readFacilityStory().completed]?.room ?? 'ops' : undefined });
         break;
       case 'labs':
         go('labs');
@@ -220,11 +251,12 @@ export default function App() {
     [goHome, openMode]
   );
 
-  const showBack = screen.name !== 'home';
-  // These own the viewport (3D canvas + overlays); everything else scrolls.
-  const immersive =
-    screen.name === 'campus' || screen.name === 'quantum-lab-interior' || screen.name === 'qkd-attack' ||
-    screen.name === 'server-hall-3d' || screen.name === 'facility-3d';
+  const mapScreen = ['home', 'campus', 'qkd-attack', 'server-hall-3d', 'facility-3d', 'quantum-lab-interior'].includes(screen.name);
+  const openActivity = (activity: WorldActivity) => {
+    const screens: Record<WorldActivity, Screen['name']> = { mission: readFacilityStory().completed > 0 && readFacilityStory().completed < ASSIGNMENTS.length ? 'mission-console' : 'first-mission', labs: 'labs', rooms: 'rooms', defender: 'network-defender', quantum: 'quantum-scene', campaign: nextCampaignScreen(), hardware: 'hardware', forensics: 'forensics', multiplayer: 'qkd-lobby', customize: 'customize' };
+    go(screens[activity]);
+  };
+  const destination = screen.name === 'qkd-attack' ? screen.roomId : screen.name === 'server-hall-3d' ? 'server-hall' : screen.name === 'quantum-lab-interior' ? 'quantum-wing' : undefined;
 
   return (
     <div
@@ -232,25 +264,26 @@ export default function App() {
       style={{ background: 'var(--bg-base)', color: 'var(--ink-1)' }}
     >
       <TopNav
-        active={sectionOf(screen)}
+        active={mapScreen ? 'home' : sectionOf(screen)}
         onSelect={handleSelectSection}
-        onBack={showBack ? goHome : undefined}
-        breadcrumb={BREADCRUMBS[screen.name] || undefined}
+        onBack={undefined}
+        breadcrumb={undefined}
         theme={theme}
         onToggleTheme={toggle}
       />
 
-      <main ref={mainRef} className={`flex-1 min-h-0 ${immersive ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main ref={mainRef} className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="absolute inset-0" inert={!mapScreen || undefined}><WorldMap active={mapScreen} destination={destination} onOpen={openActivity} /></div>
+        {!mapScreen && <ActivityOverlay title={BREADCRUMBS[screen.name]} onClose={goHome}>
         <Suspense fallback={<p role="status" className="p-6 ink-2">Loading…</p>}>
-        {screen.name === 'home' && <HomeHub onOpen={openMode} />}
-        {screen.name === 'campus' && <CampusScreen onEnterBuilding={(sceneId) => go(sceneId as Screen['name'])} />}
-        {screen.name === 'quantum-lab-interior' && (
-          <QuantumLabScreen onOpenSimulator={() => go('quantum-scene')} />
-        )}
+        {screen.name === 'first-mission' && <FirstMission onExit={goHome} onContinue={() => {
+          const story = readFacilityStory();
+          go('qkd-attack', { roomId: ASSIGNMENTS[story.completed]?.room ?? 'ops' });
+        }} />}
         {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
-        {screen.name === 'qkd-attack' && <PhantomQScene initialRoom={screen.roomId} />}
-        {screen.name === 'server-hall-3d' && <ServerHall3DScreen onBack={() => go('qkd-attack', { roomId: 'comms-centre' })} onSelectRoom={roomId => go('qkd-attack', { roomId })} />}
-        {screen.name === 'facility-3d' && <Facility3DScreen onBack={goHome} />}
+        {screen.name === 'mission-console' && <QkdConsole initialTargetId={session?.status === 'active' ? session.target.id : task?.target ?? 'testbed'} initialSession={session} onSessionChange={recordSession} embedded onClose={goHome} />}
+        {screen.name === 'hardware' && <HardwareLabPanel onClose={goHome} />}
+        {screen.name === 'forensics' && <ForensicsPanel session={session} onClose={goHome} />}
         {screen.name === 'labs' && (
           <LabsHub
             onOpenLab={(labId) => go('lab', { labId })}
@@ -278,6 +311,7 @@ export default function App() {
         )}
         {screen.name === 'campaign-scene2' && <CampaignScene2 onNext={() => go('qkd-lobby')} onExit={goHome} />}
         </Suspense>
+        </ActivityOverlay>}
       </main>
     </div>
   );

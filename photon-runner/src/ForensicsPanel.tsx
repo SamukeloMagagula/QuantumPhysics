@@ -196,7 +196,7 @@ function Shell({ children, onClose }: { children: React.ReactNode; onClose: () =
           cursor: 'pointer',
         }}
       >
-        <LogOut size={14} /> Stand up <span style={{ color: TONE.dim }}>(Esc)</span>
+        <LogOut size={14} /> Return to map <span style={{ color: TONE.dim }}>(Esc)</span>
       </button>
     </div>
   );

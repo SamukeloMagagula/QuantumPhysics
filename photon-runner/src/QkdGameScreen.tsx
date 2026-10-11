@@ -49,6 +49,7 @@ async function postAction(code: string, action: Record<string, unknown>): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action }),
   });
+  if (!res.ok) throw new Error('Your move was not accepted. Refresh the game state and try again.');
   return res.json();
 }
 
@@ -73,7 +74,7 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
           return;
         }
         const data = (await res.json()) as GameState;
-        if (!cancelled) setState(data);
+        if (!cancelled) { setState(data); }
       } catch {
         if (!cancelled) setError('Connection lost — retrying…');
       }
@@ -88,15 +89,21 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
 
   const start = async () => {
     setSubmitting(true);
-    await fetch(`/api/qkd/game/${code}/start`, { method: 'POST' });
-    setSubmitting(false);
+    setError(null);
+    try {
+      const response = await fetch(`/api/qkd/game/${code}/start`, { method: 'POST' });
+      if (!response.ok) throw new Error('Could not start the game. Please try again.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection lost. Please try again.');
+    } finally { setSubmitting(false); }
   };
 
   const act = async (action: Record<string, unknown>) => {
     setSubmitting(true);
-    const next = await postAction(code, action);
-    setState(next);
-    setSubmitting(false);
+    setError(null);
+    try { setState(await postAction(code, action)); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Connection lost. Your move was not confirmed; try again.'); }
+    finally { setSubmitting(false); }
   };
 
   if (error && !state) {
@@ -123,6 +130,7 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
     <div className="min-h-full px-4 py-8 md:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <Header state={state} onExit={onExit} />
+        {error && <p role="alert" className="text-sm text-[var(--warn)]">{error}</p>}
         <Seats state={state} />
 
         {state.phase === 'lobby' && <LobbyPanel state={state} submitting={submitting} onStart={start} />}

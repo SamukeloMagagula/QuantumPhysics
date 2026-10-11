@@ -11,7 +11,23 @@ import {
   START_TRUST,
   POINTS_PER_BLOCK,
   TRUST_PENALTY,
+  canvasPoint,
+  threatAt,
+  reviewThreat,
+  REVIEWS_PER_ROUND,
+  POINTS_PER_ALLOW,
 } from './networkDefenderLogic';
+
+it('maps clicks on a resized canvas back to the visible packet', () => {
+  const state = createState();
+  spawn(state, () => 0.1);
+  const packet = state.threats[0];
+  const rect = { left: 50, top: 100, width: 320, height: 180 };
+  const point = canvasPoint(rect.left + packet.x / 2, rect.top + packet.y / 2, rect)!;
+  blockAt(state, point.x, point.y);
+  expect(state.blockedIps.has(packet.ip)).toBe(true);
+  expect(canvasPoint(1, 1, { ...rect, width: 0 })).toBeNull();
+});
 
 describe('createState', () => {
   it('starts with full health, full trust, no score, no threats, no firewall rules', () => {
@@ -39,10 +55,80 @@ describe('spawn', () => {
 
   it('marks a spawned packet already-dropped if its IP is already firewalled', () => {
     const state = createState();
-    // rng=0.5 deterministically produces IP 203.0.113.128 (see randomIp math).
-    state.blockedIps.add('203.0.113.128');
     spawn(state, () => 0.5);
-    expect(state.threats[0].dropped).toBe(true);
+    state.blockedIps.add(state.threats[0].ip);
+    spawn(state, () => 0.5);
+    expect(state.threats[1].dropped).toBe(true);
+  });
+});
+
+describe('inspection decisions', () => {
+  it('inspecting a packet does not automatically block it', () => {
+    const state = createState(); spawn(state, () => 0.5);
+    const packet = state.threats[0];
+    expect(threatAt(state, packet.x, packet.y)?.id).toBe(packet.id);
+    expect(state.score).toBe(0); expect(state.blockedIps.size).toBe(0);
+  });
+
+  it('rewards allowing a real request and prevents reviewing it twice', () => {
+    const state = createState(); spawn(state, () => 0.9);
+    const id = state.threats[0].id;
+    expect(reviewThreat(state, id, 'allow')?.correct).toBe(true);
+    expect(state.score).toBe(POINTS_PER_ALLOW);
+    expect(state.correct).toBe(1); expect(state.reviewed).toBe(1);
+    expect(reviewThreat(state, id, 'allow')).toBeNull();
+    expect(state.score).toBe(POINTS_PER_ALLOW);
+  });
+
+  it('blocks all queued packets from the same source without awarding repeat decisions', () => {
+    const state = createState(); spawn(state, () => 0.5); spawn(state, () => 0.5);
+    const second = state.threats[1];
+    expect(reviewThreat(state, second.id, 'block')?.correct).toBe(true);
+    expect(state.threats.every(packet => packet.dropped)).toBe(true);
+    expect(reviewThreat(state, second.id, 'block')).toBeNull();
+    expect(state.reviewed).toBe(1); expect(state.score).toBe(POINTS_PER_BLOCK);
+  });
+
+  it('charges health for allowing an attack and trust for blocking real traffic', () => {
+    const state = createState(); spawn(state, () => 0.5);
+    expect(reviewThreat(state, state.threats[0].id, 'allow')?.correct).toBe(false);
+    expect(state.health).toBe(START_HEALTH - 1);
+    spawn(state, () => 0.9);
+    expect(reviewThreat(state, state.threats[0].id, 'block')?.correct).toBe(false);
+    expect(state.trust).toBe(START_TRUST - TRUST_PENALTY);
+  });
+
+  it('ends a successful round after twelve decisions and freezes its result', () => {
+    const state = createState();
+    for (let i = 0; i < REVIEWS_PER_ROUND; i++) {
+      spawn(state, () => 0.9);
+      reviewThreat(state, state.threats[0].id, 'allow');
+    }
+    expect(state.over).toBe(true); expect(state.correct).toBe(REVIEWS_PER_ROUND);
+    expect(state.score).toBe(REVIEWS_PER_ROUND * POINTS_PER_ALLOW);
+    expect(blockIp(state, '203.0.113.8').outcome).toBeNull();
+    expect(state.blockedIps.size).toBe(0);
+    expect(reviewThreat(state, -1, 'allow')).toBeNull();
+  });
+
+  it('does not encode the verdict in an IP range', () => {
+    const make = (malicious: boolean) => {
+      const values = [0.1, malicious ? 0.1 : 0.9, 0.1, 0.5, 0.4];
+      const state = createState(); spawn(state, () => values.shift()!); return state.threats[0];
+    };
+    const attack = make(true), request = make(false);
+    expect(attack.ip).toBe(request.ip);
+    expect(attack.malicious).toBe(true); expect(request.malicious).toBe(false);
+  });
+
+  it('keeps the evidence consistent when a source returns in the same round', () => {
+    const state = createState();
+    for (const malicious of [true, false]) {
+      const values = [0.1, malicious ? 0.1 : 0.9, 0.1, 0.5, 0.4];
+      spawn(state, () => values.shift()!);
+    }
+    expect(state.threats[0].ip).toBe(state.threats[1].ip);
+    expect(state.threats[0].kind).toBe(state.threats[1].kind);
   });
 });
 

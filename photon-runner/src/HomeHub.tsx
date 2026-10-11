@@ -15,9 +15,11 @@ import {
 } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 import { getCompletedScenes } from './features/campaign/campaignProgress';
-import { Card, Page, PageHeader, Section, Tag } from './ui/Page';
+import { readFacilityStory, ASSIGNMENTS } from './facilityStory';
+import { Card, Page, Section, Tag } from './ui/Page';
 
 export type ModeId =
+  | 'first-mission'
   | 'campus'
   | 'qkd-attack'
   | 'labs'
@@ -112,8 +114,8 @@ const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
       {
         id: 'defender',
         title: 'Network Defender',
-        tag: 'Arcade round',
-        blurb: 'Hold the perimeter as intrusions escalate. A short reflex round between runs.',
+        tag: '12 decisions · pause to inspect',
+        blurb: 'Keep a shop online. Read the evidence, block attacks, and let real customers through.',
         Icon: Shield,
       },
       {
@@ -143,24 +145,37 @@ const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
 
 export function HomeHub({ onOpen }: HomeHubProps) {
   const you = getAppearance();
+  const story = readFacilityStory();
+  const started = story.completed > 0;
   const campaignDone = getCompletedScenes();
   const campaignTag = !campaignDone.includes('scene1')
     ? 'Story campaign · single-player'
     : !campaignDone.includes('scene2')
-    ? 'Continue · scene 2 of 3'
+    ? 'Continue · scene 2 of 2'
     : 'Completed · replay any time';
 
   return (
     <Page width="wide">
-      <PageHeader
-        eyebrow="BB84 quantum cryptography"
-        title="Quantum Lab"
-        description="Learn how quantum key distribution actually works by playing it — as the sender, the receiver, or the spy that physics gives away."
-      />
+      <section className="operation-hero" aria-labelledby="operation-title">
+        <div className="operation-hero-content">
+          <p className="operation-eyebrow">Phantom Q / Quantum espionage</p>
+          <h1 id="operation-title">Can you steal<br />a secret?</h1>
+          <p className="operation-intro">Your team needs a meeting place. Try a tool, watch the signal, and recover the clue before the receiver spots you.</p>
+          <div className="flex flex-wrap gap-3 mt-7">
+            <button className="operation-play" onClick={() => onOpen(started ? 'qkd-attack' : 'first-mission')}>{started ? 'Continue your mission' : 'Play your first mission'} <ArrowRight size={18} /></button>
+            <button className="operation-secondary" onClick={() => onOpen(started ? 'first-mission' : 'qkd-attack')}>{started ? 'Replay the first mission' : 'Explore headquarters'}</button>
+          </div>
+          <div className="operation-briefing">
+            <span><b>01</b> Try a tool</span>
+            <span><b>02</b> Watch what changes</span>
+            <span><b>03</b> Recover the clue</span>
+          </div>
+        </div>
+      </section>
 
-      <Section title="Main game" description="Start here.">
+      <Section title={started ? 'Your next operation' : 'A secret worth stealing'} description={started ? `${story.completed} of ${ASSIGNMENTS.length} assignments cleared` : 'Two tools. One vulnerable link. As many retries as you need.'}>
         <button
-          onClick={() => onOpen(FEATURED.id)}
+          onClick={() => onOpen(started ? FEATURED.id : 'first-mission')}
           className="card panel w-full rounded-xl p-5 text-left"
         >
           <div className="flex flex-col md:flex-row md:items-center gap-5">
@@ -172,11 +187,11 @@ export function HomeHub({ onOpen }: HomeHubProps) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <Tag tone="var(--accent)">Main game</Tag>
+                <Tag tone="var(--accent)">Start here</Tag>
                 <span className="label-mono !text-[9px]">{FEATURED.tag}</span>
               </div>
-              <h2 className="h-section text-lg ink-1">{FEATURED.title}</h2>
-              <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{FEATURED.blurb}</p>
+              <h2 className="h-section text-lg ink-1">{started ? ASSIGNMENTS[story.completed]?.title ?? 'All assignments cleared' : 'Find the meeting place'}</h2>
+              <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{started ? 'Your access card is active. Head to the next console and look for a gap in its defences.' : 'Start at the signal. Recover the rendezvous clue to earn your access card and open headquarters.'}</p>
             </div>
             <span className="btn btn-primary px-4 py-2 text-sm shrink-0 self-start md:self-center">
               Play <ArrowRight size={14} />
@@ -185,6 +200,9 @@ export function HomeHub({ onOpen }: HomeHubProps) {
         </button>
       </Section>
 
+      <details className="panel rounded-xl p-5 mt-6">
+      <summary className="cursor-pointer font-semibold text-base">Explore more: stories, labs and multiplayer</summary>
+      <p className="text-sm ink-2 mt-3">Optional experiments and lessons. You do not need to pass a test to play the missions.</p>
       {GROUPS.map((group) => (
         <Section key={group.title} title={group.title} description={group.description}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -203,6 +221,7 @@ export function HomeHub({ onOpen }: HomeHubProps) {
           </div>
         </Section>
       ))}
+      </details>
 
       <Section title="Your operative" description="Carried into every mode.">
         <button

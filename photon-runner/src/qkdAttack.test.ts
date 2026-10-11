@@ -15,6 +15,7 @@ import {
   stepExchange,
   TARGETS,
   trojanActive,
+  isWin,
 } from './qkdAttack';
 
 /** Deterministic RNG so a whole session replays identically. */
@@ -198,6 +199,30 @@ describe('arm/disarm', () => {
 });
 
 describe('targets', () => {
+  it('rejects the short blinding exploit on every target', () => {
+    for (const target of TARGETS) {
+      const short = stepExchange(arm(createSession(target), 'blind', 1), 100, seeded(7)).state;
+      expect(isWin(extract(short))).toBe(false);
+    }
+  });
+
+  it('keeps a practical route to every target across varied exchanges', () => {
+    for (const target of TARGETS) {
+      let wins = 0;
+      for (let seed = 1; seed <= 100; seed++) {
+        let session = createSession(target);
+        const plan: Armed[] = target.id === 'blacksite'
+          ? [{ mode: 'blind', fraction: 0.45 }, { mode: 'intercept', fraction: 0.15 }]
+          : target.detectorMonitoring
+          ? [{ mode: 'trojan', fraction: 1 }, { mode: 'intercept', fraction: 1 }]
+          : [{ mode: 'blind', fraction: 1 }];
+        for (const attack of plan) session = arm(session, attack.mode, attack.fraction);
+        session = stepExchange(session, 1000, seeded(seed)).state;
+        if (isWin(extract(session))) wins++;
+      }
+      expect(wins, target.id).toBeGreaterThanOrEqual(95);
+    }
+  });
   it('escalate — later targets are strictly harder to attack quietly', () => {
     const counts = TARGETS.map(
       (t) => Number(t.decoyStates) + Number(t.detectorMonitoring) + Number(t.opticalIsolator)

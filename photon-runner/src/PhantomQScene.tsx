@@ -35,6 +35,9 @@ import { ForensicsPanel } from './ForensicsPanel';
 import { CampaignPanel } from './features/campaign/CampaignPanel';
 import { RemoteActor, connectFloor } from './floorClient';
 import { AttackState } from './qkdAttack';
+import { Joystick } from './Joystick';
+import { ASSIGNMENTS, completeAssignment, readFacilityStory, saveFacilityStory } from './facilityStory';
+import { FacilityStoryComic } from './FacilityStoryComic';
 
 /**
  * Phantom Q HQ.
@@ -102,7 +105,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 async function loadSprites(): Promise<Sprites> {
   const [hq, facility, walk, idle, idleLeft] = await Promise.all([
     loadImage(`${BASE}/hq-master.jpg`),
-    loadImage(`${BASE}/facility-master.jpg`),
+    loadImage(`${BASE}/facility-unlabelled.png`),
     loadImage(`${BASE}/operator-walk.png`),
     loadImage(`${BASE}/operator-idle.png`),
     loadImage(`${BASE}/operator-idle-left.png`),
@@ -111,7 +114,7 @@ async function loadSprites(): Promise<Sprites> {
     Object.entries(LAYER_FILES).map(async ([k, f]) => [k, await loadImage(`${BASE}/layers/${f}`)] as const)
   );
   return {
-    images: { '/pq/hq-master.jpg': hq, '/pq/facility-master.jpg': facility },
+    images: { '/pq/hq-master.jpg': hq, '/pq/facility-unlabelled.png': facility },
     walk,
     idle,
     idleLeft,
@@ -152,12 +155,20 @@ function createArtCache() {
 }
 
 export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: RoomId }) {
+  const [story, setStory] = useState(readFacilityStory);
+  const [comic, setComic] = useState<'card' | 'briefing' | 'complete' | null>(null);
+  const assignment = ASSIGNMENTS[story.completed];
+  const briefingSeen = useRef<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [sprites, setSprites] = useState<Sprites | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [station, setStation] = useState<StationKind | null>(null);
   const [session, setSession] = useState<AttackState | null>(null);
+  const pendingReward = useRef(false);
+  const recordSession = useCallback((nextSession: AttackState | null) => {
+    setSession(nextSession);
+  }, []);
   const [roomId, setRoomId] = useState<RoomId>(START_ROOM);
   const [loadingRoom, setLoadingRoom] = useState<string | null>(null);
   const tourRef = useRef(false);
@@ -170,13 +181,14 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
   const pos = useRef<Vec2>({ ...getRoom(START_ROOM).spawn });
   const facing = useRef<Facing>('forward');
   const held = useRef<Set<string>>(new Set());
+  const stick = useRef({ x: 0, y: 0 });
   const seated = useRef(false);
   const promptRef = useRef<Prompt | null>(null);
   const npcs = useRef<Npc[]>(createNpcs(getRoom(START_ROOM).npcs));
   const fade = useRef(0);
   // The trainee access card. Registered at the reception kiosk, after which
   // the padlocked wings of the facility open.
-  const unlocked = useRef(false);
+  const unlocked = useRef(story.access);
   const [notice, setNotice] = useState<string | null>(null);
   const resizeRef = useRef<() => void>(() => {});
 
@@ -194,13 +206,41 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
   }, []);
 
   useEffect(() => {
-    seated.current = station !== null;
-  }, [station]);
+    seated.current = station !== null || comic !== null;
+    held.current.clear();
+    stick.current = { x: 0, y: 0 };
+  }, [station, comic]);
 
-  const standUp = useCallback(() => setStation(null), []);
+  useEffect(() => { saveFacilityStory(story); }, [story]);
+
+  // Credit the result while it is visible, including natural exchange endings.
+  useEffect(() => {
+    const next = completeAssignment(story, session, room.current.id);
+    if (next !== story) {
+      pendingReward.current = true;
+      saveFacilityStory(next);
+      setStory(next);
+    }
+  }, [story, session]);
+
+  const standUp = useCallback(() => {
+    const next = completeAssignment(story, session, room.current.id);
+    if (next !== story || pendingReward.current) {
+      pendingReward.current = false;
+      setStory(next);
+      setComic('complete');
+    }
+    setStation(null);
+    canvasRef.current?.focus({ preventScroll: true });
+  }, [story, session]);
 
   /** Walk through a door: you arrive at the one that leads back. */
   const enterRoom = useCallback(async (to: RoomId, preview = false) => {
+    if (!unlocked.current && to !== START_ROOM) {
+      setNotice('Collect your access card from the receptionist before entering another room.');
+      canvasRef.current?.focus({ preventScroll: true });
+      return;
+    }
     if (to === 'server-hall') { SceneManager.load('server-hall-3d'); return; }
     const from = room.current.id;
     if (to === from) return;
@@ -209,6 +249,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
     if (!assets) return;
     const request = ++roomRequest.current;
     held.current.clear();
+    stick.current = { x: 0, y: 0 };
     setLoadingRoom(next.name);
     try {
       const sources = [
@@ -241,11 +282,37 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
     setLoadingRoom(null);
     setNotice(null);
     setStation(null);
-  }, []);
+    if (assignment?.room === to && briefingSeen.current !== assignment.target) {
+      briefingSeen.current = assignment.target;
+      seated.current = true;
+      setComic('briefing');
+    }
+    canvasRef.current?.focus({ preventScroll: true });
+  }, [assignment]);
 
   useEffect(() => {
     if (sprites && initialRoom !== START_ROOM) void enterRoom(initialRoom, true);
   }, [sprites, initialRoom, enterRoom]);
+
+  const interact = useCallback(() => {
+    if (seated.current || loadingRoom) return;
+    const p = promptRef.current;
+    if (!p) return;
+    canvasRef.current?.focus({ preventScroll: true });
+    held.current.clear();
+    stick.current = { x: 0, y: 0 };
+    if (p.kind === 'station' && p.station === 'badge') {
+      if (unlocked.current) {
+        setNotice('Your access card is active. Follow the assignment shown above.');
+      } else {
+        seated.current = true;
+        setComic('card');
+      }
+    } else if (p.kind === 'station') {
+      seated.current = true;
+      setStation(p.station);
+    } else if (p.kind === 'door') void enterRoom(p.to);
+  }, [enterRoom, loadingRoom]);
 
   // ---- input ----
   useEffect(() => {
@@ -254,25 +321,19 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, button, summary, [contenteditable="true"]')) return;
       const k = e.key.toLowerCase();
-      if (MOVE.has(k)) {
+      if ((MOVE.has(k) || k === 'shift') && !seated.current && !loadingRoom) {
         e.preventDefault();
         held.current.add(k);
         return;
       }
-      if (k === 'e' && !seated.current && promptRef.current) {
+      if (k === 'e' && !e.repeat && !seated.current && promptRef.current) {
         e.preventDefault();
-        const p = promptRef.current;
-        if (p.kind === 'station' && p.station === 'badge') {
-          unlocked.current = true;
-          setNotice('Trainee access card registered — secured wings unlocked.');
-          window.setTimeout(() => setNotice(null), 4200);
-        } else if (p.kind === 'station') setStation(p.station);
-        else if (p.kind === 'door') enterRoom(p.to);
+        interact();
       }
       if (k === 'escape' && seated.current) standUp();
     };
     const up = (e: KeyboardEvent) => held.current.delete(e.key.toLowerCase());
-    const blur = () => held.current.clear();
+    const blur = () => { held.current.clear(); stick.current = { x: 0, y: 0 }; };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);
@@ -281,7 +342,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', blur);
     };
-  }, [standUp, enterRoom]);
+  }, [standUp, interact, loadingRoom]);
 
   // ---- render loop ----
   useEffect(() => {
@@ -363,18 +424,18 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
       // ---- movement ----
       if (!seated.current) {
         const k = held.current;
-        let dx = 0;
-        let dy = 0;
+        let dx = stick.current.x;
+        let dy = stick.current.y;
         if (k.has('a') || k.has('arrowleft')) dx -= 1;
         if (k.has('d') || k.has('arrowright')) dx += 1;
         if (k.has('w') || k.has('arrowup')) dy -= 1;
         if (k.has('s') || k.has('arrowdown')) dy += 1;
 
         if (dx || dy) {
-          const len = Math.hypot(dx, dy) || 1;
+          const len = Math.max(1, Math.hypot(dx, dy));
           // Foreshortening: the same key press covers less image distance
           // at the back of the room than at the front.
-          const speed = WALK_SPEED * depthScale(pos.current.y) * dt;
+          const speed = WALK_SPEED * (k.has('shift') ? 1.7 : 1) * depthScale(pos.current.y) * dt;
           // Vertical steps move "into" the room, which is a shorter screen
           // distance than sideways travel on this projection.
           const next = resolveMoveOn(
@@ -403,7 +464,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
           };
         }
 
-        floor.report(pos.current.x, pos.current.y, facing.current, held.current.size > 0, here.id);
+        floor.report(pos.current.x, pos.current.y, facing.current, Boolean(dx || dy), here.id);
 
         // A console wins over a door when both are in reach: the doors sit on
         // the walls and the consoles are what the game is played at.
@@ -412,7 +473,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
         const lock = hit || door || unlocked.current ? null : lockAt(here, pos.current);
         const next: Prompt | null = hit
           ? { kind: 'station', station: hit.station, kicker: hit.kicker, label: hit.label, id: hit.id }
-          : door && doorLocked(door, unlocked.current)
+          : door && (!unlocked.current || doorLocked(door, unlocked.current))
           ? { kind: 'locked', kicker: 'ACCESS REQUIRED', label: `${door.label} — register at Reception`, id: `lock-${door.id}` }
           : door
           ? { kind: 'door', to: door.to, kicker: 'DOORWAY', label: `Enter ${door.label}`, id: door.id }
@@ -425,7 +486,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
         }
       }
 
-      const moving = !seated.current && held.current.size > 0;
+      const moving = !seated.current && (Array.from(held.current).some(k => k !== 'shift') || Math.hypot(stick.current.x, stick.current.y) > 0);
       updateNpcs(npcs.current, dt);
 
       // ---- draw ----
@@ -683,7 +744,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
 
   return (
     <div className="relative h-full w-full overflow-hidden grid place-items-center" style={{ background: '#0a0d12' }}>
-      <canvas ref={canvasRef} className="block" />
+      <canvas ref={canvasRef} tabIndex={0} className="block outline-none" aria-label="Phantom Q operations floor. Move with WASD or arrow keys, sprint with Shift, interact with E." />
 
       {loadingRoom && <div role="status" className="absolute inset-0 grid place-items-center bg-black/60 text-white">
         Loading {loadingRoom}…
@@ -695,21 +756,27 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
         </div>
       )}
 
-      {sprites && !station && (
+      {sprites && !station && !comic && (
         <>
           <FacilityNavigation roomId={roomId} disabled={Boolean(loadingRoom)}
             onSelect={id => { void enterRoom(id, true); }} />
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
-            <div className="glass rounded-2xl px-4 py-2 text-center">
-              <div className="label-mono !text-[9px]">{here.kicker}</div>
+          <div className="absolute top-28 left-4 right-4 sm:top-4 sm:right-auto sm:max-w-sm">
+            <div className="rounded-2xl px-4 py-3 border border-white/15 bg-slate-950/90">
+              <div className="text-[9px] tracking-widest uppercase text-cyan-200">{here.kicker}</div>
               <p className="text-[13px] font-semibold mt-0.5" style={{ color: '#e6eef7' }}>
                 {here.name}
               </p>
-              <p className="text-[11px] ink-3 mt-0.5">
-                WASD to walk · <span className="ink-1 font-semibold">E</span> at a console or doorway
+              <p className="text-[11px] text-slate-300 mt-1">
+                WASD / arrows · Shift to sprint · E to interact
               </p>
+              <p className="text-xs text-emerald-200 mt-2">{!story.access ? 'First objective: walk to reception and collect your access card.' : assignment ? `Assignment ${story.completed + 1}/${ASSIGNMENTS.length}: ${assignment.title}. ${roomId === assignment.room ? 'Use the communications console, then stand up after extraction to report your result.' : `Report to ${getRoom(assignment.room).name}.`}` : 'All four assignments cleared. Explore the facility or replay a target.'}</p>
+              {story.access && <p className="text-[10px] text-cyan-200 mt-2">ACCESS CARD ACTIVE · {story.completed}/{ASSIGNMENTS.length} assignments cleared</p>}
+              {story.access && assignment && roomId === assignment.room && <button onClick={() => setStation('attack')} className="mt-3 rounded-lg bg-cyan-200 px-3 py-2 text-xs font-semibold text-slate-950">Open mission console</button>}
+              {story.access && assignment && roomId !== assignment.room && <button onClick={() => void enterRoom(assignment.room, true)} className="mt-3 rounded-lg bg-cyan-200 px-3 py-2 text-xs font-semibold text-slate-950">Enter {getRoom(assignment.room).name}</button>}
             </div>
           </div>
+
+          <div className="absolute bottom-4 left-4"><Joystick onChange={(x, z) => { stick.current = { x, y: -z }; }} /></div>
 
           {notice && (
             <div className="absolute bottom-24 left-1/2 -translate-x-1/2 pointer-events-none">
@@ -723,8 +790,8 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
           )}
 
           {prompt && (
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-              <div
+            <div className="absolute bottom-6 right-4 max-w-[55%] sm:right-auto sm:left-1/2 sm:-translate-x-1/2">
+              <button type="button" onClick={interact} disabled={prompt.kind === 'locked' || Boolean(loadingRoom)}
                 className="rounded-2xl px-4 py-2.5 flex items-center gap-3"
                 style={{ background: 'rgba(10,16,26,.88)', border: '1px solid rgba(255,255,255,.16)' }}
               >
@@ -747,7 +814,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
                     {prompt.label}
                   </span>
                 </span>
-              </div>
+              </button>
             </div>
           )}
         </>
@@ -762,7 +829,7 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
             className={station === 'forensics' ? 'w-full max-w-2xl' : 'w-full max-w-5xl'}
             style={{ height: 'min(86%, 660px)' }}
           >
-            {station === 'attack' && <QkdConsole onClose={standUp} embedded onSessionChange={setSession} />}
+            {station === 'attack' && <QkdConsole initialTargetId={assignment?.room === roomId ? assignment.target : undefined} initialSession={session} onClose={standUp} embedded onSessionChange={recordSession} />}
             {station === 'forensics' && <ForensicsPanel session={session} onClose={standUp} />}
             {station === 'campaign' && <CampaignPanel onClose={standUp} />}
             {station === 'rack' && <CampaignPanel onClose={standUp} place="rack" />}
@@ -770,6 +837,20 @@ export function PhantomQScene({ initialRoom = START_ROOM }: { initialRoom?: Room
           </div>
         </div>
       )}
+      {comic && <FacilityStoryComic kind={comic}
+        title={comic === 'card' ? 'Welcome to Phantom Q' : comic === 'briefing' ? assignment?.title ?? 'Operations complete' : assignment ? 'Clearance earned. Your next assignment awaits.' : 'All assignments complete'}
+        text={comic === 'card' ? 'Receptionist: “Here is your access card. Keep it with you. Operations is expecting you for your first intercept.” Take the card, enter Operations, and find the communications console.' : comic === 'briefing' ? assignment?.briefing ?? 'Explore the facility and review your results.' : assignment ? `Clean extraction confirmed. ${assignment.briefing}` : 'You completed all four intercept assignments. Your progress is saved. You can now revisit the rooms and experiment with other attacks.'}
+        action={comic === 'card' ? 'Take access card' : comic === 'briefing' ? 'Begin assignment' : 'Continue'}
+        onContinue={() => {
+          if (comic === 'card') {
+            unlocked.current = true;
+            setStory(s => ({ ...s, access: true }));
+            setNotice('Access card received. Your first assignment is in Operations.');
+          }
+          setComic(null);
+          seated.current = false;
+          canvasRef.current?.focus({ preventScroll: true });
+        }} />}
     </div>
   );
 }

@@ -6,6 +6,19 @@ import { CampaignScene2 } from './CampaignScene2';
 afterEach(() => cleanup());
 
 describe('CampaignScene2', () => {
+  it('lets verification stop the message before Eve can read it', async () => {
+    const user = userEvent.setup();
+    render(<CampaignScene2 onNext={vi.fn()} onExit={vi.fn()} />);
+    const next = () => user.click(screen.getByRole('button', { name: 'Continue' }));
+    await next();
+    await user.click(screen.getByRole('button', { name: /generate keypair/i })); await next();
+    await user.click(screen.getByRole('button', { name: /encrypt with bob's public key/i })); await next();
+    await user.click(screen.getByRole('button', { name: /try to decrypt/i })); await next(); await next();
+    await user.click(screen.getByRole('button', { name: /forge a keypair/i })); await next();
+    await user.click(screen.getByRole('button', { name: 'Verify the key with Bob first' }));
+    expect(screen.getByRole('heading', { name: 'You caught the swapped key.' })).toBeTruthy();
+    expect(screen.queryByText(/^Eve reads it:/i)).toBeNull();
+  });
   it('renders the intro and lets the player exit', async () => {
     const user = userEvent.setup();
     const onExit = vi.fn();

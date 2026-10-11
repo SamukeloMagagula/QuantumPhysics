@@ -63,6 +63,9 @@ interface DoorGap {
   /** Centre of the opening, metres along that wall, measured from its start. */
   at: number;
   width: number;
+  /** The room this opening leads to. Walking up to it and confirming swaps
+   * the active room, the same way every other doorway in the game does. */
+  to: Facility3DRoomId;
 }
 
 interface Furniture {
@@ -351,10 +354,14 @@ function plant(x: number, z: number): Furniture {
 // Room specs — dimensions and layout taken from each sheet's top plan.
 // ---------------------------------------------------------------------------
 
-const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
+export const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   ops: {
     w: 16, d: 12, wallH: 3.2,
-    doors: [{ wall: 'S', at: 8, width: 3 }, { wall: 'E', at: 6, width: 1.1 }, { wall: 'W', at: 6, width: 1.1 }],
+    doors: [
+      { wall: 'S', at: 8, width: 3, to: 'comms-centre' },
+      { wall: 'E', at: 6, width: 1.1, to: 'soc-room' },
+      { wall: 'W', at: 6, width: 1.1, to: 'quantum-wing' },
+    ],
     spawn: [8, 9],
     furniture: [
       monitorWall(8, 0.3, 3),
@@ -367,7 +374,11 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'quantum-wing': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 1.1 }],
+    doors: [
+      { wall: 'S', at: 6, width: 1.1, to: 'ops' },
+      { wall: 'E', at: 9.3, width: 1.0, to: 'crypto-lab' },
+      { wall: 'W', at: 9.3, width: 1.0, to: 'cryogenics-lab' },
+    ],
     spawn: [6, 8.5],
     furniture: [
       cabinet(2, 0.4, 1.4, 0.6, 1.6), counterDesk(5.2, 0.6), cabinet(9, 0.4, 1.6, 0.6, 1.9),
@@ -378,7 +389,11 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'server-hall': {
     w: 12, d: 14, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 2.4 }],
+    doors: [
+      { wall: 'S', at: 6, width: 2.4, to: 'comms-centre' },
+      { wall: 'N', at: 1, width: 0.9, to: 'engineering-room' },
+      { wall: 'E', at: 12, width: 1.0, to: 'power-control-room' },
+    ],
     spawn: [6, 12.5],
     furniture: [
       ...serverRackRow(2.4, 4, 6, 1.6, 0, 'z'),
@@ -390,7 +405,10 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'soc-room': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 1.1 }],
+    doors: [
+      { wall: 'S', at: 6, width: 1.1, to: 'ops' },
+      { wall: 'E', at: 2, width: 1.0, to: 'secure-archive' },
+    ],
     spawn: [6, 8.5],
     furniture: [
       monitorWall(6, 0.3, 4),
@@ -402,7 +420,7 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'crypto-lab': {
     w: 10, d: 8, wallH: 3.2,
-    doors: [{ wall: 'S', at: 5, width: 1.1 }],
+    doors: [{ wall: 'S', at: 5, width: 1.1, to: 'quantum-wing' }],
     spawn: [5, 6.6],
     furniture: [
       desk(2.2, 0.9, Math.PI), serverCabinet(5, 0.9), desk(7.8, 0.9, Math.PI),
@@ -414,7 +432,7 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'engineering-room': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 1.1 }],
+    doors: [{ wall: 'S', at: 6, width: 1.1, to: 'server-hall' }],
     spawn: [6, 8.5],
     furniture: [
       longBench(6, 0.6, 8, 1.0, 0),
@@ -424,7 +442,7 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'cryogenics-lab': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 1.1 }],
+    doors: [{ wall: 'S', at: 6, width: 1.1, to: 'quantum-wing' }],
     spawn: [6, 8.5],
     furniture: [
       tank(2, 1, 0.7, 2.2), counterDesk(6, 0.9), cabinet(9.6, 0.9, 1.4, 0.6, 1.9),
@@ -435,7 +453,7 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'power-control-room': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'W', at: 5, width: 1.1 }],
+    doors: [{ wall: 'W', at: 5, width: 1.1, to: 'server-hall' }],
     spawn: [6, 8.5],
     furniture: [
       ...serverRackRow(2.6, 0.8, 4, 1.1, 0, 'x'),
@@ -447,7 +465,7 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'secure-archive': {
     w: 10, d: 8.8, wallH: 3.2,
-    doors: [{ wall: 'S', at: 5, width: 1.1 }],
+    doors: [{ wall: 'S', at: 5, width: 1.1, to: 'soc-room' }],
     spawn: [5, 7.4],
     furniture: [
       counterDesk(5, 0.9),
@@ -458,7 +476,10 @@ const ROOM3D_SPECS: Record<Facility3DRoomId, RoomSpec3D> = {
   },
   'comms-centre': {
     w: 12, d: 10, wallH: 3.2,
-    doors: [{ wall: 'S', at: 6, width: 1.1 }],
+    doors: [
+      { wall: 'S', at: 6, width: 1.1, to: 'ops' },
+      { wall: 'E', at: 8, width: 1.0, to: 'server-hall' },
+    ],
     spawn: [6, 8.5],
     furniture: [
       monitorWall(6, 0.3, 3),
@@ -507,6 +528,9 @@ function buildDoorMarker(group: THREE.Group, x: number, z: number, rotY: number,
 export interface Facility3DWorld {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   canStand(x: number, z: number): boolean;
+  /** Which room's doorway (if any) the player is currently standing in front
+   * of, close enough to walk through. */
+  doorAt(x: number, z: number): Facility3DRoomId | null;
   avatar: THREE.Group;
   spawn: [number, number];
   animate(time: number, walking: boolean): void;
@@ -589,9 +613,26 @@ export function build3DRoom(scene: THREE.Scene, id: Facility3DRoomId): Facility3
     return !solids.some((s) => Math.abs(rx - s.x) < s.w / 2 + radius && Math.abs(rz - s.z) < s.d / 2 + radius);
   }
 
+  /** The room's walls stop movement at the same margin regardless of doors,
+   * so a doorway is reachable at that margin — this just checks whether the
+   * player is standing in front of one, close enough to walk through it. */
+  function doorAt(x: number, z: number): Facility3DRoomId | null {
+    const rx = x + spec.w / 2, rz = z + spec.d / 2;
+    const near = 0.75;
+    for (const gap of spec.doors) {
+      const half = gap.width / 2 + 0.3;
+      if (gap.wall === 'N' && rz < near && Math.abs(rx - gap.at) < half) return gap.to;
+      if (gap.wall === 'S' && spec.d - rz < near && Math.abs(rx - gap.at) < half) return gap.to;
+      if (gap.wall === 'W' && rx < near && Math.abs(rz - gap.at) < half) return gap.to;
+      if (gap.wall === 'E' && spec.w - rx < near && Math.abs(rz - gap.at) < half) return gap.to;
+    }
+    return null;
+  }
+
   return {
     bounds: { minX, maxX, minZ, maxZ },
     canStand,
+    doorAt,
     avatar,
     spawn: [sx - spec.w / 2, sz - spec.d / 2],
     animate(time, walking) {

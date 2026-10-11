@@ -59,7 +59,27 @@ const lab: Lab = {
   },
   render(container, ctx) {
     const status = el('div', {});
-    const factorBtn = el('button', { class: BUTTON }, 'Factor n and break it');
+    const factorBtn = el('button', { class: BUTTON, disabled: 'true' }, 'Unlock the vault');
+    const factorStatus = el('p', { class: MUTED, role: 'status' }, 'Pick the two prime numbers whose product is 3233.');
+    const picks = new Set<number>();
+    const choices = el('div', { class: 'flex flex-wrap gap-3 my-4' });
+    for (const prime of [43, 53, 59, 61, 67]) {
+      const button = el('button', { class: BUTTON, 'aria-pressed': 'false' }, String(prime));
+      button.addEventListener('click', () => {
+        if (picks.has(prime)) picks.delete(prime);
+        else if (picks.size < 2) picks.add(prime);
+        button.setAttribute('aria-pressed', String(picks.has(prime)));
+        button.style.outline = picks.has(prime) ? '3px solid var(--ok)' : '';
+        const chosen = [...picks];
+        const product = chosen.reduce((value, p) => value * p, 1);
+        const correct = chosen.length === 2 && product === N;
+        (factorBtn as HTMLButtonElement).disabled = !correct;
+        factorStatus.textContent = chosen.length < 2 ? 'Choose one more prime.'
+          : correct ? `${chosen.join(' × ')} = ${N}. The lock is vulnerable — unlock it!`
+          : `${chosen.join(' × ')} = ${product}, not ${N}. Deselect one number and try another pair.`;
+      });
+      choices.append(button);
+    }
     factorBtn.addEventListener('click', () => {
       const [p, q] = factor(N);
       const phi = (p - 1) * (q - 1);
@@ -95,6 +115,7 @@ const lab: Lab = {
       factorBtn,
       status
     );
+    factorBtn.before(choices, factorStatus);
   },
   explain() {
     return `<p>You factored <code>n</code> into <code>p·q</code>, computed

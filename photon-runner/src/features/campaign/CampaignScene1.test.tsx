@@ -6,6 +6,17 @@ import { CampaignScene1 } from './CampaignScene1';
 afterEach(() => cleanup());
 
 describe('CampaignScene1', () => {
+  it('lets the player prevent key interception by choosing a separate route', async () => {
+    const user = userEvent.setup();
+    render(<CampaignScene1 onNext={vi.fn()} onExit={vi.fn()} />);
+    const next = () => user.click(screen.getByRole('button', { name: 'Continue' }));
+    await next();
+    await user.click(screen.getByRole('button', { name: /^encrypt/i })); await next();
+    await user.click(screen.getByRole('button', { name: /^decrypt/i })); await next(); await next();
+    await user.click(screen.getByRole('button', { name: 'Deliver the key in person' }));
+    expect(screen.getByRole('heading', { name: 'YOU KEPT THE KEY SECRET.' })).toBeTruthy();
+    expect(screen.queryByText('THE KEY HAS BEEN COMPROMISED.')).toBeNull();
+  });
   it('renders the intro and lets the player exit', async () => {
     const user = userEvent.setup();
     const onExit = vi.fn();
@@ -47,7 +58,7 @@ describe('CampaignScene1', () => {
 
     await user.click(screen.getByRole('button', { name: /continue/i })); // explain-symmetric
 
-    await user.click(screen.getByRole('button', { name: /watch the intercept/i }));
+    await user.click(screen.getByRole('button', { name: /send the key over this link/i }));
     await screen.findByText(/THE KEY HAS BEEN COMPROMISED\./i, undefined, { timeout: 2000 });
     await user.click(screen.getByRole('button', { name: /continue/i }));
 

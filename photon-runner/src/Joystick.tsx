@@ -30,6 +30,8 @@ export function Joystick({ onChange }: JoystickProps) {
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (pointerIdRef.current !== null) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     pointerIdRef.current = e.pointerId;
     updateFromPointer(e.clientX, e.clientY);
   };
@@ -53,6 +55,8 @@ export function Joystick({ onChange }: JoystickProps) {
       onPointerMove={handlePointerMove}
       onPointerUp={reset}
       onPointerCancel={reset}
+      onLostPointerCapture={reset}
+      aria-label="Movement joystick"
       className="relative w-28 h-28 rounded-full bg-slate-900/70 border border-slate-700 touch-none select-none"
     >
       <div

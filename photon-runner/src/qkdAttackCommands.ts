@@ -12,6 +12,8 @@ import {
   getTarget,
   keyFraction,
   knowledgeRate,
+  isWin,
+  MIN_CAPTURE_PULSES,
   scanReport,
   stepExchange,
   Rng,
@@ -87,6 +89,7 @@ function statusLines(s: AttackState): Line[] {
   };
   const lines: Line[] = [
     plain(`round   ${s.round} / ${t.totalRounds}    sifted ${s.sifted}`),
+    dim(`capture ${Math.min(s.round, MIN_CAPTURE_PULSES)} / ${MIN_CAPTURE_PULSES} pulses needed before a mission can succeed`),
     (qber >= t.abortQBER * 0.8 ? warn : plain)(
       `QBER    ${(qber * 100).toFixed(2)}%  ${bar(qber, t.abortQBER)}  abort ${(t.abortQBER * 100).toFixed(0)}%`
     ),
@@ -238,7 +241,7 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
       if (next.status === 'caught') {
         lines.push(plain(''), bad('CAUGHT. ' + (next.ending ?? '')));
       } else if (next.status === 'exhausted') {
-        const won = keyFraction(next) >= next.target.keyGoal;
+        const won = isWin(next);
         lines.push(
           plain(''),
           won
@@ -257,13 +260,15 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
       if (!s) return push(bad('not connected'));
       if (s.status !== 'active') return push(bad('session is already over'));
       const next = extract(s);
-      const won = keyFraction(next) >= next.target.keyGoal;
+      const won = isWin(next);
       return pushWith(
         next,
         accent(next.ending ?? ''),
         won
           ? good(`Clean exit, goal met — ${(keyFraction(next) * 100).toFixed(1)}% of the key.`)
-          : warn(`Clean exit, but short of the ${(next.target.keyGoal * 100).toFixed(0)}% goal.`)
+          : warn(next.round < MIN_CAPTURE_PULSES
+            ? `Clean exit, but the capture was too short. Stay for at least ${MIN_CAPTURE_PULSES} pulses, then meet the key goal.`
+            : `Clean exit, but short of the ${(next.target.keyGoal * 100).toFixed(0)}% goal.`)
       );
     }
 

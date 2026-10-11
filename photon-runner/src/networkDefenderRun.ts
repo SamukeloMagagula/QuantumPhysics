@@ -1,4 +1,4 @@
-import { blockAt, blockIp, createState, DefenderState, HEIGHT, WIDTH, step, unblockIp, type BlockOutcome } from './networkDefenderLogic';
+import { blockIp, canvasPoint, createState, DefenderState, HEIGHT, WIDTH, step, unblockIp, threatAt, reviewThreat, type BlockOutcome, type Threat, type ReviewResult } from './networkDefenderLogic';
 
 function draw(ctx: CanvasRenderingContext2D, state: DefenderState): void {
   ctx.fillStyle = '#0b1020';
@@ -22,7 +22,7 @@ function draw(ctx: CanvasRenderingContext2D, state: DefenderState): void {
   ctx.restore();
 
   for (const t of state.threats) {
-    const color = t.dropped ? '#6e7681' : t.malicious ? '#f85149' : '#3fb950';
+    const color = t.dropped ? '#6e7681' : '#5eead4';
     ctx.globalAlpha = t.dropped ? 0.5 : 1;
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -59,16 +59,21 @@ export interface DefenderHandle {
   block(ip: string): BlockOutcome;
   unblock(ip: string): void;
   getState(): DefenderState;
+  setPaused(paused: boolean): void;
+  inspect(id: number): void;
+  review(id: number, choice: 'block' | 'allow'): ReviewResult | null;
 }
 
 export function startNetworkDefender(
   canvas: HTMLCanvasElement,
   onGameOver: (score: number) => void,
-  onState?: (state: DefenderState) => void
+  onState?: (state: DefenderState) => void,
+  onInspect?: (threat: Threat) => void
 ): DefenderHandle {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    return { dispose() {}, block: () => null, unblock() {}, getState: createState };
+    const state = createState();
+    return { dispose() {}, block: () => null, unblock() {}, getState: () => state, setPaused() {}, inspect() {}, review: () => null };
   }
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -77,19 +82,29 @@ export function startNetworkDefender(
   let last = performance.now();
   let raf = 0;
   let ended = false;
+  let paused = true;
+  let lastPublished = 0;
+  const inspect = (id: number) => {
+    const threat = state.threats.find(t => t.id === id && !t.dropped);
+    if (!threat || state.over) return;
+    paused = true;
+    onInspect?.({ ...threat });
+  };
 
   const handleClick = (e: MouseEvent) => {
     const r = canvas.getBoundingClientRect();
-    blockAt(state, e.clientX - r.left, e.clientY - r.top);
+    const point = canvasPoint(e.clientX, e.clientY, r);
+    const threat = point && threatAt(state, point.x, point.y);
+    if (threat) inspect(threat.id);
   };
   canvas.addEventListener('click', handleClick);
 
   function frame(now: number) {
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
-    step(state, dt);
+    if (!paused) step(state, dt);
     draw(ctx!, state);
-    onState?.(state);
+    if (now - lastPublished >= 100 || state.over) { onState?.(state); lastPublished = now; }
     if (state.over && !ended) {
       ended = true;
       onGameOver(state.score);
@@ -98,6 +113,7 @@ export function startNetworkDefender(
     raf = requestAnimationFrame(frame);
   }
   raf = requestAnimationFrame(frame);
+  onState?.(state);
 
   return {
     dispose() {
@@ -105,6 +121,8 @@ export function startNetworkDefender(
       canvas.removeEventListener('click', handleClick);
     },
     block(ip: string) {
+      const threat = state.threats.find(t => t.ip === ip && !t.dropped);
+      if (threat) return reviewThreat(state, threat.id, 'block')?.blockOutcome ?? null;
       return blockIp(state, ip).outcome;
     },
     unblock(ip: string) {
@@ -112,6 +130,13 @@ export function startNetworkDefender(
     },
     getState() {
       return state;
+    },
+    setPaused(value) { paused = value; },
+    inspect,
+    review(id, choice) {
+      const result = reviewThreat(state, id, choice);
+      onState?.(state);
+      return result;
     },
   };
 }

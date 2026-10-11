@@ -867,7 +867,7 @@ const FACILITY: Room = {
   id: 'facility',
   name: 'Phantom Q Facility',
   kicker: 'headquarters · all wings',
-  art: { kind: 'image', src: '/pq/facility-master.jpg', aspect: FACILITY_ASPECT },
+  art: { kind: 'image', src: '/pq/facility-unlabelled.png', aspect: FACILITY_ASPECT },
   floor: {
     walk: FACILITY_ROOMS.walkway,
     walks: [...Object.values(FACILITY_ROOMS), ...FACILITY_DOORWAYS, ...FACILITY_LOCKED.map(l => l.poly)],

@@ -8,14 +8,20 @@ import { Joystick } from './Joystick';
  * A true 3D walkthrough of the facility, built from the `docs/3d-reference-v1`
  * reference sheets rather than the illustrated 2.5D rooms `PhantomQScene`
  * renders. Ten rooms, each proportioned to that room's own reference sheet
- * (real metres, real ceiling height); switching rooms rebuilds the scene
- * rather than trying to walk a continuous corridor the sheets don't define.
+ * (real metres, real ceiling height), joined into one facility by doorways
+ * rather than ten disconnected sets: walk up to a door and confirm to pass
+ * through it, the same way every other room transition in the game works.
+ * Switching rooms still rebuilds the scene — the sheets don't define a
+ * continuous corridor to walk instead — but which room comes next is now
+ * discovered by walking the building, not picked from a list.
  */
 export function Facility3DScreen({ onBack }: { onBack: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const move = useRef({ x: 0, z: 0 });
   const [room, setRoom] = useState<Facility3DRoomId>('ops');
   const [error, setError] = useState(false);
+  const [doorPrompt, setDoorPrompt] = useState<Facility3DRoomId | null>(null);
+  const doorPromptRef = useRef<Facility3DRoomId | null>(null);
 
   useEffect(() => {
     const el = host.current!;
@@ -47,11 +53,18 @@ export function Facility3DScreen({ onBack }: { onBack: () => void }) {
     const world = build3DRoom(scene, room);
     camera.position.set(world.avatar.position.x + 6, 7, world.avatar.position.z + 8);
     controls.target.set(world.avatar.position.x, 1, world.avatar.position.z);
+    doorPromptRef.current = null;
+    setDoorPrompt(null);
 
     const keys = new Set<string>();
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('button,input,textarea,select,[contenteditable="true"]')) return;
       const k = e.key.toLowerCase();
+      if ((k === 'e' || k === 'enter') && doorPromptRef.current) {
+        e.preventDefault();
+        setRoom(doorPromptRef.current);
+        return;
+      }
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
         e.preventDefault();
         keys.add(k);
@@ -93,6 +106,11 @@ export function Facility3DScreen({ onBack }: { onBack: () => void }) {
       const old = p.clone();
       if (world.canStand(p.x + delta.x, p.z)) p.x += delta.x;
       if (world.canStand(p.x, p.z + delta.z)) p.z += delta.z;
+      const door = world.doorAt(p.x, p.z);
+      if (doorPromptRef.current !== door) {
+        doorPromptRef.current = door;
+        setDoorPrompt(door);
+      }
       const moving = old.distanceToSquared(p) > 0.000001;
       if (moving) world.avatar.rotation.y = Math.atan2(delta.x, delta.z);
       camera.position.add(p.clone().sub(old));
@@ -130,13 +148,15 @@ export function Facility3DScreen({ onBack }: { onBack: () => void }) {
           WASD / arrows to walk · Shift to run
           <br />
           Drag to orbit · Scroll or pinch to zoom
+          <br />
+          Walk to a doorway, then E to go through
         </p>
         <button className="btn btn-ghost mt-3 text-xs" onClick={onBack}>
           Back to Quantum Lab
         </button>
       </div>
       <label className="absolute top-4 right-4 z-10 rounded-2xl bg-slate-950/90 text-white p-3 max-w-[220px]">
-        <span className="block text-xs font-semibold mb-2">Jump to room</span>
+        <span className="block text-xs font-semibold mb-2">Fast travel</span>
         <select
           aria-label="3D facility room"
           value={room}
@@ -150,6 +170,16 @@ export function Facility3DScreen({ onBack }: { onBack: () => void }) {
           ))}
         </select>
       </label>
+      {doorPrompt && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 rounded-2xl bg-slate-950/90 px-4 py-2 text-sm">
+          <span>
+            Press <kbd className="rounded bg-slate-700 px-1.5 py-0.5 text-xs">E</kbd> to enter {ROOM3D_LABELS[doorPrompt]}
+          </span>
+          <button className="btn btn-primary btn-sm text-xs" onClick={() => setRoom(doorPrompt)}>
+            Enter
+          </button>
+        </div>
+      )}
       {!error && (
         <div className="absolute bottom-6 left-6">
           <Joystick onChange={(x, z) => { move.current = { x, z }; }} />

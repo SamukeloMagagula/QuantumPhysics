@@ -25,6 +25,14 @@
 
 export type Rng = () => number;
 
+/** A meaningful capture must survive multiple checks, not just steal one lucky bit. */
+export const MIN_CAPTURE_PULSES = 1000;
+
+export function captureReady(s: AttackState): boolean {
+  return s.round >= Math.min(MIN_CAPTURE_PULSES, s.target.totalRounds) &&
+    s.sifted > 0 && keyFraction(s) >= s.target.keyGoal;
+}
+
 export type AttackMode = 'intercept' | 'beamsplit' | 'blind' | 'trojan' | 'timeshift';
 
 export interface AttackInfo {
@@ -348,7 +356,7 @@ export function keyFraction(s: AttackState): number {
 }
 
 export function isWin(s: AttackState): boolean {
-  return (s.status === 'extracted' || s.status === 'exhausted') && keyFraction(s) >= s.target.keyGoal;
+  return (s.status === 'extracted' || s.status === 'exhausted') && captureReady(s);
 }
 
 /** Bank what you have and end the session while still undetected. */

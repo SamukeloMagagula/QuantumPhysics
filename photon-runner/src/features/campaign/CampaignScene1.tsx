@@ -50,6 +50,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
   const [decrypted, setDecrypted] = useState<string | null>(null);
   const [keyRevealed, setKeyRevealed] = useState(false);
   const [intercepting, setIntercepting] = useState(false);
+  const [protectedKey, setProtectedKey] = useState(false);
 
   const step = currentScene1Step(tutorial);
   const finished = isScene1Finished(tutorial);
@@ -67,12 +68,8 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
   const advance = (event: Parameters<typeof advanceScene1>[1]) => setTutorial((t) => advanceScene1(t, event));
 
   const watchIntercept = () => {
-    if (intercepting) return;
-    setIntercepting(true);
-    window.setTimeout(() => {
-      setIntercepting(false);
-      advance('key-intercepted');
-    }, 900);
+    setProtectedKey(false);
+    advance('key-intercepted');
   };
 
   const restart = () => {
@@ -82,6 +79,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
     setDecrypted(null);
     setKeyRevealed(false);
     setIntercepting(false);
+    setProtectedKey(false);
   };
 
   return (
@@ -89,7 +87,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
       <div className="max-w-2xl mx-auto space-y-6">
         <header className="a-rise flex items-start justify-between gap-4">
           <div>
-            <div className="label-mono mb-2">Quantum Breach · Scene 1 of 3</div>
+            <div className="label-mono mb-2">Quantum Breach · Scene 1 of 2</div>
             <div className="label-mono mb-1.5">Quantum Breach</div>
             <h1 className="h-section text-[22px] md:text-[26px] ink-1">Symmetric Cryptography</h1>
             <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">One secret. Two people.</p>
@@ -116,9 +114,9 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
               >
                 {SPEAKER_INFO[step.speaker].label}
               </span>
-              <h2 className="h-section text-lg ink-1">{step.title}</h2>
+              <h2 className="h-section text-lg ink-1">{step.id === 'compromised' && protectedKey ? 'YOU KEPT THE KEY SECRET.' : step.id === 'eve-appears' ? 'Bob needs a new key. Choose the route.' : step.title}</h2>
             </div>
-            <p className="text-sm ink-2 leading-relaxed">{step.body}</p>
+            <p className="text-sm ink-2 leading-relaxed">{step.id === 'compromised' && protectedKey ? 'You handed Bob the key in person. Eve intercepted the encrypted message, but the key never crossed her tap. Your message stayed secret in this exercise. What if meeting in person is impossible?' : step.id === 'eve-appears' ? 'Eve is listening to this link. Sending the key here is fast. Delivering it in person keeps it off the link, but Alice must meet Bob first.' : step.body}</p>
 
             {step.id === 'alice-encrypts' && (
               <div className="panel rounded-xl p-4 space-y-3">
@@ -205,8 +203,9 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
                   disabled={intercepting}
                   className="btn btn-primary px-5 py-2.5 text-sm mx-auto disabled:opacity-60"
                 >
-                  <Radio size={14} /> {intercepting ? 'Intercepting…' : 'Watch the intercept'}
+                  <Radio size={14} /> Send the key over this link
                 </button>
+                <button className="btn btn-ghost px-5 py-2.5 text-sm" onClick={() => { setProtectedKey(true); advance('key-intercepted'); }}>Deliver the key in person</button>
               </div>
             )}
 
@@ -222,8 +221,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
           <div className="a-pop card sheen glass rounded-[22px] p-6 space-y-4 text-center" style={{ ['--glow' as string]: '#818cf8' }}>
             <h2 className="h-section text-xl ink-1">On to Scene 2</h2>
             <p className="text-sm ink-2 leading-relaxed">
-              A shared key that has to travel over the same channel as the message is only as safe as that
-              channel. Time to see if a lock anyone can use — but only one person can open — solves it.
+              {protectedKey ? 'Your route kept the key away from Eve. Now try sending a secret when Alice and Bob cannot meet.' : 'Eve read the key because it crossed her tap. Try a different route on replay, or find a way to send a secret without sharing the key first.'}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button onClick={restart} className="btn btn-ghost px-5 py-2.5 text-sm">

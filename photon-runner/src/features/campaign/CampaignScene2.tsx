@@ -26,6 +26,7 @@ const SPEAKER_INFO: Record<Scene2Step['speaker'], { label: string; glow: string 
 export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
   const [tutorial, setTutorial] = useState(initialScene2());
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [verifiedKey, setVerifiedKey] = useState(false);
 
   // Both flows are precomputed from the same tested simulateMitm() — the UI
   // only decides, per beat, which already-true fact to reveal to the player.
@@ -33,7 +34,7 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
   const mitm = useMemo(() => simulateMitm(SCENE2_MESSAGE, BOB_KEYS, EVE_KEYS, true), []);
 
   const step = currentScene2Step(tutorial);
-  const finished = isScene2Finished(tutorial);
+  const finished = verifiedKey || isScene2Finished(tutorial);
 
   useEffect(() => {
     if (finished) markSceneComplete('scene2');
@@ -44,6 +45,7 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
   const restart = () => {
     setTutorial(initialScene2());
     setRevealed({});
+    setVerifiedKey(false);
   };
 
   return (
@@ -51,7 +53,7 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
       <div className="max-w-2xl mx-auto space-y-6">
         <header className="a-rise flex items-start justify-between gap-4">
           <div>
-            <div className="label-mono mb-2">Quantum Breach · Scene 2 of 3</div>
+            <div className="label-mono mb-2">Quantum Breach · Scene 2 of 2</div>
             <div className="label-mono mb-1.5">Quantum Breach</div>
             <h1 className="h-section text-[22px] md:text-[26px] ink-1">Asymmetric Cryptography</h1>
             <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">You can share the lock.</p>
@@ -169,6 +171,10 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
 
             {step.id === 'mitm-alice-encrypts' && (
               <div className="panel rounded-xl p-4 space-y-3">
+                {!revealed['mitm-alice-encrypts'] && <div className="space-y-3">
+                  <p className="text-sm ink-2">The directory has supplied a new key claiming to be Bob’s. Send immediately, or compare it with Bob through a separate trusted channel?</p>
+                  <button className="btn btn-ghost px-4 py-3 text-sm" onClick={() => setVerifiedKey(true)}>Verify the key with Bob first</button>
+                </div>}
                 <div className="text-xs ink-3">
                   "Bob's public key": (n, e) = ({EVE_KEYS.n}, {EVE_KEYS.e})
                 </div>
@@ -258,10 +264,9 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
 
         {finished && (
           <div className="a-pop card sheen glass rounded-[22px] p-6 space-y-4 text-center" style={{ ['--glow' as string]: '#818cf8' }}>
-            <h2 className="h-section text-xl ink-1">Scene 3: Quantum Breach</h2>
+            <h2 className="h-section text-xl ink-1">{verifiedKey ? 'You caught the swapped key.' : 'You saw how the key swap works.'}</h2>
             <p className="text-sm ink-2 leading-relaxed">
-              What if the key itself could tell you when someone was spying on you? Step into a real BB84
-              quantum key exchange — as Alice, Bob, or Eve.
+              {verifiedKey ? 'Bob confirmed that the supplied key was not his. You stopped before sending the secret, so Eve got no message to read. Authentication changed the outcome.' : 'Eve read the message because Alice trusted an unverified key. Replay and verify it first to stop her, or try a quantum exchange with another player or computer opponents.'}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button onClick={restart} className="btn btn-ghost px-5 py-2.5 text-sm">
