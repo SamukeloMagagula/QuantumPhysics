@@ -4,6 +4,7 @@ import express from 'express';
 import { openDb } from './serverDb';
 import { createApp } from './serverApp';
 import { readServerConfig } from './serverConfig';
+import { attachFloorSocket } from './floorSocket';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,7 +23,9 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`server listening on http://localhost:${PORT}`);
 });
+
+attachFloorSocket(server, { db, secret: config.secret, store: app.locals.floorStore });

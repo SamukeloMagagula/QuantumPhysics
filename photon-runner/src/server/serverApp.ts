@@ -57,7 +57,8 @@ export function createApp({ db, secret, secureCookies = false, enableLegacyHeist
   mountRoomsRoutes(app, db);
   mountQkdRoutes(app, db);
   if (enableLegacyHeist) mountHeistRoutes(app, db);
-  mountFloorRoutes(app);
+  // Shared with the floor WebSocket (see floorSocket.ts), so both transports see the same players.
+  app.locals.floorStore = mountFloorRoutes(app);
   mountProgressRoutes(app, db, { secret, secureCookies });
 
   // Unknown API paths must not fall through to the production SPA fallback.

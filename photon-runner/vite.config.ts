@@ -11,6 +11,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8787',
         changeOrigin: true,
+        // The campus floor's WebSocket (/api/floor/ws) rides the same proxy.
+        ws: true,
       },
     },
   },

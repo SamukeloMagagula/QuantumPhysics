@@ -1,5 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectFloor } from './floorClient';
+
+// These tests drive the HTTP transport; the socket has its own tests below.
+beforeEach(() => vi.stubGlobal('WebSocket', undefined));
+afterEach(() => vi.unstubAllGlobals());
 
 const peer = (id: number, x: number, y: number, over: Record<string, unknown> = {}) => ({
   userId: id,
@@ -166,5 +170,72 @@ describe('the floor link', () => {
   it('reports a refused line rather than throwing', async () => {
     const link = track(connectFloor(fakeFetch(() => [], false)));
     expect(await link.say(0)).toBe(false);
+  });
+});
+
+/** A stand-in WebSocket the test opens, feeds and closes by hand. */
+class FakeSocket {
+  static last: FakeSocket | null = null;
+  sent: string[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  constructor(public url: URL) {
+    FakeSocket.last = this;
+  }
+  send(data: string) {
+    this.sent.push(data);
+  }
+  close() {
+    this.onclose?.();
+  }
+}
+
+describe('the floor link over a socket', () => {
+  const links: { stop(): void }[] = [];
+  afterEach(() => {
+    for (const l of links.splice(0)) l.stop();
+    FakeSocket.last = null;
+  });
+  const okFetch = () =>
+    vi.fn(async () => ({ ok: true, json: async () => ({ peers: [], chat: [] }) })) as unknown as typeof fetch;
+
+  it('moves to the socket after HTTP works, and stops polling while it is up', async () => {
+    const f = okFetch();
+    const link = connectFloor(f, FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    expect(FakeSocket.last?.url.pathname).toBe('/api/floor/ws');
+    FakeSocket.last!.onopen!();
+    expect(link.transport()).toBe('socket');
+    link.report(0.3, 0.4, 'left', true, 'campus');
+    await new Promise((r) => setTimeout(r, 120));
+    expect(JSON.parse(FakeSocket.last!.sent.at(-1)!)).toMatchObject({ type: 'report', x: 0.3, room: 'campus' });
+    const polls = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    await new Promise((r) => setTimeout(r, 500));
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(polls);
+  });
+
+  it('takes peers and chat from pushed state', async () => {
+    const link = connectFloor(okFetch(), FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    FakeSocket.last!.onopen!();
+    FakeSocket.last!.onmessage!({ data: JSON.stringify({ type: 'state', peers: [peer(5, 0.2, 0.2)], chat: [{ id: 3, userId: 5, name: 'P5', phrase: 1, room: 'campus', at: 0 }] }) });
+    expect(link.actors().map((a) => a.userId)).toEqual([5]);
+    expect(link.messages().map((l) => l.id)).toEqual([3]);
+  });
+
+  it('falls back to HTTP the moment the socket drops', async () => {
+    const f = okFetch();
+    const link = connectFloor(f, FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    FakeSocket.last!.onopen!();
+    const before = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    FakeSocket.last!.close();
+    expect(link.transport()).toBe('http');
+    await settle();
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBeGreaterThan(before);
   });
 });

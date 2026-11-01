@@ -70,6 +70,12 @@ export function identityCookieOptions(secure: boolean) {
   return { maxAge: 1000 * 60 * 60 * 24 * 365, sameSite: 'lax' as const, httpOnly: true, secure };
 }
 
+/** The existing user a signed cookie names, without provisioning anyone new. */
+export function userFromCookie(db: Db, secret: string, rawCookie: string | undefined): UserRow | null {
+  const uid = rawCookie ? verify(rawCookie, secret) : null;
+  return (uid != null && getUser(db, uid)) || null;
+}
+
 export interface IdentityResult {
   user: UserRow;
   /** Set only when a new guest was just provisioned — caller must Set-Cookie it. */
