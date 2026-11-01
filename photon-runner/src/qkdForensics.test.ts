@@ -26,13 +26,13 @@ function reportFor(mode: Parameters<typeof arm>[1] | null, fraction = 1, seed = 
 describe('buildReport', () => {
   it('reports all three stations', () => {
     const r = reportFor(null);
-    expect(r.evidence.map((e) => e.station).sort()).toEqual(['alice', 'bob', 'eve']);
+    expect(r.evidence.map(e => e.station).sort()).toEqual(['alice', 'bob', 'eve']);
   });
 
   it('keeps the honest stations near the noise floor with a ~100% basis match', () => {
     const r = reportFor('intercept', 0.3);
     for (const s of ['alice', 'bob'] as const) {
-      const e = r.evidence.find((x) => x.station === s)!;
+      const e = r.evidence.find(x => x.station === s)!;
       expect(e.qber).toBeLessThan(0.02);
       expect(e.basisMatch).toBeGreaterThan(0.98);
       expect(e.errorShape).toBe('scattered');
@@ -43,21 +43,21 @@ describe('buildReport', () => {
     // Eve guesses the basis right half the time, so a resent key agrees on
     // ~75% of sifted bits instead of ~100%. That gap is the fingerprint.
     const r = reportFor('intercept', 0.4);
-    const eve = r.evidence.find((e) => e.station === 'eve')!;
+    const eve = r.evidence.find(e => e.station === 'eve')!;
     expect(eve.basisMatch).toBeGreaterThan(0.72);
     expect(eve.basisMatch).toBeLessThan(0.78);
   });
 
   it('marks a loud attack as clustered and not quiet', () => {
     const r = reportFor('intercept', 0.4);
-    const eve = r.evidence.find((e) => e.station === 'eve')!;
+    const eve = r.evidence.find(e => e.station === 'eve')!;
     expect(eve.errorShape).toBe('clustered');
     expect(r.quiet).toBe(false);
   });
 
   it('leaves no QBER signature for photon splitting — the whole point', () => {
     const r = reportFor('beamsplit', 1);
-    const eve = r.evidence.find((e) => e.station === 'eve')!;
+    const eve = r.evidence.find(e => e.station === 'eve')!;
     expect(eve.qber).toBe(0);
     expect(r.quiet).toBe(true);
   });
@@ -69,7 +69,7 @@ describe('buildReport', () => {
     s = arm(s, 'intercept', 1);
     const { state } = stepExchange(s, 1500, rng);
     const r = buildReport(state, rng);
-    const eve = r.evidence.find((e) => e.station === 'eve')!;
+    const eve = r.evidence.find(e => e.station === 'eve')!;
     // Knowing the basis in advance means never guessing wrong, so both the
     // error rate and the basis match look completely clean.
     expect(eve.qber).toBe(0);
@@ -116,8 +116,8 @@ describe('suspicionScore', () => {
     // The honest reading of this data really is "nothing to see" — the score
     // must not pretend otherwise, or the quiet-attack lesson is lost.
     const r = reportFor('beamsplit', 1);
-    const eve = r.evidence.find((e) => e.station === 'eve')!;
-    const alice = r.evidence.find((e) => e.station === 'alice')!;
+    const eve = r.evidence.find(e => e.station === 'eve')!;
+    const alice = r.evidence.find(e => e.station === 'alice')!;
     expect(Math.abs(suspicionScore(eve) - suspicionScore(alice))).toBeLessThan(0.1);
   });
 });

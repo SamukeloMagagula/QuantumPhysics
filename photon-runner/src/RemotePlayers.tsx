@@ -53,7 +53,7 @@ export const RemotePlayers = memo(function RemotePlayers({ link, bubbles }: { li
       link.tick(Math.min((now - last) / 1000, 0.1));
       last = now;
       const count = link.actors().length;
-      if (count || shown) setFrame((f) => f + 1);
+      if (count || shown) setFrame(f => f + 1);
       shown = count;
       frame = requestAnimationFrame(animate);
     };
@@ -64,12 +64,22 @@ export const RemotePlayers = memo(function RemotePlayers({ link, bubbles }: { li
   const now = Date.now();
   return (
     <>
-      {link?.actors().map((a) => {
+      {link?.actors().map(a => {
         const at = remotePoint(a);
         const bubble = bubbles[a.userId];
         return (
-          <g key={a.userId} transform={`translate(${at.x} ${at.y})`} className="world-remote" aria-label={`${a.name}${a.seat ? ' (at a computer)' : ''}`}>
-            <WorldCharacter appearance={appearanceOf(a.look)} facing={a.seat ? 'north' : FROM_WIRE[a.facing]} moving={a.walking} seated={Boolean(a.seat)} />
+          <g
+            key={a.userId}
+            transform={`translate(${at.x} ${at.y})`}
+            className="world-remote"
+            aria-label={`${a.name}${a.seat ? ' (at a computer)' : ''}`}
+          >
+            <WorldCharacter
+              appearance={appearanceOf(a.look)}
+              facing={a.seat ? 'north' : FROM_WIRE[a.facing]}
+              moving={a.walking}
+              seated={Boolean(a.seat)}
+            />
             <text className="world-nametag" y={a.seat ? -42 : -52} textAnchor="middle">
               {a.name}
             </text>

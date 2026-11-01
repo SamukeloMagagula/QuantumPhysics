@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { MAPS, MapDef, getMap, isWalkable, receptionCounterSlot, receptionKioskPosition, roomContaining, wallSlotPosition } from './sceneMaps';
+import {
+  MAPS,
+  MapDef,
+  getMap,
+  isWalkable,
+  receptionCounterSlot,
+  receptionKioskPosition,
+  roomContaining,
+  wallSlotPosition,
+} from './sceneMaps';
 
 /** Body radius the game clamps movement by — must match BODY_PAD in the heist. */
 const BODY_PAD = 0.5;
@@ -40,7 +49,7 @@ function floodReachedRooms(map: MapDef, pad = 0): Set<string> {
 describe('map registry', () => {
   it('ships more than one map, each with a unique id', () => {
     expect(MAPS.length).toBeGreaterThanOrEqual(3);
-    expect(new Set(MAPS.map((m) => m.id)).size).toBe(MAPS.length);
+    expect(new Set(MAPS.map(m => m.id)).size).toBe(MAPS.length);
   });
 
   it('falls back to a real map for an unknown id', () => {
@@ -49,10 +58,10 @@ describe('map registry', () => {
   });
 });
 
-describe.each(MAPS.map((m) => [m.name, m] as const))('%s', (_name, map) => {
+describe.each(MAPS.map(m => [m.name, m] as const))('%s', (_name, map) => {
   it('has distinct room ids and colours', () => {
-    expect(new Set(map.rooms.map((r) => r.id)).size).toBe(map.rooms.length);
-    expect(new Set(map.rooms.map((r) => r.color)).size).toBe(map.rooms.length);
+    expect(new Set(map.rooms.map(r => r.id)).size).toBe(map.rooms.length);
+    expect(new Set(map.rooms.map(r => r.color)).size).toBe(map.rooms.length);
   });
 
   it('keeps rooms from overlapping', () => {
@@ -98,7 +107,7 @@ describe.each(MAPS.map((m) => [m.name, m] as const))('%s', (_name, map) => {
 
   it('puts every station slot somewhere reachable', () => {
     expect(map.slots).toHaveLength(8);
-    expect(new Set(map.slots.map((s) => s.id)).size).toBe(8);
+    expect(new Set(map.slots.map(s => s.id)).size).toBe(8);
     for (const s of map.slots) {
       expect(isWalkable(map, s.x, s.z, BODY_PAD), `slot ${s.id} is unreachable`).toBe(true);
     }
@@ -119,7 +128,7 @@ describe.each(MAPS.map((m) => [m.name, m] as const))('%s', (_name, map) => {
     for (const v of map.vents) {
       expect(v.links).not.toContain(v.id);
       for (const other of v.links) {
-        const target = map.vents.find((x) => x.id === other);
+        const target = map.vents.find(x => x.id === other);
         expect(target, `${v.id} -> unknown vent ${other}`).toBeDefined();
         expect(target!.links, `${other} does not link back to ${v.id}`).toContain(v.id);
       }
@@ -169,11 +178,11 @@ describe('isWalkable padding', () => {
 
 describe('reception kiosk placement', () => {
   const hq = getMap('hq');
-  const reception = hq.rooms.find((r) => r.furniture === 'reception')!;
+  const reception = hq.rooms.find(r => r.furniture === 'reception')!;
 
   it('finds exactly one reception and one vault room on HQ', () => {
     expect(reception).toBeTruthy();
-    expect(hq.rooms.filter((r) => r.furniture === 'vault')).toHaveLength(1);
+    expect(hq.rooms.filter(r => r.furniture === 'vault')).toHaveLength(1);
   });
 
   it('places the counter and kiosk inside the reception room, on the wall opposite its signage', () => {

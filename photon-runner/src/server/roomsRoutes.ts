@@ -15,7 +15,7 @@ function completedRoomIds(db: Db, userId: number): Set<string> {
   const rows = db.prepare('SELECT room_id FROM room_progress WHERE user_id = ?').all(userId) as {
     room_id: string;
   }[];
-  return new Set(rows.map((r) => r.room_id));
+  return new Set(rows.map(r => r.room_id));
 }
 
 export function mountRoomsRoutes(app: Express, db: Db): void {
@@ -27,22 +27,22 @@ export function mountRoomsRoutes(app: Express, db: Db): void {
   const rateLimited = (userId: number, questionId: string): boolean => {
     const key = `${userId}:${questionId}`;
     const now = Date.now();
-    const hits = (attempts.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+    const hits = (attempts.get(key) ?? []).filter(t => now - t < WINDOW_MS);
     hits.push(now);
     attempts.set(key, hits);
     return hits.length > MAX_ATTEMPTS;
   };
 
   app.get('/api/rooms', (_req, res) => {
-    res.json({ rooms: ROOMS.map((r) => ({ id: r.id, title: r.title })) });
+    res.json({ rooms: ROOMS.map(r => ({ id: r.id, title: r.title })) });
   });
 
   app.get('/api/paths', (req, res) => {
     const completed = completedRoomIds(db, req.user!.id);
-    const cards = PATHS.map((path) => {
+    const cards = PATHS.map(path => {
       const rooms = path.roomIds.map(getRoom).filter((r): r is NonNullable<typeof r> => Boolean(r));
-      const done = rooms.filter((r) => completed.has(r.id)).length;
-      return { path, rooms: rooms.map((r) => ({ id: r.id, title: r.title, summary: r.summary })), done, total: rooms.length };
+      const done = rooms.filter(r => completed.has(r.id)).length;
+      return { path, rooms: rooms.map(r => ({ id: r.id, title: r.title, summary: r.summary })), done, total: rooms.length };
     });
     res.json({ paths: cards });
   });
@@ -57,7 +57,7 @@ export function mountRoomsRoutes(app: Express, db: Db): void {
     const rooms = path.roomIds.map(getRoom).filter((r): r is NonNullable<typeof r> => Boolean(r));
     res.json({
       path,
-      rooms: rooms.map((r) => ({
+      rooms: rooms.map(r => ({
         id: r.id,
         title: r.title,
         summary: r.summary,
@@ -76,11 +76,11 @@ export function mountRoomsRoutes(app: Express, db: Db): void {
     }
     const answered = [...answeredQuestionIds(db, req.user!.id, room.id)];
     // Never send answer hashes to the client — only what's needed to render + grade client-side hints.
-    const tasks = room.tasks.map((t) => ({
+    const tasks = room.tasks.map(t => ({
       id: t.id,
       title: t.title,
       bodyMarkdown: t.bodyMarkdown,
-      questions: t.questions.map((q) => ({
+      questions: t.questions.map(q => ({
         id: q.id,
         prompt: q.prompt,
         points: q.points,

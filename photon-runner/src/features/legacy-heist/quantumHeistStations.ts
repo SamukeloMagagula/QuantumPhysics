@@ -1,13 +1,7 @@
 import { MapDef } from '../../sceneMaps';
 
 /** What kind of interaction a console opens. */
-export type TerminalKind =
-  | 'sequence'
-  | 'align'
-  | 'sift'
-  | 'sample'
-  | 'power'
-  | 'comms';
+export type TerminalKind = 'sequence' | 'align' | 'sift' | 'sample' | 'power' | 'comms';
 
 export interface StationDef {
   id: string;
@@ -91,7 +85,7 @@ export function stationsFor(map: MapDef): StationDef[] {
 export const REPEATABLE: ReadonlySet<string> = new Set(['comms']);
 
 export function scoredStations(stations: StationDef[]): StationDef[] {
-  return stations.filter((s) => !REPEATABLE.has(s.id));
+  return stations.filter(s => !REPEATABLE.has(s.id));
 }
 
 export const INTERACT_RADIUS = 1.6;

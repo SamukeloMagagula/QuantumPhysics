@@ -22,23 +22,25 @@ describe('the connected campus', () => {
     expect(WORLD_ZONES.map(z => z.id).sort()).toEqual([...ROOMS.filter(r => r.id !== 'facility').map(r => r.id), 'cafeteria'].sort());
   });
   it('can walk between every pair of departments without crossing a wall', () => {
-    for (const from of WORLD_ZONES) for (const to of WORLD_ZONES) {
-      let previous = centerOf(from);
-      for (const next of routeTo(previous, to)) {
-        const steps = Math.ceil(Math.hypot(next.x - previous.x, next.y - previous.y) / 3);
-        for (let i = 0; i <= steps; i++) {
-          const fraction = steps ? i / steps : 1;
-          const point = { x: previous.x + (next.x - previous.x) * fraction, y: previous.y + (next.y - previous.y) * fraction };
-          expect(canWalk(point), `${from.id} → ${to.id}: ${point.x}, ${point.y}`).toBe(true);
-          expect(canStand(point), `Body clearance: ${from.id} to ${to.id}`).toBe(true);
+    for (const from of WORLD_ZONES)
+      for (const to of WORLD_ZONES) {
+        let previous = centerOf(from);
+        for (const next of routeTo(previous, to)) {
+          const steps = Math.ceil(Math.hypot(next.x - previous.x, next.y - previous.y) / 3);
+          for (let i = 0; i <= steps; i++) {
+            const fraction = steps ? i / steps : 1;
+            const point = { x: previous.x + (next.x - previous.x) * fraction, y: previous.y + (next.y - previous.y) * fraction };
+            expect(canWalk(point), `${from.id} → ${to.id}: ${point.x}, ${point.y}`).toBe(true);
+            expect(canStand(point), `Body clearance: ${from.id} to ${to.id}`).toBe(true);
+          }
+          previous = next;
         }
-        previous = next;
+        expect(previous).toEqual(centerOf(to));
       }
-      expect(previous).toEqual(centerOf(to));
-    }
   }, 15000);
   it('sweeps long moves so valid destinations cannot teleport across walls', () => {
-    const from = centerOf(WORLD_ZONES[0]), to = centerOf(WORLD_ZONES[1]);
+    const from = centerOf(WORLD_ZONES[0]),
+      to = centerOf(WORLD_ZONES[1]);
     const stopped = moveCharacter(from, { x: to.x - from.x, y: to.y - from.y }, false);
     expect(stopped.x).toBeLessThan(WORLD_ZONES[0].x + WORLD_ZONES[0].width);
     expect(canStand(stopped)).toBe(true);
@@ -65,14 +67,15 @@ describe('the connected campus', () => {
     }
   });
   it('reaches every waypoint through collision checks, including narrow doors', () => {
-    for (const from of WORLD_ZONES) for (const to of WORLD_ZONES) {
-      let p = centerOf(from);
-      for (const next of routeTo(p, to)) {
-        p = moveCharacter(p, { x: next.x - p.x, y: next.y - p.y }, false);
-        expect(p.x, `${from.id} to ${to.id}`).toBeCloseTo(next.x, 4);
-        expect(p.y, `${from.id} to ${to.id}`).toBeCloseTo(next.y, 4);
+    for (const from of WORLD_ZONES)
+      for (const to of WORLD_ZONES) {
+        let p = centerOf(from);
+        for (const next of routeTo(p, to)) {
+          p = moveCharacter(p, { x: next.x - p.x, y: next.y - p.y }, false);
+          expect(p.x, `${from.id} to ${to.id}`).toBeCloseTo(next.x, 4);
+          expect(p.y, `${from.id} to ${to.id}`).toBeCloseTo(next.y, 4);
+        }
       }
-    }
   });
   it('routes back from a doorway without cutting diagonally across its jamb', () => {
     for (const zone of WORLD_ZONES) {

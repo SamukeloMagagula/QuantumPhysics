@@ -77,7 +77,7 @@ export async function pullProgress(timeoutMs = 1500): Promise<void> {
     writeLocalProgress(merged);
     await push(merged);
   })().catch(() => {});
-  await Promise.race([work, new Promise((r) => setTimeout(r, timeoutMs))]);
+  await Promise.race([work, new Promise(r => setTimeout(r, timeoutMs))]);
 }
 
 /** Push local changes as they happen, and once more as the page closes. */

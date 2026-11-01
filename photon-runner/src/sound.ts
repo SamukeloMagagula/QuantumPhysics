@@ -36,7 +36,11 @@ const KEY = 'quantum-campus:sound:v1';
 export const MASTER_VOLUME = 0.6;
 
 function readMuted(): boolean {
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '{}').muted === true; } catch { return false; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) ?? '{}').muted === true;
+  } catch {
+    return false;
+  }
 }
 
 let muted = readMuted();
@@ -54,11 +58,17 @@ const canPlay = typeof Audio !== 'undefined' && !(typeof navigator !== 'undefine
 const useMp3 = canPlay && !new Audio().canPlayType('audio/ogg; codecs="vorbis"');
 const playable = (file: string) => (useMp3 ? file.replace(/\.ogg$/, '.mp3') : file);
 
-export function isMuted(): boolean { return muted; }
+export function isMuted(): boolean {
+  return muted;
+}
 
 export function setMuted(next: boolean): void {
   muted = next;
-  try { localStorage.setItem(KEY, JSON.stringify({ muted })); } catch { /* the choice still holds this session */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ muted }));
+  } catch {
+    /* the choice still holds this session */
+  }
   listeners.forEach(l => l());
 }
 
@@ -67,7 +77,11 @@ export function play(name: SoundName, loudness = 1): void {
   const sound = SOUNDS[name];
   const file = playable(sound.files[Math.floor(Math.random() * sound.files.length)]);
   let base = cache.get(file);
-  if (!base) { base = new Audio(file); base.preload = 'auto'; cache.set(file, base); }
+  if (!base) {
+    base = new Audio(file);
+    base.preload = 'auto';
+    cache.set(file, base);
+  }
   // A fresh copy per play so quick repeats (footsteps, clicks) can overlap.
   const instance = base.cloneNode() as HTMLAudioElement;
   instance.volume = Math.max(0, Math.min(1, sound.volume * loudness * MASTER_VOLUME));
@@ -76,6 +90,11 @@ export function play(name: SoundName, loudness = 1): void {
 }
 
 export function useMuted(): [boolean, (muted: boolean) => void] {
-  const value = useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, isMuted);
+  const value = useSyncExternalStore(l => {
+    listeners.add(l);
+    return () => {
+      listeners.delete(l);
+    };
+  }, isMuted);
   return [value, setMuted];
 }

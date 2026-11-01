@@ -24,7 +24,7 @@ function fakeFetch(peers: () => unknown, ok = true) {
   })) as unknown as typeof fetch;
 }
 
-const settle = () => new Promise((r) => setTimeout(r, 0));
+const settle = () => new Promise(r => setTimeout(r, 0));
 
 describe('the floor link', () => {
   const links: { stop(): void }[] = [];
@@ -65,7 +65,7 @@ describe('the floor link', () => {
     const link = track(connectFloor(fakeFetch(() => where)));
     await settle();
     where = [peer(2, 0.8, 0.8)];
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 260));
     const before = link.actors()[0].x;
     link.tick(0.05);
     const after = link.actors()[0].x;
@@ -87,7 +87,7 @@ describe('the floor link', () => {
     await settle();
     expect(link.actors()).toHaveLength(1);
     list = [];
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 260));
     expect(link.actors()).toHaveLength(0);
   });
 
@@ -122,7 +122,7 @@ describe('the floor link', () => {
     await settle();
     const calls = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
     link.stop();
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 300));
     // Only the parting DELETE may have been added.
     expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBeLessThanOrEqual(calls + 1);
   });
@@ -150,21 +150,22 @@ describe('the floor link', () => {
     let heard = 0;
     link.subscribe(() => heard++);
     await settle();
-    expect(link.messages().map((l) => l.id)).toEqual([4]);
+    expect(link.messages().map(l => l.id)).toEqual([4]);
     expect(heard).toBeGreaterThan(0);
     chat = [];
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 260));
     expect(bodies[bodies.length - 1].since).toBe(4);
   });
 
   it('adds its own line as soon as the server accepts it', async () => {
     const f = vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => (url.endsWith('/chat') ? { line: { id: 9, userId: 1, name: 'Me', phrase: 3, room: 'campus', at: 0 } } : { peers: [] }),
+      json: async () =>
+        url.endsWith('/chat') ? { line: { id: 9, userId: 1, name: 'Me', phrase: 3, room: 'campus', at: 0 } } : { peers: [] },
     })) as unknown as typeof fetch;
     const link = track(connectFloor(f));
     expect(await link.say(3)).toBe(true);
-    expect(link.messages().map((l) => l.phrase)).toEqual([3]);
+    expect(link.messages().map(l => l.phrase)).toEqual([3]);
   });
 
   it('reports a refused line rather than throwing', async () => {
@@ -197,8 +198,7 @@ describe('the floor link over a socket', () => {
     for (const l of links.splice(0)) l.stop();
     FakeSocket.last = null;
   });
-  const okFetch = () =>
-    vi.fn(async () => ({ ok: true, json: async () => ({ peers: [], chat: [] }) })) as unknown as typeof fetch;
+  const okFetch = () => vi.fn(async () => ({ ok: true, json: async () => ({ peers: [], chat: [] }) })) as unknown as typeof fetch;
 
   it('moves to the socket after HTTP works, and stops polling while it is up', async () => {
     const f = okFetch();
@@ -209,10 +209,10 @@ describe('the floor link over a socket', () => {
     FakeSocket.last!.onopen!();
     expect(link.transport()).toBe('socket');
     link.report(0.3, 0.4, 'left', true, 'campus');
-    await new Promise((r) => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 120));
     expect(JSON.parse(FakeSocket.last!.sent.at(-1)!)).toMatchObject({ type: 'report', x: 0.3, room: 'campus' });
     const polls = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 500));
     expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(polls);
   });
 
@@ -221,9 +221,15 @@ describe('the floor link over a socket', () => {
     links.push(link);
     await settle();
     FakeSocket.last!.onopen!();
-    FakeSocket.last!.onmessage!({ data: JSON.stringify({ type: 'state', peers: [peer(5, 0.2, 0.2)], chat: [{ id: 3, userId: 5, name: 'P5', phrase: 1, room: 'campus', at: 0 }] }) });
-    expect(link.actors().map((a) => a.userId)).toEqual([5]);
-    expect(link.messages().map((l) => l.id)).toEqual([3]);
+    FakeSocket.last!.onmessage!({
+      data: JSON.stringify({
+        type: 'state',
+        peers: [peer(5, 0.2, 0.2)],
+        chat: [{ id: 3, userId: 5, name: 'P5', phrase: 1, room: 'campus', at: 0 }],
+      }),
+    });
+    expect(link.actors().map(a => a.userId)).toEqual([5]);
+    expect(link.messages().map(l => l.id)).toEqual([3]);
   });
 
   it('falls back to HTTP the moment the socket drops', async () => {

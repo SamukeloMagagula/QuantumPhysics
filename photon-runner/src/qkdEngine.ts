@@ -160,7 +160,7 @@ export function resolveRound(config: ResolveConfig, rng: Rng = Math.random): Rou
     bBases,
     intercepted,
     sampleIndices: sample,
-    sampleErrors: sample.map((i) => aBits[i] !== bBits[i]),
+    sampleErrors: sample.map(i => aBits[i] !== bBits[i]),
   };
 }
 
@@ -245,12 +245,12 @@ export function computerStrategy(role: 'bob', publicInfo: { sampleQBER?: number 
 export function computerStrategy(
   role: Role,
   publicInfo: { sampleQBER?: number } | unknown,
-  rng?: Rng
+  rng?: Rng,
 ): ComputerAliceMove | ComputerEveMove | ComputerBobMove;
 export function computerStrategy(
   role: Role,
   publicInfo: { sampleQBER?: number } | unknown,
-  rng: Rng = Math.random
+  rng: Rng = Math.random,
 ): ComputerAliceMove | ComputerEveMove | ComputerBobMove {
   if (role === 'alice') {
     const n = 16 + Math.floor(rng() * 17);

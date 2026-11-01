@@ -58,9 +58,7 @@ const lab: Lab = {
     crackBtn.addEventListener('click', () => {
       crackList.replaceChildren(
         el('strong', { class: 'ink-1' }, 'Every shift:'),
-        ...Array.from({ length: 25 }, (_, i) => i + 1).map((k) =>
-          el('div', {}, `#${k}: ${caesarDecrypt(CIPHERTEXT, k)}`)
-        )
+        ...Array.from({ length: 25 }, (_, i) => i + 1).map(k => el('div', {}, `#${k}: ${caesarDecrypt(CIPHERTEXT, k)}`)),
       );
     });
 
@@ -74,7 +72,7 @@ const lab: Lab = {
       out,
       crackBtn,
       crackList,
-      status
+      status,
     );
   },
   explain() {

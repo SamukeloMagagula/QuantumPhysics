@@ -36,15 +36,11 @@ describe('checkAnswer', () => {
   const stored = hashAnswer('QUANTUM');
 
   it('accepts a case-insensitive, trimmed match for exact answers', () => {
-    expect(
-      checkAnswer({ submitted: '  quantum  ', stored, answerType: 'exact', caseInsensitive: true, trim: true })
-    ).toBe(true);
+    expect(checkAnswer({ submitted: '  quantum  ', stored, answerType: 'exact', caseInsensitive: true, trim: true })).toBe(true);
   });
 
   it('rejects a wrong answer', () => {
-    expect(
-      checkAnswer({ submitted: 'wrong', stored, answerType: 'exact', caseInsensitive: true, trim: true })
-    ).toBe(false);
+    expect(checkAnswer({ submitted: 'wrong', stored, answerType: 'exact', caseInsensitive: true, trim: true })).toBe(false);
   });
 
   it('rejects a case mismatch when caseInsensitive is false', () => {
@@ -56,7 +52,7 @@ describe('checkAnswer', () => {
         answerType: 'exact',
         caseInsensitive: false,
         trim: true,
-      })
+      }),
     ).toBe(false);
     expect(
       checkAnswer({
@@ -65,15 +61,13 @@ describe('checkAnswer', () => {
         answerType: 'exact',
         caseInsensitive: false,
         trim: true,
-      })
+      }),
     ).toBe(true);
   });
 
   it('normalizes number answers before hashing', () => {
     const numStored = hashAnswer('25', { numeric: true });
-    expect(
-      checkAnswer({ submitted: '25.0', stored: numStored, answerType: 'number', caseInsensitive: true, trim: true })
-    ).toBe(true);
+    expect(checkAnswer({ submitted: '25.0', stored: numStored, answerType: 'number', caseInsensitive: true, trim: true })).toBe(true);
   });
 
   it('matches a regex pattern case-insensitively without hashing', () => {
@@ -84,7 +78,7 @@ describe('checkAnswer', () => {
         answerType: 'regex',
         caseInsensitive: true,
         trim: true,
-      })
+      }),
     ).toBe(true);
   });
 
@@ -96,7 +90,7 @@ describe('checkAnswer', () => {
         answerType: 'regex',
         caseInsensitive: true,
         trim: true,
-      })
+      }),
     ).toBe(false);
   });
 
@@ -108,7 +102,7 @@ describe('checkAnswer', () => {
         answerType: 'regex',
         caseInsensitive: true,
         trim: true,
-      })
+      }),
     ).toBe(false);
   });
 });

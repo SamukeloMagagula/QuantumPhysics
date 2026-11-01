@@ -41,8 +41,8 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetch('/api/paths/symmetric').then((r) => (r.ok ? r.json() : Promise.reject())),
-      fetch('/api/badges').then((r) => (r.ok ? r.json() : Promise.reject())),
+      fetch('/api/paths/symmetric').then(r => (r.ok ? r.json() : Promise.reject())),
+      fetch('/api/badges').then(r => (r.ok ? r.json() : Promise.reject())),
     ])
       .then(([pathRes, badgeRes]) => {
         if (cancelled) return;
@@ -70,10 +70,10 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
     );
   }
 
-  const done = data.rooms.filter((r) => r.completed).length;
+  const done = data.rooms.filter(r => r.completed).length;
   const pct = data.rooms.length ? Math.round((done / data.rooms.length) * 100) : 0;
   // First room, or the first not-yet-completed room after a completed prerequisite, is "next".
-  const nextIdx = data.rooms.findIndex((r) => !r.completed);
+  const nextIdx = data.rooms.findIndex(r => !r.completed);
 
   return (
     <Page width="wide">
@@ -101,7 +101,7 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
         {badges.length > 0 && (
           <Section title="Badges" description="Earned as you finish rooms.">
             <div className="panel rounded-xl p-3 flex flex-wrap items-center gap-2">
-              {badges.map((b) => (
+              {badges.map(b => (
                 <span
                   key={b.id}
                   title={b.name}
@@ -119,54 +119,54 @@ export function RoomsHub({ onOpenRoom, onOpenLeaderboard }: RoomsHubProps) {
         )}
 
         <Section title="Rooms" description="Each one unlocks the next.">
-        <div className="grid gap-3 sm:grid-cols-2 items-stretch">
-          {data.rooms.map((room, i) => {
-            const locked = i > 0 && !data.rooms[i - 1].completed;
-            const isNext = i === nextIdx;
-            const tone = DIFFICULTY_TOKEN[room.difficulty] ?? 'var(--ink-3)';
-            return (
-              <button
-                key={room.id}
-                onClick={() => !locked && onOpenRoom(room.id)}
-                disabled={locked}
-                style={{ opacity: locked ? 0.5 : 1 }}
-                className="panel card rounded-xl p-4 h-full flex flex-col text-left disabled:cursor-not-allowed"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-[14px] font-semibold ink-1">{room.title}</div>
-                  {room.completed ? (
-                    <span className="shrink-0" style={{ color: 'var(--ok)' }}>
-                      <Check size={14} />
+          <div className="grid gap-3 sm:grid-cols-2 items-stretch">
+            {data.rooms.map((room, i) => {
+              const locked = i > 0 && !data.rooms[i - 1].completed;
+              const isNext = i === nextIdx;
+              const tone = DIFFICULTY_TOKEN[room.difficulty] ?? 'var(--ink-3)';
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => !locked && onOpenRoom(room.id)}
+                  disabled={locked}
+                  style={{ opacity: locked ? 0.5 : 1 }}
+                  className="panel card rounded-xl p-4 h-full flex flex-col text-left disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-[14px] font-semibold ink-1">{room.title}</div>
+                    {room.completed ? (
+                      <span className="shrink-0" style={{ color: 'var(--ok)' }}>
+                        <Check size={14} />
+                      </span>
+                    ) : locked ? (
+                      <span className="shrink-0 ink-4">
+                        <Lock size={14} />
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-[12px] ink-3 mt-1.5 leading-relaxed flex-1">{room.summary}</p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span
+                      className="text-[10px] font-mono px-2 py-0.5 rounded-md border"
+                      style={{
+                        color: tone,
+                        borderColor: `color-mix(in oklab, ${tone} 32%, transparent)`,
+                        background: `color-mix(in oklab, ${tone} 12%, transparent)`,
+                      }}
+                    >
+                      {room.difficulty}
                     </span>
-                  ) : locked ? (
-                    <span className="shrink-0 ink-4">
-                      <Lock size={14} />
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-[12px] ink-3 mt-1.5 leading-relaxed flex-1">{room.summary}</p>
-                <div className="flex items-center gap-2 mt-3">
-                  <span
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-md border"
-                    style={{
-                      color: tone,
-                      borderColor: `color-mix(in oklab, ${tone} 32%, transparent)`,
-                      background: `color-mix(in oklab, ${tone} 12%, transparent)`,
-                    }}
-                  >
-                    {room.difficulty}
-                  </span>
-                  <span className="text-[10px] ink-4">{room.estimatedMinutes} min</span>
-                  {isNext && (
-                    <span className="text-[10px] ink-4 ml-auto flex items-center gap-1">
-                      Continue <ArrowRight size={11} />
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    <span className="text-[10px] ink-4">{room.estimatedMinutes} min</span>
+                    {isNext && (
+                      <span className="text-[10px] ink-4 ml-auto flex items-center gap-1">
+                        Continue <ArrowRight size={11} />
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </Section>
       </div>
     </Page>

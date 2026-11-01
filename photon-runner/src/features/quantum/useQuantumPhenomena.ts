@@ -324,7 +324,7 @@ export function useQuantumPhenomena() {
 
     const eveMast = new THREE.Mesh(
       new THREE.CylinderGeometry(0.05, 0.05, 1.6, 8),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 }),
     );
     eveMast.position.set(0, 1.4, 0);
     eveGroup.add(eveMast);
@@ -633,7 +633,7 @@ export function useQuantumPhenomena() {
       const bobKeeps = (bobBasis === 'plus') === aliceIsPlus;
       const aliceBit: 0 | 1 = alicePolarization === 0 || alicePolarization === 2 ? 0 : 1;
       const bobBit = deriveBit(effectivePolarization, bobBasis);
-      setEveStats((s) => ({
+      setEveStats(s => ({
         intercepts: s.intercepts + 1,
         cleanReads: s.cleanReads + (intercepted ? 0 : 1),
         disturbed: s.disturbed + (intercepted ? 1 : 0),
@@ -708,7 +708,7 @@ export function useQuantumPhenomena() {
         if (eveMatRef.current) eveMatRef.current.emissiveIntensity = 0.6;
 
         if (activeSceneMode === 'scene3_encoding') {
-          setBatchResults((prev) => [
+          setBatchResults(prev => [
             {
               id: prev.length + 1,
               aliceBit,
@@ -757,6 +757,6 @@ export function useQuantumPhenomena() {
     mountRef,
     getPolarizationLabel,
     checkBasisMatch,
-    handleFirePhoton
+    handleFirePhoton,
   };
 }

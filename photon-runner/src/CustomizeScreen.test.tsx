@@ -4,7 +4,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { CustomizeScreen } from './CustomizeScreen';
 import { DEFAULT_APPEARANCE, getAppearance, saveAppearance } from './characterAppearance';
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 it('previews changes immediately and saves appearance for the map', () => {
   const done = vi.fn();
   render(<CustomizeScreen onDone={done} />);

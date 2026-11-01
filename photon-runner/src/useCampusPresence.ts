@@ -52,13 +52,13 @@ export function useCampusPresence(me: {
       const lines = floor.messages();
       setOnline(floor.online());
       setChat([...lines]);
-      setPeers(floor.actors().map((a) => ({ ...a })));
-      const fresh = lines.filter((l) => l.id > seen);
+      setPeers(floor.actors().map(a => ({ ...a })));
+      const fresh = lines.filter(l => l.id > seen);
       if (fresh.length) seen = fresh[fresh.length - 1].id;
       // The first answer carries history; only lines said since then pop up.
       if (primed && fresh.length) {
         play('chat');
-        setBubbles((b) => {
+        setBubbles(b => {
           const next = { ...b };
           for (const l of fresh) next[l.userId] = { phrase: l.phrase, until: Date.now() + BUBBLE_MS };
           return next;
@@ -89,7 +89,7 @@ export function useCampusPresence(me: {
   }, [myBubble]);
 
   const say = (phrase: number) => {
-    link?.say(phrase).then((ok) => {
+    link?.say(phrase).then(ok => {
       if (!ok) return;
       play('chat');
       setMyBubble({ phrase, until: Date.now() + BUBBLE_MS });

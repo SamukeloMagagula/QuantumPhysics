@@ -21,18 +21,18 @@ import { getChapter } from './campaignStory';
 describe('stage catalogue', () => {
   it('covers the Prologue and all six incidents', () => {
     expect(STAGES).toHaveLength(7);
-    expect(STAGES.map((s) => s.id)).toContain('prologue');
-    expect(STAGES.map((s) => s.id)).toContain('incident-06');
+    expect(STAGES.map(s => s.id)).toContain('prologue');
+    expect(STAGES.map(s => s.id)).toContain('incident-06');
   });
 
   it('numbers the stages consecutively from one', () => {
-    const orders = STAGES.map((s) => s.order).sort((a, b) => a - b);
+    const orders = STAGES.map(s => s.order).sort((a, b) => a - b);
     expect(orders).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('backs every built stage with real chapter content', () => {
     // A stage marked built but with no chapter would be enterable and empty.
-    for (const s of STAGES.filter((x) => x.built)) {
+    for (const s of STAGES.filter(x => x.built)) {
       expect(getChapter(s.id), `${s.id} is built but has no chapter`).not.toBeNull();
     }
   });
@@ -193,7 +193,7 @@ describe('the carried case file', () => {
       ],
     });
     expect(merged.knownFacts).toEqual(['f1', 'f2']);
-    expect(merged.evidence.map((e) => e.id)).toEqual(['e1', 'e2']);
+    expect(merged.evidence.map(e => e.id)).toEqual(['e1', 'e2']);
   });
 
   it('survives corrupt stored data', () => {

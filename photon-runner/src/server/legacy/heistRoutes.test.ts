@@ -75,7 +75,9 @@ describe('quantum heist multiplayer API', () => {
       const res = await request(app).post(`/api/heist/room/${code}/join`).set('Cookie', c);
       expect(res.status).toBe(200);
     }
-    const full = await request(app).post(`/api/heist/room/${code}/join`).set('Cookie', await guestCookie(app));
+    const full = await request(app)
+      .post(`/api/heist/room/${code}/join`)
+      .set('Cookie', await guestCookie(app));
     expect(full.status).toBe(409);
 
     const started = await request(app).post('/api/heist/room').set('Cookie', hostCookie).send({ mapId: 'relay' });
@@ -252,10 +254,7 @@ describe('quantum heist multiplayer API', () => {
 
     // A seat-less user cannot send or receive signals.
     const outsider = await guestCookie(app);
-    const rejected = await request(app)
-      .post(`/api/heist/room/${code}/signal`)
-      .set('Cookie', outsider)
-      .send({ to: 0, data: {} });
+    const rejected = await request(app).post(`/api/heist/room/${code}/signal`).set('Cookie', outsider).send({ to: 0, data: {} });
     expect(rejected.status).toBe(403);
   });
 

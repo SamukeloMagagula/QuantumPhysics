@@ -129,7 +129,9 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
 // click handler inside this component. App.tsx renders whatever
 // SceneManager says is current instead of owning that state itself.
 const SCREEN_IDS: Screen['name'][] = [
-  'mission-console', 'hardware', 'forensics',
+  'mission-console',
+  'hardware',
+  'forensics',
   'first-mission',
   'server-hall-3d',
   'facility-3d',
@@ -173,7 +175,7 @@ function screenSnapshot(): Screen {
 }
 
 function useScreen(): Screen {
-  return useSyncExternalStore((onChange) => SceneManager.subscribe(onChange), screenSnapshot);
+  return useSyncExternalStore(onChange => SceneManager.subscribe(onChange), screenSnapshot);
 }
 
 function go(name: Screen['name'], params?: Record<string, unknown>): void {
@@ -224,7 +226,7 @@ export default function App() {
         go('campus');
         break;
       case 'qkd-attack':
-        go('qkd-attack', { roomId: readFacilityStory().access ? ASSIGNMENTS[readFacilityStory().completed]?.room ?? 'ops' : undefined });
+        go('qkd-attack', { roomId: readFacilityStory().access ? (ASSIGNMENTS[readFacilityStory().completed]?.room ?? 'ops') : undefined });
         break;
       case 'labs':
         go('labs');
@@ -260,21 +262,37 @@ export default function App() {
       if (section === 'home') goHome();
       else openMode(section);
     },
-    [goHome, openMode]
+    [goHome, openMode],
   );
 
   const mapScreen = ['home', 'campus', 'qkd-attack', 'server-hall-3d', 'facility-3d', 'quantum-lab-interior'].includes(screen.name);
   const openActivity = (activity: WorldActivity) => {
-    const screens: Record<WorldActivity, Screen['name']> = { mission: readFacilityStory().completed > 0 && readFacilityStory().completed < ASSIGNMENTS.length ? 'mission-console' : 'first-mission', labs: 'labs', rooms: 'rooms', defender: 'network-defender', quantum: 'quantum-scene', campaign: nextCampaignScreen(), hardware: 'hardware', forensics: 'forensics', multiplayer: 'qkd-lobby', customize: 'customize' };
+    const screens: Record<WorldActivity, Screen['name']> = {
+      mission:
+        readFacilityStory().completed > 0 && readFacilityStory().completed < ASSIGNMENTS.length ? 'mission-console' : 'first-mission',
+      labs: 'labs',
+      rooms: 'rooms',
+      defender: 'network-defender',
+      quantum: 'quantum-scene',
+      campaign: nextCampaignScreen(),
+      hardware: 'hardware',
+      forensics: 'forensics',
+      multiplayer: 'qkd-lobby',
+      customize: 'customize',
+    };
     go(screens[activity]);
   };
-  const destination = screen.name === 'qkd-attack' ? screen.roomId : screen.name === 'server-hall-3d' ? 'server-hall' : screen.name === 'quantum-lab-interior' ? 'quantum-wing' : undefined;
+  const destination =
+    screen.name === 'qkd-attack'
+      ? screen.roomId
+      : screen.name === 'server-hall-3d'
+        ? 'server-hall'
+        : screen.name === 'quantum-lab-interior'
+          ? 'quantum-wing'
+          : undefined;
 
   return (
-    <div
-      className="h-screen w-full flex flex-col overflow-hidden"
-      style={{ background: 'var(--bg-base)', color: 'var(--ink-1)' }}
-    >
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)', color: 'var(--ink-1)' }}>
       <TopNav
         active={mapScreen ? 'home' : sectionOf(screen)}
         onSelect={handleSelectSection}
@@ -285,45 +303,64 @@ export default function App() {
       />
 
       <main ref={mainRef} className="flex-1 min-h-0 relative overflow-hidden">
-        <div className="absolute inset-0" inert={!mapScreen || undefined}><WorldMap active={mapScreen} destination={destination} onOpen={openActivity} /></div>
-        {!mapScreen && <ActivityOverlay title={BREADCRUMBS[screen.name]} onClose={goHome}>
-        <Suspense fallback={<p role="status" className="p-6 ink-2">Loading…</p>}>
-        {screen.name === 'first-mission' && <FirstMission onExit={goHome} onContinue={() => {
-          const story = readFacilityStory();
-          go('qkd-attack', { roomId: ASSIGNMENTS[story.completed]?.room ?? 'ops' });
-        }} />}
-        {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
-        {screen.name === 'mission-console' && <QkdConsole initialTargetId={session?.status === 'active' ? session.target.id : task?.target ?? 'testbed'} initialSession={session} onSessionChange={recordSession} embedded onClose={goHome} />}
-        {screen.name === 'hardware' && <HardwareLabPanel onClose={goHome} />}
-        {screen.name === 'forensics' && <ForensicsPanel session={session} onClose={goHome} />}
-        {screen.name === 'labs' && (
-          <LabsHub
-            onOpenLab={(labId) => go('lab', { labId })}
-            onOpenGame={() => go('network-defender')}
-            onOpenExam={(examId) => go('lab-exam', { examId })}
-          />
+        <div className="absolute inset-0" inert={!mapScreen || undefined}>
+          <WorldMap active={mapScreen} destination={destination} onOpen={openActivity} />
+        </div>
+        {!mapScreen && (
+          <ActivityOverlay title={BREADCRUMBS[screen.name]} onClose={goHome}>
+            <Suspense
+              fallback={
+                <p role="status" className="p-6 ink-2">
+                  Loading…
+                </p>
+              }
+            >
+              {screen.name === 'first-mission' && (
+                <FirstMission
+                  onExit={goHome}
+                  onContinue={() => {
+                    const story = readFacilityStory();
+                    go('qkd-attack', { roomId: ASSIGNMENTS[story.completed]?.room ?? 'ops' });
+                  }}
+                />
+              )}
+              {screen.name === 'customize' && <CustomizeScreen onDone={goHome} onBack={goHome} />}
+              {screen.name === 'mission-console' && (
+                <QkdConsole
+                  initialTargetId={session?.status === 'active' ? session.target.id : (task?.target ?? 'testbed')}
+                  initialSession={session}
+                  onSessionChange={recordSession}
+                  embedded
+                  onClose={goHome}
+                />
+              )}
+              {screen.name === 'hardware' && <HardwareLabPanel onClose={goHome} />}
+              {screen.name === 'forensics' && <ForensicsPanel session={session} onClose={goHome} />}
+              {screen.name === 'labs' && (
+                <LabsHub
+                  onOpenLab={labId => go('lab', { labId })}
+                  onOpenGame={() => go('network-defender')}
+                  onOpenExam={examId => go('lab-exam', { examId })}
+                />
+              )}
+              {screen.name === 'lab' && <LabRunner labId={screen.labId} onExit={() => go('labs')} />}
+              {screen.name === 'lab-exam' && <LabExamView examId={screen.examId} onBack={() => go('labs')} />}
+              {screen.name === 'network-defender' && <NetworkDefenderScreen />}
+              {screen.name === 'quantum-scene' && <QuantumPhenomenaLab />}
+              {screen.name === 'rooms' && (
+                <RoomsHub onOpenRoom={roomId => go('room', { roomId })} onOpenLeaderboard={() => go('leaderboard')} />
+              )}
+              {screen.name === 'room' && <RoomRunner roomId={screen.roomId} onExit={() => go('rooms')} />}
+              {screen.name === 'leaderboard' && <Leaderboard />}
+              {screen.name === 'qkd-lobby' && (
+                <QkdLobby onEnterGame={(code: string, _role: QkdRole) => go('qkd-game', { code })} onExit={goHome} />
+              )}
+              {screen.name === 'qkd-game' && <QkdGameScreen code={screen.code} onExit={() => go('qkd-lobby')} />}
+              {screen.name === 'campaign-scene1' && <CampaignScene1 onNext={() => go('campaign-scene2')} onExit={goHome} />}
+              {screen.name === 'campaign-scene2' && <CampaignScene2 onNext={() => go('qkd-lobby')} onExit={goHome} />}
+            </Suspense>
+          </ActivityOverlay>
         )}
-        {screen.name === 'lab' && <LabRunner labId={screen.labId} onExit={() => go('labs')} />}
-        {screen.name === 'lab-exam' && (
-          <LabExamView examId={screen.examId} onBack={() => go('labs')} />
-        )}
-        {screen.name === 'network-defender' && <NetworkDefenderScreen />}
-        {screen.name === 'quantum-scene' && <QuantumPhenomenaLab />}
-        {screen.name === 'rooms' && (
-          <RoomsHub onOpenRoom={(roomId) => go('room', { roomId })} onOpenLeaderboard={() => go('leaderboard')} />
-        )}
-        {screen.name === 'room' && <RoomRunner roomId={screen.roomId} onExit={() => go('rooms')} />}
-        {screen.name === 'leaderboard' && <Leaderboard />}
-        {screen.name === 'qkd-lobby' && (
-          <QkdLobby onEnterGame={(code: string, _role: QkdRole) => go('qkd-game', { code })} onExit={goHome} />
-        )}
-        {screen.name === 'qkd-game' && <QkdGameScreen code={screen.code} onExit={() => go('qkd-lobby')} />}
-        {screen.name === 'campaign-scene1' && (
-          <CampaignScene1 onNext={() => go('campaign-scene2')} onExit={goHome} />
-        )}
-        {screen.name === 'campaign-scene2' && <CampaignScene2 onNext={() => go('qkd-lobby')} onExit={goHome} />}
-        </Suspense>
-        </ActivityOverlay>}
       </main>
     </div>
   );

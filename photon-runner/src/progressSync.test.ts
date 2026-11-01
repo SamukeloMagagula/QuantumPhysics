@@ -27,8 +27,16 @@ describe('saved progress', () => {
   });
 
   it('merges by adding, never by undoing', () => {
-    const a = cleanProgress({ explored: ['ops'], story: { access: true, completed: 2 }, exams: { s1: { bestPercent: 80, passed: true, attempts: 1 } } });
-    const b = cleanProgress({ explored: ['breakroom'], story: { access: false, completed: 1 }, exams: { s1: { bestPercent: 40, passed: false, attempts: 3 } } });
+    const a = cleanProgress({
+      explored: ['ops'],
+      story: { access: true, completed: 2 },
+      exams: { s1: { bestPercent: 80, passed: true, attempts: 1 } },
+    });
+    const b = cleanProgress({
+      explored: ['breakroom'],
+      story: { access: false, completed: 1 },
+      exams: { s1: { bestPercent: 40, passed: false, attempts: 3 } },
+    });
     const m = mergeProgress(a, b);
     expect(m.explored.sort()).toEqual(['breakroom', 'ops']);
     expect(m.story).toEqual({ access: true, completed: 2 });

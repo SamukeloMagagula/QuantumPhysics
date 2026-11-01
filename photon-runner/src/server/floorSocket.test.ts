@@ -30,8 +30,8 @@ function connect(port: number, cookie?: string) {
 
 /** Resolve with the first pushed state that satisfies `test`. */
 function nextState(ws: WebSocket, test: (msg: { peers: { userId: number; name: string; x: number }[] }) => boolean) {
-  return new Promise<{ peers: { userId: number; name: string; x: number }[] }>((resolve) => {
-    ws.on('message', (data) => {
+  return new Promise<{ peers: { userId: number; name: string; x: number }[] }>(resolve => {
+    ws.on('message', data => {
       const msg = JSON.parse(String(data));
       if (msg.type === 'state' && test(msg)) resolve(msg);
     });
@@ -49,7 +49,7 @@ describe('floor WebSocket', () => {
   it('refuses a connection with no valid identity', async () => {
     running = start();
     const ws = connect(running.port);
-    const status = await new Promise((resolve) => ws.on('unexpected-response', (_req, res) => resolve(res.statusCode)));
+    const status = await new Promise(resolve => ws.on('unexpected-response', (_req, res) => resolve(res.statusCode)));
     expect(status).toBe(401);
   });
 
@@ -59,8 +59,8 @@ describe('floor WebSocket', () => {
     const [ca, cb] = [await cookieFor(running.app), await cookieFor(running.app)];
     const a = connect(running.port, ca);
     const b = connect(running.port, cb);
-    await Promise.all([a, b].map((ws) => new Promise((r) => ws.on('open', r))));
-    const seen = nextState(b, (m) => m.peers.some((p) => p.name === 'Nova'));
+    await Promise.all([a, b].map(ws => new Promise(r => ws.on('open', r))));
+    const seen = nextState(b, m => m.peers.some(p => p.name === 'Nova'));
     a.send(JSON.stringify({ type: 'report', x: 0.25, y: 0.5, room: 'campus', name: 'Nova' }));
     b.send(JSON.stringify({ type: 'report', x: 0.75, y: 0.5, room: 'campus' }));
     const state = await seen;
@@ -76,11 +76,11 @@ describe('floor WebSocket', () => {
     const [ca, cb] = [await cookieFor(running.app), await cookieFor(running.app)];
     const a = connect(running.port, ca);
     const b = connect(running.port, cb);
-    await Promise.all([a, b].map((ws) => new Promise((r) => ws.on('open', r))));
+    await Promise.all([a, b].map(ws => new Promise(r => ws.on('open', r))));
     a.send(JSON.stringify({ type: 'report', x: 0.25, y: 0.5, room: 'campus', name: 'Nova' }));
     b.send(JSON.stringify({ type: 'report', x: 0.75, y: 0.5, room: 'campus' }));
-    await nextState(b, (m) => m.peers.length === 1);
-    const gone = nextState(b, (m) => m.peers.length === 0);
+    await nextState(b, m => m.peers.length === 1);
+    const gone = nextState(b, m => m.peers.length === 0);
     a.close();
     await gone;
     b.close();

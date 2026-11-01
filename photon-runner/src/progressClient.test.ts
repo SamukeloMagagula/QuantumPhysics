@@ -24,17 +24,23 @@ describe('progress sync client', () => {
 
   it('brings in the server copy before play, keeping what this browser already had', async () => {
     localStorage.setItem(PROGRESS_KEYS.explored, JSON.stringify(['breakroom']));
-    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => ({
-      ok: true,
-      json: async () => (init?.method === 'PUT' ? {} : { progress: { explored: ['ops'], story: { access: true, completed: 1 } } }),
-    })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => ({
+        ok: true,
+        json: async () => (init?.method === 'PUT' ? {} : { progress: { explored: ['ops'], story: { access: true, completed: 1 } } }),
+      })),
+    );
     await pullProgress();
     expect(JSON.parse(localStorage.getItem(PROGRESS_KEYS.explored)!).sort()).toEqual(['breakroom', 'ops']);
     expect(JSON.parse(localStorage.getItem(PROGRESS_KEYS.story)!).completed).toBe(1);
   });
 
   it('does not hold up the game when the server is missing', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
     const started = Date.now();
     await pullProgress(50);
     expect(Date.now() - started).toBeLessThan(1000);

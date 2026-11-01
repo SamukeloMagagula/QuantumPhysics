@@ -32,9 +32,7 @@ export function ExFrame({ prompt, children }: { prompt: string; children: React.
 }
 
 export const ExLabel = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>
-    {children}
-  </div>
+  <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>
 );
 
 export const Feedback = ({ text }: { text: string | null }) =>
@@ -55,15 +53,7 @@ export const Feedback = ({ text }: { text: string | null }) =>
     </div>
   ) : null;
 
-export function Primary({
-  onClick,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
+export function Primary({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}

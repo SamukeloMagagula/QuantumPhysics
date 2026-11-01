@@ -11,10 +11,15 @@ describe('CampaignScene2', () => {
     render(<CampaignScene2 onNext={vi.fn()} onExit={vi.fn()} />);
     const next = () => user.click(screen.getByRole('button', { name: 'Continue' }));
     await next();
-    await user.click(screen.getByRole('button', { name: /generate keypair/i })); await next();
-    await user.click(screen.getByRole('button', { name: /encrypt with bob's public key/i })); await next();
-    await user.click(screen.getByRole('button', { name: /try to decrypt/i })); await next(); await next();
-    await user.click(screen.getByRole('button', { name: /forge a keypair/i })); await next();
+    await user.click(screen.getByRole('button', { name: /generate keypair/i }));
+    await next();
+    await user.click(screen.getByRole('button', { name: /encrypt with bob's public key/i }));
+    await next();
+    await user.click(screen.getByRole('button', { name: /try to decrypt/i }));
+    await next();
+    await next();
+    await user.click(screen.getByRole('button', { name: /forge a keypair/i }));
+    await next();
     await user.click(screen.getByRole('button', { name: 'Verify the key with Bob first' }));
     expect(screen.getByRole('heading', { name: 'You caught the swapped key.' })).toBeTruthy();
     expect(screen.queryByText(/^Eve reads it:/i)).toBeNull();
@@ -31,7 +36,7 @@ describe('CampaignScene2', () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
-  it('reveals a beat\'s result before advancing — the action button must not both compute and advance in one click', async () => {
+  it("reveals a beat's result before advancing — the action button must not both compute and advance in one click", async () => {
     const user = userEvent.setup();
     render(<CampaignScene2 onNext={vi.fn()} onExit={vi.fn()} />);
 

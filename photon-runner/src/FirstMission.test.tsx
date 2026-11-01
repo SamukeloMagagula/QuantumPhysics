@@ -5,7 +5,10 @@ import { FirstMission } from './FirstMission';
 import { readFacilityStory, saveFacilityStory } from './facilityStory';
 
 beforeEach(() => localStorage.clear());
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function win() {
   fireEvent.click(screen.getByRole('button', { name: /Dazzle the detector/ }));

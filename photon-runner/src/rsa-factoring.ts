@@ -74,9 +74,12 @@ const lab: Lab = {
         const product = chosen.reduce((value, p) => value * p, 1);
         const correct = chosen.length === 2 && product === N;
         (factorBtn as HTMLButtonElement).disabled = !correct;
-        factorStatus.textContent = chosen.length < 2 ? 'Choose one more prime.'
-          : correct ? `${chosen.join(' × ')} = ${N}. The lock is vulnerable — unlock it!`
-          : `${chosen.join(' × ')} = ${product}, not ${N}. Deselect one number and try another pair.`;
+        factorStatus.textContent =
+          chosen.length < 2
+            ? 'Choose one more prime.'
+            : correct
+              ? `${chosen.join(' × ')} = ${N}. The lock is vulnerable — unlock it!`
+              : `${chosen.join(' × ')} = ${product}, not ${N}. Deselect one number and try another pair.`;
       });
       choices.append(button);
     }
@@ -93,27 +96,22 @@ const lab: Lab = {
           el('div', {}, `φ(n) = (p-1)(q-1) = ${phi}`),
           el('div', {}, `private key d = e⁻¹ mod φ(n) = ${d}`),
           el('div', {}, el('strong', {}, `Decrypted secret: m = ${m}`)),
-          el('p', { class: MUTED }, 'You recovered the secret without ever being handed the private key.')
-        )
+          el('p', { class: MUTED }, 'You recovered the secret without ever being handed the private key.'),
+        ),
       );
       ctx.complete();
     });
     container.append(
       el('h3', { class: 'text-base font-bold ink-1' }, 'Break the toy RSA'),
-      el(
-        'div',
-        { class: CARD },
-        el('div', {}, `Public key:  n = ${N},  e = ${E}`),
-        el('div', {}, `Ciphertext:  c = ${CIPHERTEXT}`)
-      ),
+      el('div', { class: CARD }, el('div', {}, `Public key:  n = ${N},  e = ${E}`), el('div', {}, `Ciphertext:  c = ${CIPHERTEXT}`)),
       el(
         'p',
         { class: MUTED },
         'Someone encrypted a secret code with this PUBLIC key. Only the matching PRIVATE ' +
-          'key should decrypt it — but with these tiny primes you can factor n and derive it yourself.'
+          'key should decrypt it — but with these tiny primes you can factor n and derive it yourself.',
       ),
       factorBtn,
-      status
+      status,
     );
     factorBtn.before(choices, factorStatus);
   },

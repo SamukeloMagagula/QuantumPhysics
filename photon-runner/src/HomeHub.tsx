@@ -1,18 +1,5 @@
 import React from 'react';
-import {
-  ArrowRight,
-  BookOpen,
-  Boxes,
-  Building2,
-  Check,
-  Eye,
-  FlaskConical,
-  Lock,
-  Palette,
-  Radio,
-  Shield,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowRight, BookOpen, Boxes, Building2, Check, Eye, FlaskConical, Lock, Palette, Radio, Shield, Sparkles } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 import { getCompletedScenes } from './features/campaign/campaignProgress';
 import { readFacilityStory, ASSIGNMENTS } from './facilityStory';
@@ -72,8 +59,7 @@ const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
         id: 'campaign',
         title: 'Quantum Breach',
         tag: 'Story campaign · single-player',
-        blurb:
-          'Symmetric and asymmetric cryptography the hard way — watch a shared key get intercepted, then a public key get spoofed.',
+        blurb: 'Symmetric and asymmetric cryptography the hard way — watch a shared key get intercepted, then a public key get spoofed.',
         Icon: Lock,
       },
       {
@@ -87,8 +73,7 @@ const GROUPS: { title: string; description: string; modes: ModeCard[] }[] = [
         id: 'labs',
         title: 'Security Labs',
         tag: 'Ten labs · six section tests',
-        blurb:
-          'Carry out real scaled-down attacks — injection, phishing, denial of service, RSA — then sit the section test.',
+        blurb: 'Carry out real scaled-down attacks — injection, phishing, denial of service, RSA — then sit the section test.',
         Icon: FlaskConical,
       },
     ],
@@ -151,33 +136,52 @@ export function HomeHub({ onOpen }: HomeHubProps) {
   const campaignTag = !campaignDone.includes('scene1')
     ? 'Story campaign · single-player'
     : !campaignDone.includes('scene2')
-    ? 'Continue · scene 2 of 2'
-    : 'Completed · replay any time';
+      ? 'Continue · scene 2 of 2'
+      : 'Completed · replay any time';
 
   return (
     <Page width="wide">
       <section className="operation-hero" aria-labelledby="operation-title">
         <div className="operation-hero-content">
           <p className="operation-eyebrow">Phantom Q / Quantum espionage</p>
-          <h1 id="operation-title">Can you steal<br />a secret?</h1>
-          <p className="operation-intro">Your team needs a meeting place. Try a tool, watch the signal, and recover the clue before the receiver spots you.</p>
+          <h1 id="operation-title">
+            Can you steal
+            <br />a secret?
+          </h1>
+          <p className="operation-intro">
+            Your team needs a meeting place. Try a tool, watch the signal, and recover the clue before the receiver spots you.
+          </p>
           <div className="flex flex-wrap gap-3 mt-7">
-            <button className="operation-play" onClick={() => onOpen(started ? 'qkd-attack' : 'first-mission')}>{started ? 'Continue your mission' : 'Play your first mission'} <ArrowRight size={18} /></button>
-            <button className="operation-secondary" onClick={() => onOpen(started ? 'first-mission' : 'qkd-attack')}>{started ? 'Replay the first mission' : 'Explore headquarters'}</button>
+            <button className="operation-play" onClick={() => onOpen(started ? 'qkd-attack' : 'first-mission')}>
+              {started ? 'Continue your mission' : 'Play your first mission'} <ArrowRight size={18} />
+            </button>
+            <button className="operation-secondary" onClick={() => onOpen(started ? 'first-mission' : 'qkd-attack')}>
+              {started ? 'Replay the first mission' : 'Explore headquarters'}
+            </button>
           </div>
           <div className="operation-briefing">
-            <span><b>01</b> Try a tool</span>
-            <span><b>02</b> Watch what changes</span>
-            <span><b>03</b> Recover the clue</span>
+            <span>
+              <b>01</b> Try a tool
+            </span>
+            <span>
+              <b>02</b> Watch what changes
+            </span>
+            <span>
+              <b>03</b> Recover the clue
+            </span>
           </div>
         </div>
       </section>
 
-      <Section title={started ? 'Your next operation' : 'A secret worth stealing'} description={started ? `${story.completed} of ${ASSIGNMENTS.length} assignments cleared` : 'Two tools. One vulnerable link. As many retries as you need.'}>
-        <button
-          onClick={() => onOpen(started ? FEATURED.id : 'first-mission')}
-          className="card panel w-full rounded-xl p-5 text-left"
-        >
+      <Section
+        title={started ? 'Your next operation' : 'A secret worth stealing'}
+        description={
+          started
+            ? `${story.completed} of ${ASSIGNMENTS.length} assignments cleared`
+            : 'Two tools. One vulnerable link. As many retries as you need.'
+        }
+      >
+        <button onClick={() => onOpen(started ? FEATURED.id : 'first-mission')} className="card panel w-full rounded-xl p-5 text-left">
           <div className="flex flex-col md:flex-row md:items-center gap-5">
             <span
               className="grid place-items-center w-12 h-12 rounded-xl shrink-0"
@@ -190,8 +194,14 @@ export function HomeHub({ onOpen }: HomeHubProps) {
                 <Tag tone="var(--accent)">Start here</Tag>
                 <span className="label-mono !text-[9px]">{FEATURED.tag}</span>
               </div>
-              <h2 className="h-section text-lg ink-1">{started ? ASSIGNMENTS[story.completed]?.title ?? 'All assignments cleared' : 'Find the meeting place'}</h2>
-              <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{started ? 'Your access card is active. Head to the next console and look for a gap in its defences.' : 'Start at the signal. Recover the rendezvous clue to earn your access card and open headquarters.'}</p>
+              <h2 className="h-section text-lg ink-1">
+                {started ? (ASSIGNMENTS[story.completed]?.title ?? 'All assignments cleared') : 'Find the meeting place'}
+              </h2>
+              <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">
+                {started
+                  ? 'Your access card is active. Head to the next console and look for a gap in its defences.'
+                  : 'Start at the signal. Recover the rendezvous clue to earn your access card and open headquarters.'}
+              </p>
             </div>
             <span className="btn btn-primary px-4 py-2 text-sm shrink-0 self-start md:self-center">
               Play <ArrowRight size={14} />
@@ -201,41 +211,36 @@ export function HomeHub({ onOpen }: HomeHubProps) {
       </Section>
 
       <details className="panel rounded-xl p-5 mt-6">
-      <summary className="cursor-pointer font-semibold text-base">Explore more: stories, labs and multiplayer</summary>
-      <p className="text-sm ink-2 mt-3">Optional experiments and lessons. You do not need to pass a test to play the missions.</p>
-      {GROUPS.map((group) => (
-        <Section key={group.title} title={group.title} description={group.description}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {group.modes.map((mode) => {
-              const isCampaign = mode.id === 'campaign';
-              return (
-                <ModeCard
-                  key={mode.id}
-                  mode={mode}
-                  tag={isCampaign ? campaignTag : mode.tag}
-                  complete={isCampaign && campaignDone.length === 2}
-                  onOpen={onOpen}
-                />
-              );
-            })}
-          </div>
-        </Section>
-      ))}
+        <summary className="cursor-pointer font-semibold text-base">Explore more: stories, labs and multiplayer</summary>
+        <p className="text-sm ink-2 mt-3">Optional experiments and lessons. You do not need to pass a test to play the missions.</p>
+        {GROUPS.map(group => (
+          <Section key={group.title} title={group.title} description={group.description}>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {group.modes.map(mode => {
+                const isCampaign = mode.id === 'campaign';
+                return (
+                  <ModeCard
+                    key={mode.id}
+                    mode={mode}
+                    tag={isCampaign ? campaignTag : mode.tag}
+                    complete={isCampaign && campaignDone.length === 2}
+                    onOpen={onOpen}
+                  />
+                );
+              })}
+            </div>
+          </Section>
+        ))}
       </details>
 
       <Section title="Your operative" description="Carried into every mode.">
-        <button
-          onClick={() => onOpen('customize')}
-          className="card panel w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left"
-        >
+        <button onClick={() => onOpen('customize')} className="card panel w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left">
           <span
             className="w-9 h-9 rounded-full shrink-0 border"
             style={{ background: you.skinTone, borderColor: 'rgb(var(--glass-border)/.35)' }}
           />
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold ink-1 truncate">
-              {you.nickname?.trim() || 'Unnamed operative'}
-            </span>
+            <span className="block text-[13px] font-semibold ink-1 truncate">{you.nickname?.trim() || 'Unnamed operative'}</span>
             <span className="label-mono !text-[9px] block mt-0.5">
               {you.build} · {you.hairStyle} · {you.outfit}
             </span>
@@ -249,17 +254,7 @@ export function HomeHub({ onOpen }: HomeHubProps) {
   );
 }
 
-function ModeCard({
-  mode,
-  tag,
-  complete,
-  onOpen,
-}: {
-  mode: ModeCard;
-  tag: string;
-  complete: boolean;
-  onOpen: (id: ModeId) => void;
-}) {
+function ModeCard({ mode, tag, complete, onOpen }: { mode: ModeCard; tag: string; complete: boolean; onOpen: (id: ModeId) => void }) {
   return (
     <Card as="button" onClick={() => onOpen(mode.id)}>
       <div className="flex items-start justify-between gap-3">

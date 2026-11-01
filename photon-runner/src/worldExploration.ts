@@ -4,16 +4,26 @@ export function readExplored(): CampusZoneId[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
     return Array.isArray(value) ? [...new Set(value.filter((id): id is CampusZoneId => WORLD_ZONES.some(z => z.id === id)))] : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 export function discoverRoom(visited: CampusZoneId[], id: CampusZoneId): CampusZoneId[] {
   return visited.includes(id) ? visited : [...visited, id];
 }
 export function saveExplored(visited: CampusZoneId[]): void {
-  try { localStorage.setItem(KEY, JSON.stringify(visited)); } catch { /* This visit still counts in memory. */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(visited));
+  } catch {
+    /* This visit still counts in memory. */
+  }
 }
 export type MedalTier = 'recruit' | 'bronze' | 'silver' | 'gold';
-export interface ExplorerRank { name: string; places: number; medal: MedalTier }
+export interface ExplorerRank {
+  name: string;
+  places: number;
+  medal: MedalTier;
+}
 /** The explorer ladder, lowest first. Each step is earned by discovering places. */
 export const EXPLORER_RANKS: ExplorerRank[] = [
   { name: 'New Recruit', places: 0, medal: 'recruit' },

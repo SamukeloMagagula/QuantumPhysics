@@ -35,7 +35,7 @@ export function QuantumPhenomenaLab() {
     mountRef,
     getPolarizationLabel,
     checkBasisMatch,
-    handleFirePhoton
+    handleFirePhoton,
   } = useQuantumPhenomena();
 
   return (
@@ -114,7 +114,9 @@ export function QuantumPhenomenaLab() {
             <button
               onClick={() => setCameraPreset('top')}
               className={`px-3 py-1.5 rounded-full border text-xs font-mono font-bold transition-all ${
-                cameraPreset === 'top' ? 'bg-purple-500 text-slate-950 border-purple-400' : 'bg-slate-900/80 text-slate-300 border-slate-700'
+                cameraPreset === 'top'
+                  ? 'bg-purple-500 text-slate-950 border-purple-400'
+                  : 'bg-slate-900/80 text-slate-300 border-slate-700'
               }`}
             >
               Top View (Overhead)
@@ -177,7 +179,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setAlicePolarization(0)}
                       className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center justify-between ${
-                        alicePolarization === 0 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        alicePolarization === 0
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       <span>Vertical 0°</span>
@@ -186,7 +190,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setAlicePolarization(1)}
                       className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center justify-between ${
-                        alicePolarization === 1 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        alicePolarization === 1
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       <span>Horizontal 90°</span>
@@ -195,7 +201,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setAlicePolarization(2)}
                       className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center justify-between ${
-                        alicePolarization === 2 ? 'bg-purple-500/20 text-purple-300 border-purple-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        alicePolarization === 2
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       <span>Diag Left -45°</span>
@@ -204,7 +212,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setAlicePolarization(3)}
                       className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center justify-between ${
-                        alicePolarization === 3 ? 'bg-purple-500/20 text-purple-300 border-purple-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        alicePolarization === 3
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       <span>Diag Right +45°</span>
@@ -219,7 +229,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setBobBasis('plus')}
                       className={`p-3 rounded-xl border font-bold transition-all text-center ${
-                        bobBasis === 'plus' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        bobBasis === 'plus'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       Rectilinear (+)
@@ -227,7 +239,9 @@ export function QuantumPhenomenaLab() {
                     <button
                       onClick={() => setBobBasis('cross')}
                       className={`p-3 rounded-xl border font-bold transition-all text-center ${
-                        bobBasis === 'cross' ? 'bg-purple-500/20 text-purple-300 border-purple-400' : 'bg-slate-950 text-slate-400 border-slate-800'
+                        bobBasis === 'cross'
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       Diagonal (X)
@@ -313,7 +327,9 @@ export function QuantumPhenomenaLab() {
                       <button
                         onClick={() => setBobBasis('plus')}
                         className={`p-2 rounded-xl border font-bold transition-all text-center ${
-                          bobBasis === 'plus' ? 'bg-purple-500/20 text-purple-300 border-purple-400 shadow-md' : 'bg-slate-900 text-slate-400 border-slate-800'
+                          bobBasis === 'plus'
+                            ? 'bg-purple-500/20 text-purple-300 border-purple-400 shadow-md'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
                         }`}
                       >
                         Rectilinear (+) Slit
@@ -321,7 +337,9 @@ export function QuantumPhenomenaLab() {
                       <button
                         onClick={() => setBobBasis('cross')}
                         className={`p-2 rounded-xl border font-bold transition-all text-center ${
-                          bobBasis === 'cross' ? 'bg-purple-500/20 text-purple-300 border-purple-400 shadow-md' : 'bg-slate-900 text-slate-400 border-slate-800'
+                          bobBasis === 'cross'
+                            ? 'bg-purple-500/20 text-purple-300 border-purple-400 shadow-md'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
                         }`}
                       >
                         Diagonal (X) Slit
@@ -472,7 +490,9 @@ export function QuantumPhenomenaLab() {
                       setAliceBasis('plus');
                     }}
                     className={`w-full p-2 rounded-lg border flex items-center justify-between transition-all ${
-                      alicePolarization === 0 ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      alicePolarization === 0
+                        ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <span>Vertical | (0°)</span>
@@ -484,7 +504,9 @@ export function QuantumPhenomenaLab() {
                       setAliceBasis('plus');
                     }}
                     className={`w-full p-2 rounded-lg border flex items-center justify-between transition-all ${
-                      alicePolarization === 1 ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      alicePolarization === 1
+                        ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <span>Horizontal - (90°)</span>
@@ -496,7 +518,9 @@ export function QuantumPhenomenaLab() {
                       setAliceBasis('cross');
                     }}
                     className={`w-full p-2 rounded-lg border flex items-center justify-between transition-all ${
-                      alicePolarization === 2 ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      alicePolarization === 2
+                        ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <span>Diag Left \ (-45°)</span>
@@ -508,7 +532,9 @@ export function QuantumPhenomenaLab() {
                       setAliceBasis('cross');
                     }}
                     className={`w-full p-2 rounded-lg border flex items-center justify-between transition-all ${
-                      alicePolarization === 3 ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      alicePolarization === 3
+                        ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <span>Diag Right / (+45°)</span>
@@ -526,7 +552,9 @@ export function QuantumPhenomenaLab() {
                   <button
                     onClick={() => setBobBasis('plus')}
                     className={`w-full p-3.5 rounded-xl border text-center transition-all ${
-                      bobBasis === 'plus' ? 'bg-purple-500/20 text-purple-300 border-purple-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      bobBasis === 'plus'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <div className="text-sm font-bold">Rectilinear (+)</div>
@@ -536,7 +564,9 @@ export function QuantumPhenomenaLab() {
                   <button
                     onClick={() => setBobBasis('cross')}
                     className={`w-full p-3.5 rounded-xl border text-center transition-all ${
-                      bobBasis === 'cross' ? 'bg-purple-500/20 text-purple-300 border-purple-400 font-bold shadow-md' : 'bg-slate-950 text-slate-400 border-slate-800'
+                      bobBasis === 'cross'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-400 font-bold shadow-md'
+                        : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
                     <div className="text-sm font-bold">Diagonal (X)</div>
@@ -617,7 +647,8 @@ export function QuantumPhenomenaLab() {
                   </div>
                   <div className="flex justify-between items-center p-2 bg-slate-900/80 rounded-lg border border-slate-800">
                     <div>
-                      <strong className="text-white font-bold">Bit 1 (+)</strong> → Horizontal 90° (<span className="text-yellow-400">-</span>)
+                      <strong className="text-white font-bold">Bit 1 (+)</strong> → Horizontal 90° (
+                      <span className="text-yellow-400">-</span>)
                     </div>
                     <span className="text-emerald-400 font-bold text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
                       Bob (+) → Bit 1 (100% Pass)
@@ -644,7 +675,8 @@ export function QuantumPhenomenaLab() {
                 <div className="space-y-1.5 text-slate-300">
                   <div className="flex justify-between items-center p-2 bg-slate-900/80 rounded-lg border border-slate-800">
                     <div>
-                      <strong className="text-white font-bold">Bit 0 (X)</strong> → Diag Left -45° (<span className="text-yellow-400">\</span>)
+                      <strong className="text-white font-bold">Bit 0 (X)</strong> → Diag Left -45° (
+                      <span className="text-yellow-400">\</span>)
                     </div>
                     <span className="text-emerald-400 font-bold text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
                       Bob (X) → Bit 0 (100% Pass)
@@ -652,7 +684,8 @@ export function QuantumPhenomenaLab() {
                   </div>
                   <div className="flex justify-between items-center p-2 bg-slate-900/80 rounded-lg border border-slate-800">
                     <div>
-                      <strong className="text-white font-bold">Bit 1 (X)</strong> → Diag Right +45° (<span className="text-yellow-400">/</span>)
+                      <strong className="text-white font-bold">Bit 1 (X)</strong> → Diag Right +45° (
+                      <span className="text-yellow-400">/</span>)
                     </div>
                     <span className="text-emerald-400 font-bold text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
                       Bob (X) → Bit 1 (100% Pass)
@@ -688,7 +721,7 @@ export function QuantumPhenomenaLab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {batchResults.map((res) => (
+                  {batchResults.map(res => (
                     <tr key={res.id} className="hover:bg-slate-900/50 transition-colors">
                       <td className="p-2 text-slate-500">#{res.id}</td>
                       <td className="p-2 font-bold text-cyan-400">{res.aliceBit}</td>
@@ -715,4 +748,3 @@ export function QuantumPhenomenaLab() {
     </div>
   );
 }
-

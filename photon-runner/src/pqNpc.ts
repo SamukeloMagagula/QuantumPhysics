@@ -139,7 +139,7 @@ export function facingFromDelta(dx: number, dy: number): IsoFacing {
 
 export function createNpc(def: NpcDef): Npc {
   const seed = seedOf(def.id);
-  const start = def.seat ? def.seat.pos : def.path[0] ?? { x: 0.5, y: 0.5 };
+  const start = def.seat ? def.seat.pos : (def.path[0] ?? { x: 0.5, y: 0.5 });
   return {
     def,
     mode: def.seat ? 'seated' : def.path.length > 1 ? 'walking' : 'paused',

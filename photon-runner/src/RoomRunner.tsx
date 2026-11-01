@@ -40,7 +40,12 @@ interface RoomRunnerProps {
   onExit: () => void;
 }
 
-type Feedback = { state: 'idle' } | { state: 'checking' } | { state: 'wrong' } | { state: 'error'; message: string } | { state: 'right'; result: AnswerResult };
+type Feedback =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'wrong' }
+  | { state: 'error'; message: string }
+  | { state: 'right'; result: AnswerResult };
 
 function QuestionForm({
   roomId,
@@ -81,7 +86,10 @@ function QuestionForm({
         setFeedback({ state: 'wrong' });
       }
     } catch {
-      setFeedback({ state: 'error', message: 'We could not check your answer. Check your connection and try again. Your answer is still here.' });
+      setFeedback({
+        state: 'error',
+        message: 'We could not check your answer. Check your connection and try again. Your answer is still here.',
+      });
     }
   };
 
@@ -101,7 +109,7 @@ function QuestionForm({
           <div className="flex gap-2">
             <input
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={e => setValue(e.target.value)}
               placeholder="Your answer…"
               className="flex-1 panel rounded-xl px-3 py-2.5 text-sm ink-1 outline-none focus:border-[var(--accent)] transition-colors"
             />
@@ -118,13 +126,13 @@ function QuestionForm({
               Not quite — try again.
             </p>
           )}
-          {feedback.state === 'error' && <p role="alert" className="text-xs" style={{ color: 'var(--warn)' }}>{feedback.message}</p>}
+          {feedback.state === 'error' && (
+            <p role="alert" className="text-xs" style={{ color: 'var(--warn)' }}>
+              {feedback.message}
+            </p>
+          )}
           {question.hint && (
-            <button
-              type="button"
-              onClick={() => setShowHint((v) => !v)}
-              className="text-[11px] ink-4 flex items-center gap-1 self-start"
-            >
+            <button type="button" onClick={() => setShowHint(v => !v)} className="text-[11px] ink-4 flex items-center gap-1 self-start">
               <Lightbulb size={11} /> {showHint ? question.hint : 'Show hint'}
             </button>
           )}
@@ -142,8 +150,8 @@ export function RoomRunner({ roomId, onExit }: RoomRunnerProps) {
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/rooms/${roomId}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => !cancelled && setRoom(data as RoomView))
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => !cancelled && setRoom(data as RoomView))
       .catch(() => !cancelled && setError(true));
     return () => {
       cancelled = true;
@@ -186,7 +194,7 @@ export function RoomRunner({ roomId, onExit }: RoomRunnerProps) {
             <PartyPopper size={20} style={{ color: 'var(--ok)' }} className="shrink-0 mt-0.5" />
             <div className="text-sm ink-1 space-y-1">
               {celebration.roomComplete && <p className="font-semibold">Room complete! +{celebration.pointsAwarded} pts this question.</p>}
-              {celebration.newBadges.map((b) => (
+              {celebration.newBadges.map(b => (
                 <p key={b.id} className="flex items-center gap-1.5">
                   <Award size={13} /> Badge earned: {b.icon} {b.name}
                 </p>
@@ -198,7 +206,7 @@ export function RoomRunner({ roomId, onExit }: RoomRunnerProps) {
           </div>
         )}
 
-        {room.tasks.map((task) => (
+        {room.tasks.map(task => (
           <TaskCard key={task.id} roomId={room.id} task={task} onSolved={handleSolved} />
         ))}
 
@@ -210,20 +218,12 @@ export function RoomRunner({ roomId, onExit }: RoomRunnerProps) {
   );
 }
 
-function TaskCard({
-  roomId,
-  task,
-  onSolved,
-}: {
-  roomId: string;
-  task: RoomTaskView;
-  onSolved: (result: AnswerResult) => void;
-}) {
+function TaskCard({ roomId, task, onSolved }: { roomId: string; task: RoomTaskView; onSolved: (result: AnswerResult) => void }) {
   const html = useMemo(() => marked.parse(task.bodyMarkdown, { async: false }) as string, [task.bodyMarkdown]);
   return (
     <section className="a-rise space-y-3">
       <div className="prose-room glass rounded-2xl p-5" dangerouslySetInnerHTML={{ __html: html }} />
-      {task.questions.map((q) => (
+      {task.questions.map(q => (
         <QuestionForm key={q.id} roomId={roomId} taskId={task.id} question={q} onSolved={onSolved} />
       ))}
     </section>

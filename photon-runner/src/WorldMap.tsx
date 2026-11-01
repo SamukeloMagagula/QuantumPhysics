@@ -21,7 +21,11 @@ import { WORLD_ZONES, centerOf, zoneAt, type WorldActivity, type WorldZone } fro
 type Panel = 'places' | 'people' | 'save';
 
 /** The persistent campus: walk, discover places, sit at computers, and see everyone else. */
-export function WorldMap({ active, destination, onOpen }: {
+export function WorldMap({
+  active,
+  destination,
+  onOpen,
+}: {
   active: boolean;
   destination?: RoomId;
   onOpen: (activity: WorldActivity) => void;
@@ -67,7 +71,7 @@ export function WorldMap({ active, destination, onOpen }: {
   const presence = useCampusPresence({ position, facing, moving, seat, appearance });
 
   const computer = computerById(seat);
-  const taken = useMemo(() => new Set(presence.peers.map((p) => p.seat).filter((id): id is string => Boolean(id))), [presence.peers]);
+  const taken = useMemo(() => new Set(presence.peers.map(p => p.seat).filter((id): id is string => Boolean(id))), [presence.peers]);
   const nearby = !computer && !target ? computerNear(position, taken) : undefined;
   nearbyRef.current = nearby;
 
@@ -90,26 +94,34 @@ export function WorldMap({ active, destination, onOpen }: {
   }, [seat, taken, stand]);
 
   const { setZoom } = camera;
-  const goTo = useCallback((zone: WorldZone) => {
-    setSeat(null);
-    walkTo(zone);
-    setPanel(null);
-    setZoom((z) => Math.max(1, z));
-  }, [walkTo, setZoom]);
+  const goTo = useCallback(
+    (zone: WorldZone) => {
+      setSeat(null);
+      walkTo(zone);
+      setPanel(null);
+      setZoom(z => Math.max(1, z));
+    },
+    [walkTo, setZoom],
+  );
   useEffect(() => {
-    const zone = WORLD_ZONES.find((z) => z.id === destination);
+    const zone = WORLD_ZONES.find(z => z.id === destination);
     if (zone) goTo(zone);
   }, [destination, goTo]);
 
-  const people: CampusPerson[] = presence.peers.map((a) => ({
+  const people: CampusPerson[] = presence.peers.map(a => ({
     userId: a.userId,
     name: a.name,
     where: zoneAt(remotePoint(a))?.short ?? 'Hallway',
     atComputer: Boolean(a.seat),
   }));
-  const me: CampusPerson = { userId: 0, name: appearance.nickname.trim() || 'You', where: current?.short ?? 'Hallway', atComputer: Boolean(seat) };
+  const me: CampusPerson = {
+    userId: 0,
+    name: appearance.nickname.trim() || 'You',
+    where: current?.short ?? 'Hallway',
+    atComputer: Boolean(seat),
+  };
   const customize = useCallback(() => openRef.current('customize'), []);
-  const togglePanel = (which: Panel) => setPanel((p) => (p === which ? null : which));
+  const togglePanel = (which: Panel) => setPanel(p => (p === which ? null : which));
   const drawAt = computer?.seat ?? position;
 
   return (
@@ -138,7 +150,10 @@ export function WorldMap({ active, destination, onOpen }: {
           <CloudUpload size={16} />
           <span>Save</span>
         </button>
-        <button onClick={() => camera.setZoom(camera.overview ? 1 : camera.fitZoom)} aria-label={camera.overview ? 'Follow my character' : 'Show whole map'}>
+        <button
+          onClick={() => camera.setZoom(camera.overview ? 1 : camera.fitZoom)}
+          aria-label={camera.overview ? 'Follow my character' : 'Show whole map'}
+        >
           {camera.overview ? <LocateFixed size={17} /> : <Map size={17} />}
           <span>{camera.overview ? 'Follow me' : 'Whole map'}</span>
         </button>
@@ -165,7 +180,7 @@ export function WorldMap({ active, destination, onOpen }: {
         <MapBackdrop explored={explored} missionRoom={assignment?.room} currentRoom={current?.id} focusable={active} onSelect={goTo} />
         {target && (
           <polyline
-            points={[position, ...walker.route.current].map((p) => `${p.x},${p.y}`).join(' ')}
+            points={[position, ...walker.route.current].map(p => `${p.x},${p.y}`).join(' ')}
             fill="none"
             stroke="#3197b4"
             strokeWidth="2"
@@ -204,16 +219,38 @@ export function WorldMap({ active, destination, onOpen }: {
       {rankUp && <RankUpCard rank={rankUp} onClose={dismissRankUp} />}
       {discovery && !rankUp && <DiscoveryToast place={discovery} />}
       {panel === 'people' && (
-        <PeoplePanel online={presence.online} me={me} people={people} chat={presence.chat} onSay={presence.say} onClose={() => setPanel(null)} />
+        <PeoplePanel
+          online={presence.online}
+          me={me}
+          people={people}
+          chat={presence.chat}
+          onSay={presence.say}
+          onClose={() => setPanel(null)}
+        />
       )}
       {panel === 'save' && <SavePanel onClose={() => setPanel(null)} />}
       {panel === 'places' && <PlacesPanel explored={explored} onGo={goTo} onClose={() => setPanel(null)} />}
       {computer && active && (
-        <WorldComputerScreen computer={computer} online={presence.online} people={people} chat={presence.chat} onLaunch={onOpen} onSay={presence.say} onStand={stand} />
+        <WorldComputerScreen
+          computer={computer}
+          online={presence.online}
+          people={people}
+          chat={presence.chat}
+          onLaunch={onOpen}
+          onSay={presence.say}
+          onStand={stand}
+        />
       )}
 
       <div className="world-bottom">
-        <LocationCard target={target} current={current} nearby={nearby} onSit={sit} onOpen={(zone) => onOpen(zone.activity)} onStop={walker.stopWalking} />
+        <LocationCard
+          target={target}
+          current={current}
+          nearby={nearby}
+          onSit={sit}
+          onOpen={zone => onOpen(zone.activity)}
+          onStop={walker.stopWalking}
+        />
         <div className="world-footnote">
           <span>Click a room to walk there · WASD / arrows to explore · E to interact or sit at a computer</span>
           <button onClick={() => onOpen('mission')}>

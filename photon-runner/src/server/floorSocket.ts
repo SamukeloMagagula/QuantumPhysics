@@ -48,7 +48,7 @@ export function attachFloorSocket(server: Server, { db, secret, store }: { db: D
       socket.destroy();
       return;
     }
-    wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.handleUpgrade(req, socket, head, ws => {
       const client: Client = {
         socket: ws,
         userId: user.id,
@@ -58,7 +58,7 @@ export function attachFloorSocket(server: Server, { db, secret, store }: { db: D
         lastPeers: '',
       };
       clients.add(client);
-      ws.on('message', (data) => {
+      ws.on('message', data => {
         let msg: Record<string, unknown>;
         try {
           msg = JSON.parse(String(data));
@@ -83,7 +83,7 @@ export function attachFloorSocket(server: Server, { db, secret, store }: { db: D
       ws.on('close', () => {
         clients.delete(client);
         // Another tab of the same player may still be connected.
-        if (![...clients].some((c) => c.userId === client.userId)) leave(store, client.userId);
+        if (![...clients].some(c => c.userId === client.userId)) leave(store, client.userId);
       });
     });
   });

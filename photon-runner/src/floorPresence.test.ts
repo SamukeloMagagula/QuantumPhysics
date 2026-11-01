@@ -116,9 +116,16 @@ describe('floor presence', () => {
 
   it('keeps a valid character look and rejects anything the renderer does not know', () => {
     const look = {
-      skinTone: '#f8d9c0', hairStyle: 'afro', hairColor: '#1c1917', outfit: 'hoodie',
-      outfitPrimary: '#0ea5e9', outfitSecondary: '#1e293b', accessory: 'cap', accentColor: '#facc15',
-      build: 'slim', height: 5,
+      skinTone: '#f8d9c0',
+      hairStyle: 'afro',
+      hairColor: '#1c1917',
+      outfit: 'hoodie',
+      outfitPrimary: '#0ea5e9',
+      outfitSecondary: '#1e293b',
+      accessory: 'cap',
+      accentColor: '#facc15',
+      build: 'slim',
+      height: 5,
     };
     expect(cleanLook(look)).toEqual({ ...look, height: 1.08 });
     expect(cleanLook({ ...look, hairColor: 'red;}<script>' })).toBeNull();
@@ -164,7 +171,7 @@ describe('floor presence', () => {
     say(s, t, 2, 1);
     expect(s.chat).toHaveLength(CHAT_HISTORY);
     const campus = chatSince(s, 'campus', 0);
-    expect(campus.every((l) => l.room === 'campus')).toBe(true);
+    expect(campus.every(l => l.room === 'campus')).toBe(true);
     const last = campus[campus.length - 1].id;
     expect(chatSince(s, 'campus', last)).toEqual([]);
     expect(chatSince(s, 'ops', 0)).toHaveLength(1);

@@ -7,7 +7,13 @@ import { WORLD_ART, WORLD_HEIGHT, WORLD_WIDTH, WORLD_ZONES, centerOf, doorX, typ
  * room's state changes, not on every frame the player or anyone else moves.
  * `onSelect` must be stable (it is read from a ref by the caller).
  */
-export const MapBackdrop = memo(function MapBackdrop({ explored, missionRoom, currentRoom, focusable, onSelect }: {
+export const MapBackdrop = memo(function MapBackdrop({
+  explored,
+  missionRoom,
+  currentRoom,
+  focusable,
+  onSelect,
+}: {
   explored: readonly CampusZoneId[];
   missionRoom?: string;
   currentRoom?: CampusZoneId;
@@ -30,7 +36,7 @@ export const MapBackdrop = memo(function MapBackdrop({ explored, missionRoom, cu
             tabIndex={focusable ? 0 : -1}
             aria-label={`Walk to ${zone.name}`}
             onClick={() => onSelect(zone)}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 onSelect(zone);
@@ -40,7 +46,15 @@ export const MapBackdrop = memo(function MapBackdrop({ explored, missionRoom, cu
             <title>
               {zone.name} — {visited ? 'Discovered' : 'Explore for 25 XP'} — {zone.action}
             </title>
-            <rect className="world-room-outline" x={zone.x + 1} y={zone.y + 1} width={zone.width - 2} height={zone.height - 2} fill="transparent" stroke="transparent" />
+            <rect
+              className="world-room-outline"
+              x={zone.x + 1}
+              y={zone.y + 1}
+              width={zone.width - 2}
+              height={zone.height - 2}
+              fill="transparent"
+              stroke="transparent"
+            />
             <g transform={`translate(${zone.x + 8} ${zone.y + 1})`}>
               <rect width="238" height="19" rx="4" fill={currentRoom === zone.id ? '#183744' : '#314650'} />
               <rect width="24" height="19" rx="4" fill={mission ? '#e9b95e' : visited ? '#54b8a5' : '#536872'} />

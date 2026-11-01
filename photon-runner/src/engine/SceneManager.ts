@@ -52,7 +52,7 @@ class SceneManagerImpl {
     this.scenes.get(id)!.onLoad?.(params);
 
     const transition: SceneTransition = { id, params };
-    this.listeners.forEach((fn) => fn(transition));
+    this.listeners.forEach(fn => fn(transition));
   }
 
   subscribe(fn: Listener): () => void {

@@ -24,7 +24,7 @@ function runCommand(raw: string, defender: DefenderHandle): LogLine[] {
   const arg = parts[1];
 
   if (!cmd) return [];
-  if (cmd === 'help') return HELP.map((t) => ({ text: t, tone: 'out' }));
+  if (cmd === 'help') return HELP.map(t => ({ text: t, tone: 'out' }));
 
   if (cmd === 'clear') return [{ text: '__CLEAR__', tone: 'out' }];
 
@@ -40,9 +40,9 @@ function runCommand(raw: string, defender: DefenderHandle): LogLine[] {
 
   if (cmd === 'logs') {
     const s = defender.getState();
-    const live = s.threats.filter((t) => !t.dropped);
+    const live = s.threats.filter(t => !t.dropped);
     if (live.length === 0) return [{ text: 'no live connections right now', tone: 'out' }];
-    return live.map((t) => {
+    return live.map(t => {
       const info = KIND_INFO[t.kind];
       return {
         text: `${t.ip}:${t.port}/${t.protocol}  ${info.label} — ${info.detail}`,
@@ -62,8 +62,7 @@ function runCommand(raw: string, defender: DefenderHandle): LogLine[] {
     const outcome = defender.block(arg);
     if (outcome === 'already-blocked') return [{ text: `${arg} is already blocked`, tone: 'out' }];
     if (outcome === 'malicious-blocked') return [{ text: `${arg} blocked — that connection was malicious. +100`, tone: 'ok' }];
-    if (outcome === 'legit-blocked')
-      return [{ text: `${arg} blocked — that was legitimate traffic. trust -20`, tone: 'warn' }];
+    if (outcome === 'legit-blocked') return [{ text: `${arg} blocked — that was legitimate traffic. trust -20`, tone: 'warn' }];
     return [{ text: `firewall rule added for ${arg} (no live connection matched it right now)`, tone: 'out' }];
   }
 
@@ -98,16 +97,27 @@ export function NetworkDefenderScreen() {
     if (!canvas) return;
     const handle = startNetworkDefender(
       canvas,
-      () => { setStatus('Round finished.'); setPaused(true); },
-      (state) => setHud({ ...state, threats: [...state.threats] }),
-      (threat) => { setSelected(threat); setResult(null); setPaused(true); setStatus('Paused while you inspect.'); }
+      () => {
+        setStatus('Round finished.');
+        setPaused(true);
+      },
+      state => setHud({ ...state, threats: [...state.threats] }),
+      threat => {
+        setSelected(threat);
+        setResult(null);
+        setPaused(true);
+        setStatus('Paused while you inspect.');
+      },
     );
     defenderRef.current = handle;
     return () => handle.dispose();
   }, [run]);
 
   useEffect(() => {
-    if (selected) { inspectionRef.current?.focus({ preventScroll: true }); inspectionRef.current?.scrollIntoView?.({ block: 'nearest' }); }
+    if (selected) {
+      inspectionRef.current?.focus({ preventScroll: true });
+      inspectionRef.current?.scrollIntoView?.({ block: 'nearest' });
+    }
     // Focus on a newly selected threat, not on every update to the same one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
@@ -121,7 +131,7 @@ export function NetworkDefenderScreen() {
     setInput('');
     if (!text.trim() || !defenderRef.current) return;
     const result = runCommand(text, defenderRef.current);
-    setLines((prev) => {
+    setLines(prev => {
       const withInput: LogLine[] = [...prev, { text: `$ ${text}`, tone: 'in' }];
       if (result.length === 1 && result[0].text === '__CLEAR__') return [];
       return [...withInput, ...result];
@@ -130,18 +140,32 @@ export function NetworkDefenderScreen() {
 
   const hairline = 'rgb(var(--glass-border)/.2)';
   const resume = () => {
-    setSelected(null); setResult(null); setStarted(true); setPaused(false);
+    setSelected(null);
+    setResult(null);
+    setStarted(true);
+    setPaused(false);
     setStatus('Inspect a connection before deciding.');
     defenderRef.current?.setPaused(false);
   };
-  const pause = () => { setPaused(true); setStatus('Paused. Take your time.'); defenderRef.current?.setPaused(true); };
+  const pause = () => {
+    setPaused(true);
+    setStatus('Paused. Take your time.');
+    defenderRef.current?.setPaused(true);
+  };
   const review = (choice: 'block' | 'allow') => {
     if (!selected || result) return;
     setResult(defenderRef.current?.review(selected.id, choice) ?? null);
   };
   const restart = () => {
-    setRun(n => n + 1); setStarted(false); setPaused(true); setSelected(null); setResult(null); setHud(null);
-    setInput(''); setLines([]); setStatus('Ready for another round.');
+    setRun(n => n + 1);
+    setStarted(false);
+    setPaused(true);
+    setSelected(null);
+    setResult(null);
+    setHud(null);
+    setInput('');
+    setLines([]);
+    setStatus('Ready for another round.');
   };
 
   return (
@@ -150,10 +174,18 @@ export function NetworkDefenderScreen() {
         eyebrow="Protect the shop"
         title="Network Defender"
         description="Keep the shop online for its customers. Inspect 12 connections, stop attacks, and let real requests through. Traffic pauses while you read the evidence."
-        actions={<div className="flex gap-2 flex-wrap">
-          {!hud?.over && <button className="btn btn-primary px-4 py-3" disabled={Boolean(selected)} onClick={paused ? resume : pause}>{!started ? 'Start defence' : paused ? 'Resume traffic' : 'Pause traffic'}</button>}
-          <button className="btn btn-ghost px-4 py-3" onClick={restart}>{hud?.over ? 'Play another round' : 'Restart round'}</button>
-        </div>}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            {!hud?.over && (
+              <button className="btn btn-primary px-4 py-3" disabled={Boolean(selected)} onClick={paused ? resume : pause}>
+                {!started ? 'Start defence' : paused ? 'Resume traffic' : 'Pause traffic'}
+              </button>
+            )}
+            <button className="btn btn-ghost px-4 py-3" onClick={restart}>
+              {hud?.over ? 'Play another round' : 'Restart round'}
+            </button>
+          </div>
+        }
         meta={
           hud ? (
             <>
@@ -170,10 +202,21 @@ export function NetworkDefenderScreen() {
         }
       />
 
-      {hud?.over && <section role="status" className="panel rounded-xl p-5 mb-4">
-        <h2 className="text-xl font-bold">{hud.health > 0 && hud.trust > 0 ? 'The shop stayed open!' : hud.health === 0 ? 'Too many attacks reached the shop.' : 'Too many real requests were blocked.'}</h2>
-        <p className="text-sm ink-2 mt-2">{hud.correct} of {hud.reviewed} reviewed connections handled correctly. Score: {hud.score}. Try another round with fresh traffic.</p>
-      </section>}
+      {hud?.over && (
+        <section role="status" className="panel rounded-xl p-5 mb-4">
+          <h2 className="text-xl font-bold">
+            {hud.health > 0 && hud.trust > 0
+              ? 'The shop stayed open!'
+              : hud.health === 0
+                ? 'Too many attacks reached the shop.'
+                : 'Too many real requests were blocked.'}
+          </h2>
+          <p className="text-sm ink-2 mt-2">
+            {hud.correct} of {hud.reviewed} reviewed connections handled correctly. Score: {hud.score}. Try another round with fresh
+            traffic.
+          </p>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <section className="panel rounded-xl p-3 flex flex-col">
@@ -189,41 +232,95 @@ export function NetworkDefenderScreen() {
             <Legend tone="var(--ink-4)" label="Firewall drop" />
           </div>
           <div className="mt-4 flex flex-col gap-2" aria-label="Connections to inspect">
-            {!hud?.threats.some(t => !t.dropped) && <p className="text-sm ink-2">{started ? 'Waiting for the next connection…' : 'Start when you are ready. No traffic moves before you begin.'}</p>}
-            {hud?.threats.filter(t => !t.dropped).map(t => <button key={t.id} disabled={hud.over || Boolean(selected)} className="btn btn-ghost justify-between px-3 py-3 text-sm" onClick={() => defenderRef.current?.inspect(t.id)}>
-              <span>Inspect connection {t.id}</span><span className="font-mono text-xs">{t.ip}</span>
-            </button>)}
+            {!hud?.threats.some(t => !t.dropped) && (
+              <p className="text-sm ink-2">
+                {started ? 'Waiting for the next connection…' : 'Start when you are ready. No traffic moves before you begin.'}
+              </p>
+            )}
+            {hud?.threats
+              .filter(t => !t.dropped)
+              .map(t => (
+                <button
+                  key={t.id}
+                  disabled={hud.over || Boolean(selected)}
+                  className="btn btn-ghost justify-between px-3 py-3 text-sm"
+                  onClick={() => defenderRef.current?.inspect(t.id)}
+                >
+                  <span>Inspect connection {t.id}</span>
+                  <span className="font-mono text-xs">{t.ip}</span>
+                </button>
+              ))}
           </div>
         </section>
 
         <section ref={inspectionRef} tabIndex={-1} aria-label="Connection evidence" className="panel rounded-xl p-5">
-          {selected ? <>
-            <p className="text-xs ink-3 uppercase">Traffic paused · connection {selected.id}</p>
-            <h2 className="text-xl font-semibold mt-3">What is this device doing?</h2>
-            <p className="text-base leading-relaxed mt-4">{KIND_CLUES[selected.kind]}</p>
-            <details className="mt-4 text-sm ink-2"><summary className="cursor-pointer">Technical evidence</summary><p className="mt-2">{selected.ip}:{selected.port}/{selected.protocol} — {KIND_INFO[selected.kind].detail}</p></details>
-            {result ? <div className="mt-5">
-              <p role="status" className="text-base leading-relaxed" style={{ color: result.correct ? 'var(--ok)' : 'var(--warn)' }}>{result.explanation}</p>
-              {!hud?.over && <button autoFocus className="btn btn-primary mt-4 px-4 py-3" onClick={resume}>Continue defending</button>}
-              {hud?.over && <div className="mt-4"><p className="text-sm">Round finished: {hud.correct} of {hud.reviewed} decisions correct.</p><button className="btn btn-primary mt-3 px-4 py-3" onClick={restart}>Defend again</button></div>}
-            </div> : <div className="flex gap-3 flex-wrap mt-5">
-              <button className="btn btn-primary px-4 py-3" disabled={hud?.over} onClick={() => review('block')}>Block this source</button>
-              <button className="btn btn-ghost px-4 py-3" disabled={hud?.over} onClick={() => review('allow')}>Let this request through</button>
-            </div>}
-          </> : <>
-            <h2 className="text-xl font-semibold">Read the behaviour, then decide.</h2>
-            <p className="text-base ink-2 leading-relaxed mt-3">Tap a connection or choose it from the list. Look for unexpected activity, repeated failed sign-ins, or requests that match your trusted records.</p>
-            <p className="text-sm ink-2 mt-3">Blocking every connection hurts your customers. Letting every request through lets attacks reach the shop. The colour and address do not tell you which is which.</p>
-          </>}
+          {selected ? (
+            <>
+              <p className="text-xs ink-3 uppercase">Traffic paused · connection {selected.id}</p>
+              <h2 className="text-xl font-semibold mt-3">What is this device doing?</h2>
+              <p className="text-base leading-relaxed mt-4">{KIND_CLUES[selected.kind]}</p>
+              <details className="mt-4 text-sm ink-2">
+                <summary className="cursor-pointer">Technical evidence</summary>
+                <p className="mt-2">
+                  {selected.ip}:{selected.port}/{selected.protocol} — {KIND_INFO[selected.kind].detail}
+                </p>
+              </details>
+              {result ? (
+                <div className="mt-5">
+                  <p role="status" className="text-base leading-relaxed" style={{ color: result.correct ? 'var(--ok)' : 'var(--warn)' }}>
+                    {result.explanation}
+                  </p>
+                  {!hud?.over && (
+                    <button autoFocus className="btn btn-primary mt-4 px-4 py-3" onClick={resume}>
+                      Continue defending
+                    </button>
+                  )}
+                  {hud?.over && (
+                    <div className="mt-4">
+                      <p className="text-sm">
+                        Round finished: {hud.correct} of {hud.reviewed} decisions correct.
+                      </p>
+                      <button className="btn btn-primary mt-3 px-4 py-3" onClick={restart}>
+                        Defend again
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-3 flex-wrap mt-5">
+                  <button className="btn btn-primary px-4 py-3" disabled={hud?.over} onClick={() => review('block')}>
+                    Block this source
+                  </button>
+                  <button className="btn btn-ghost px-4 py-3" disabled={hud?.over} onClick={() => review('allow')}>
+                    Let this request through
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-semibold">Read the behaviour, then decide.</h2>
+              <p className="text-base ink-2 leading-relaxed mt-3">
+                Tap a connection or choose it from the list. Look for unexpected activity, repeated failed sign-ins, or requests that match
+                your trusted records.
+              </p>
+              <p className="text-sm ink-2 mt-3">
+                Blocking every connection hurts your customers. Letting every request through lets attacks reach the shop. The colour and
+                address do not tell you which is which.
+              </p>
+            </>
+          )}
         </section>
       </div>
 
-        <details className="panel rounded-xl mt-5 p-4" onToggle={e => { if (e.currentTarget.open && !hud?.over) pause(); }}>
+      <details
+        className="panel rounded-xl mt-5 p-4"
+        onToggle={e => {
+          if (e.currentTarget.open && !hud?.over) pause();
+        }}
+      >
         <summary className="cursor-pointer text-sm font-semibold">Advanced console</summary>
-        <section
-          className="rounded-xl flex flex-col h-[320px] overflow-hidden mt-3"
-          style={{ background: 'var(--bg-sunken)' }}
-        >
+        <section className="rounded-xl flex flex-col h-[320px] overflow-hidden mt-3" style={{ background: 'var(--bg-sunken)' }}>
           <div className="label-mono !text-[9px] px-3 pt-3 pb-2">Console</div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 pb-2 font-mono text-xs space-y-1">
             {lines.map((l, i) => (
@@ -238,8 +335,8 @@ export function NetworkDefenderScreen() {
             </span>
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
               placeholder="block 203.0.113.42"
               aria-label="Defender command"
               disabled={!started || hud?.over || Boolean(selected)}
@@ -249,7 +346,7 @@ export function NetworkDefenderScreen() {
             <span className="label-mono !text-[8px] hidden sm:block">type help</span>
           </div>
         </section>
-        </details>
+      </details>
     </Page>
   );
 }

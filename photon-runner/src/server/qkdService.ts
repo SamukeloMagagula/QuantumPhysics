@@ -132,9 +132,7 @@ function getSeats(db: Db, gameId: number): SeatRow[] {
 }
 
 function seatForUser(db: Db, gameId: number, userId: number): SeatRow | undefined {
-  return db.prepare('SELECT * FROM qkd_game_seats WHERE game_id = ? AND user_id = ?').get(gameId, userId) as
-    | SeatRow
-    | undefined;
+  return db.prepare('SELECT * FROM qkd_game_seats WHERE game_id = ? AND user_id = ?').get(gameId, userId) as SeatRow | undefined;
 }
 
 function seatFor(db: Db, gameId: number, role: Role): SeatRow {
@@ -146,10 +144,7 @@ function config(g: GameRow): GameConfig {
 }
 
 function setConfig(db: Db, gameId: number, cfg: GameConfig): void {
-  db.prepare('UPDATE qkd_games SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-    JSON.stringify(cfg),
-    gameId
-  );
+  db.prepare('UPDATE qkd_games SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(cfg), gameId);
 }
 
 /** Atomically sets a seat's action only if still unset. Returns true if this call claimed it. */
@@ -187,13 +182,14 @@ export function createGame(db: Db, user: UserRow, role: unknown): CreateResult {
   const gid = Number(info.lastInsertRowid);
   for (const r of ROLES) {
     if (r === role) {
-      db.prepare(
-        "INSERT INTO qkd_game_seats (game_id, role, kind, user_id, display_name) VALUES (?, ?, 'human', ?, ?)"
-      ).run(gid, r, user.id, user.display_name);
+      db.prepare("INSERT INTO qkd_game_seats (game_id, role, kind, user_id, display_name) VALUES (?, ?, 'human', ?, ?)").run(
+        gid,
+        r,
+        user.id,
+        user.display_name,
+      );
     } else {
-      db.prepare(
-        "INSERT INTO qkd_game_seats (game_id, role, kind, display_name) VALUES (?, ?, 'computer', 'Computer')"
-      ).run(gid, r);
+      db.prepare("INSERT INTO qkd_game_seats (game_id, role, kind, display_name) VALUES (?, ?, 'computer', 'Computer')").run(gid, r);
     }
   }
   return { code, role: role as Role };
@@ -205,9 +201,7 @@ export function joinGame(db: Db, code: string, user: UserRow, role: unknown): Cr
   if (g.phase !== 'lobby') throw new GameError('game already started', 409);
   if (seatForUser(db, g.id, user.id)) throw new GameError('already seated in this game', 409);
   const info = db
-    .prepare(
-      "UPDATE qkd_game_seats SET kind = 'human', user_id = ?, display_name = ? WHERE game_id = ? AND role = ? AND kind = 'computer'"
-    )
+    .prepare("UPDATE qkd_game_seats SET kind = 'human', user_id = ?, display_name = ? WHERE game_id = ? AND role = ? AND kind = 'computer'")
     .run(user.id, user.display_name, g.id, role as Role);
   if (info.changes === 0) throw new GameError('role already taken', 409);
   return { code: g.code, role: role as Role };
@@ -218,9 +212,7 @@ export function startGame(db: Db, code: string, user: UserRow): GameStateView {
   if (!seatForUser(db, g.id, user.id)) throw new GameError('not seated in this game', 403);
   if (g.phase === 'lobby') {
     const info = db
-      .prepare(
-        "UPDATE qkd_games SET phase = 'alice_setup', round = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'lobby'"
-      )
+      .prepare("UPDATE qkd_games SET phase = 'alice_setup', round = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'lobby'")
       .run(g.id);
     if (info.changes === 1) {
       db.prepare('UPDATE qkd_game_seats SET action = NULL WHERE game_id = ?').run(g.id);
@@ -260,11 +252,11 @@ function isUp(phase: string, role: Role | null, seats: SeatRow[]): boolean {
   if (role === null) return false;
   const need = ({ alice_setup: 'alice', eve_move: 'eve', bob_decision: 'bob' } as Record<string, Role>)[phase];
   if (need && need === role) {
-    const byRole = Object.fromEntries(seats.map((s) => [s.role, s]));
+    const byRole = Object.fromEntries(seats.map(s => [s.role, s]));
     return byRole[role].action === null;
   }
   if (phase === 'accusation') {
-    const byRole = Object.fromEntries(seats.map((s) => [s.role, s]));
+    const byRole = Object.fromEntries(seats.map(s => [s.role, s]));
     return byRole[role].action === null;
   }
   return phase === 'resolve'; // any human may advance to the next round
@@ -280,7 +272,7 @@ export function gameState(db: Db, code: string, user: UserRow | null): GameState
   const anon = cfg.anon ?? {};
   const revealAll = g.phase === 'ended';
 
-  const seatViews: SeatView[] = seats.map((s) => {
+  const seatViews: SeatView[] = seats.map(s => {
     if (s.role === yourRole || revealAll) {
       return { role: s.role, kind: s.kind, name: s.display_name, submitted: s.action !== null };
     }
@@ -298,7 +290,7 @@ export function gameState(db: Db, code: string, user: UserRow | null): GameState
   };
 
   if (revealAll) {
-    view.scores = seats.map((s) => ({ role: s.role, name: s.display_name, score: s.score }));
+    view.scores = seats.map(s => ({ role: s.role, name: s.display_name, score: s.score }));
   } else {
     view.roundsCompleted = (cfg.history ?? []).length;
   }
@@ -425,7 +417,7 @@ function advance(db: Db, game: GameRow): void {
       cfg.alice = { n: Math.trunc(Number(act.n ?? 24)), s: Math.trunc(Number(act.s ?? 6)) };
       const info = db
         .prepare(
-          "UPDATE qkd_games SET config = ?, phase = 'eve_move', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'alice_setup'"
+          "UPDATE qkd_games SET config = ?, phase = 'eve_move', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'alice_setup'",
         )
         .run(JSON.stringify(cfg), g.id);
       if (info.changes === 0) continue; // another request already advanced this phase
@@ -462,7 +454,7 @@ function advance(db: Db, game: GameRow): void {
       cfg.result = result;
       const info = db
         .prepare(
-          "UPDATE qkd_games SET config = ?, phase = 'bob_decision', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'eve_move'"
+          "UPDATE qkd_games SET config = ?, phase = 'bob_decision', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'eve_move'",
         )
         .run(JSON.stringify(cfg), g.id);
       if (info.changes === 0) continue; // lost the race; our locally-computed result is discarded
@@ -539,7 +531,9 @@ function nextRound(db: Db, g: GameRow): void {
     return;
   }
   const info = db
-    .prepare("UPDATE qkd_games SET round = round + 1, phase = 'alice_setup', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'resolve'")
+    .prepare(
+      "UPDATE qkd_games SET round = round + 1, phase = 'alice_setup', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND phase = 'resolve'",
+    )
     .run(gid);
   if (info.changes === 0) return; // lost the race
   db.prepare('UPDATE qkd_game_seats SET action = NULL WHERE game_id = ?').run(gid);
@@ -562,7 +556,11 @@ function startAccusation(db: Db, g: GameRow): void {
 
 function cleanAccusation(role: Role, action: Record<string, unknown>, cfg: GameConfig): string {
   const anon = cfg.anon ?? {};
-  const valid = new Set(Object.entries(anon).filter(([k]) => k !== role).map(([, v]) => v));
+  const valid = new Set(
+    Object.entries(anon)
+      .filter(([k]) => k !== role)
+      .map(([, v]) => v),
+  );
   const guess = action.accuse;
   if (typeof guess !== 'string' || !valid.has(guess)) throw new GameError('bad action', 400);
   return guess;
@@ -577,7 +575,7 @@ function advanceAccusation(db: Db, game: GameRow): void {
   for (const role of ['alice', 'bob'] as const) {
     const seat = seatFor(db, gid, role);
     if (seat.action === null && seat.kind === 'computer') {
-      const otherRoles = ROLES.filter((r) => r !== role);
+      const otherRoles = ROLES.filter(r => r !== role);
       const guess = anon[otherRoles[Math.floor(Math.random() * otherRoles.length)]] ?? '';
       claimAction(db, gid, role, { accuse: guess });
     }
@@ -619,9 +617,9 @@ function resolveAccusation(db: Db, g: GameRow, cfg: GameConfig): void {
 }
 
 function ageSeconds(db: Db, gameId: number): number | null {
-  const row = db
-    .prepare("SELECT (strftime('%s','now') - strftime('%s', updated_at)) AS age FROM qkd_games WHERE id = ?")
-    .get(gameId) as { age: number | null };
+  const row = db.prepare("SELECT (strftime('%s','now') - strftime('%s', updated_at)) AS age FROM qkd_games WHERE id = ?").get(gameId) as {
+    age: number | null;
+  };
   return row.age;
 }
 
@@ -635,7 +633,7 @@ function maybeTimeout(db: Db, g: GameRow): void {
       for (const role of ['alice', 'bob'] as const) {
         const seat = seatFor(db, g.id, role);
         if (seat.kind === 'human' && seat.action === null) {
-          const otherRoles = ROLES.filter((r) => r !== role);
+          const otherRoles = ROLES.filter(r => r !== role);
           const guess = anon[otherRoles[Math.floor(Math.random() * otherRoles.length)]] ?? '';
           if (claimAction(db, g.id, role, { accuse: guess })) claimedAny = true;
         }
@@ -651,12 +649,7 @@ function maybeTimeout(db: Db, g: GameRow): void {
     const seat = seatFor(db, g.id, expected);
     if (seat.kind === 'human' && seat.action === null) {
       const cfg = config(g);
-      const claimed = claimAction(
-        db,
-        g.id,
-        expected,
-        computerStrategy(expected, computerPublic(cfg, g.phase), Math.random)
-      );
+      const claimed = claimAction(db, g.id, expected, computerStrategy(expected, computerPublic(cfg, g.phase), Math.random));
       if (claimed) advance(db, getGame(db, g.code)); // only the request that actually took over drives the machine
     }
   }

@@ -22,7 +22,12 @@ export function EveInterceptReport({
 }) {
   const tone = report.disturbed
     ? { ring: 'border-rose-500/40', bg: 'bg-rose-500/5', text: 'text-rose-300', chip: 'bg-rose-500/15 text-rose-300 border-rose-500/30' }
-    : { ring: 'border-amber-500/40', bg: 'bg-amber-500/5', text: 'text-amber-300', chip: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
+    : {
+        ring: 'border-amber-500/40',
+        bg: 'bg-amber-500/5',
+        text: 'text-amber-300',
+        chip: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      };
 
   return (
     <div className={`mt-2 rounded-xl border ${tone.ring} ${tone.bg} p-3 space-y-2.5`}>
@@ -42,9 +47,7 @@ export function EveInterceptReport({
         </div>
         <div className="rounded-lg bg-black/40 px-2 py-1.5">
           <div className="text-slate-500">Eve guessed</div>
-          <div className={`font-bold ${report.guessedRight ? 'text-emerald-300' : 'text-rose-300'}`}>
-            {BASIS_GLYPH[report.eveBasis]}
-          </div>
+          <div className={`font-bold ${report.guessedRight ? 'text-emerald-300' : 'text-rose-300'}`}>{BASIS_GLYPH[report.eveBasis]}</div>
         </div>
         <div className="rounded-lg bg-black/40 px-2 py-1.5">
           <div className="text-slate-500">Eve read bit</div>
@@ -133,9 +136,7 @@ export function EveDossier({
       <div>
         <div className="flex justify-between text-[9px] mb-1">
           <span className="text-slate-500">ERROR SHE INJECTED (QBER)</span>
-          <span className={caught ? 'text-rose-400 font-bold' : 'text-slate-300 font-bold'}>
-            {(qber * 100).toFixed(0)}%
-          </span>
+          <span className={caught ? 'text-rose-400 font-bold' : 'text-slate-300 font-bold'}>{(qber * 100).toFixed(0)}%</span>
         </div>
         <div className="relative h-1.5 rounded-full bg-white/10 overflow-hidden">
           <div
@@ -150,10 +151,7 @@ export function EveDossier({
         </div>
       </div>
 
-      <p
-        className="text-[10px] leading-relaxed"
-        style={{ color: caught ? '#fb7185' : '#94a3b8' }}
-      >
+      <p className="text-[10px] leading-relaxed" style={{ color: caught ? '#fb7185' : '#94a3b8' }}>
         {stats.sifted < 4
           ? 'Fire more photons — a few samples prove nothing either way.'
           : caught

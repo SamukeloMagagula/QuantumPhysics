@@ -12,7 +12,7 @@ function seeded(seed: number) {
   };
 }
 
-const text = (s: ConsoleState) => s.lines.map((l) => l.text).join('\n');
+const text = (s: ConsoleState) => s.lines.map(l => l.text).join('\n');
 /** Play a script of commands against one deterministic RNG. */
 const play = (cmds: string[], seed = 42): ConsoleState => {
   const rng = seeded(seed);

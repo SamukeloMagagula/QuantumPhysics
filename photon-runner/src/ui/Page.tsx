@@ -29,15 +29,7 @@ const WIDTH: Record<Width, string> = {
   full: 'max-w-[1500px]',
 };
 
-export function Page({
-  children,
-  width = 'wide',
-  className = '',
-}: {
-  children: React.ReactNode;
-  width?: Width;
-  className?: string;
-}) {
+export function Page({ children, width = 'wide', className = '' }: { children: React.ReactNode; width?: Width; className?: string }) {
   return (
     <div className={`bg-scene min-h-full px-4 py-6 md:px-8 md:py-8 ${className}`}>
       <div className={`${WIDTH[width]} mx-auto`}>{children}</div>
@@ -66,9 +58,7 @@ export function PageHeader({
         <div className="min-w-0">
           {eyebrow && <div className="label-mono mb-1.5">{eyebrow}</div>}
           <h1 className="h-section text-[22px] md:text-[26px] ink-1">{title}</h1>
-          {description && (
-            <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{description}</p>
-          )}
+          {description && <p className="text-[13px] ink-2 leading-relaxed mt-1.5 max-w-2xl">{description}</p>}
         </div>
         {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
       </div>
@@ -120,10 +110,7 @@ export function Meta({ label, value, tone }: { label: string; value: React.React
 /** A thin progress bar, used wherever a page reports completion. */
 export function ProgressBar({ percent, tone = 'var(--accent)' }: { percent: number; tone?: string }) {
   return (
-    <div
-      className="h-1 rounded-full overflow-hidden w-full"
-      style={{ background: 'rgb(var(--glass-border)/.2)' }}
-    >
+    <div className="h-1 rounded-full overflow-hidden w-full" style={{ background: 'rgb(var(--glass-border)/.2)' }}>
       <div
         className="h-full rounded-full"
         style={{
@@ -155,9 +142,7 @@ export function Card({
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
-  const cls = `panel rounded-xl p-4 h-full flex flex-col text-left ${
-    as === 'button' && !disabled ? 'card' : ''
-  } ${className}`;
+  const cls = `panel rounded-xl p-4 h-full flex flex-col text-left ${as === 'button' && !disabled ? 'card' : ''} ${className}`;
   if (as === 'button') {
     return (
       <button onClick={onClick} disabled={disabled} className={cls} style={style}>

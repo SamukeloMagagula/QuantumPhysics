@@ -1,19 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Eye, KeyRound, Lock, Radio, RotateCcw, Unlock } from 'lucide-react';
-import {
-  SCENE1_KEY,
-  SCENE1_MESSAGE,
-  decryptWithSharedKey,
-  encryptWithSharedKey,
-} from './campaignScene1Logic';
-import {
-  SCENE1_STEPS,
-  advanceScene1,
-  currentScene1Step,
-  initialScene1,
-  isScene1Finished,
-  Scene1Step,
-} from './campaignScene1Tutorial';
+import { SCENE1_KEY, SCENE1_MESSAGE, decryptWithSharedKey, encryptWithSharedKey } from './campaignScene1Logic';
+import { SCENE1_STEPS, advanceScene1, currentScene1Step, initialScene1, isScene1Finished, Scene1Step } from './campaignScene1Tutorial';
 import { markSceneComplete } from './campaignProgress';
 
 interface CampaignScene1Props {
@@ -65,7 +53,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
     setDecrypted(decryptWithSharedKey(ciphertext, SCENE1_KEY));
   };
 
-  const advance = (event: Parameters<typeof advanceScene1>[1]) => setTutorial((t) => advanceScene1(t, event));
+  const advance = (event: Parameters<typeof advanceScene1>[1]) => setTutorial(t => advanceScene1(t, event));
 
   const watchIntercept = () => {
     setProtectedKey(false);
@@ -102,7 +90,10 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
         </div>
 
         {!finished && step && (
-          <div className="a-pop card sheen glass rounded-[22px] p-6 space-y-5" style={{ ['--glow' as string]: SPEAKER_INFO[step.speaker].glow }}>
+          <div
+            className="a-pop card sheen glass rounded-[22px] p-6 space-y-5"
+            style={{ ['--glow' as string]: SPEAKER_INFO[step.speaker].glow }}
+          >
             <div className="flex items-center gap-2.5">
               <span
                 className="text-[10px] font-mono font-bold px-2 py-1 rounded-md tracking-wider"
@@ -114,9 +105,21 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
               >
                 {SPEAKER_INFO[step.speaker].label}
               </span>
-              <h2 className="h-section text-lg ink-1">{step.id === 'compromised' && protectedKey ? 'YOU KEPT THE KEY SECRET.' : step.id === 'eve-appears' ? 'Bob needs a new key. Choose the route.' : step.title}</h2>
+              <h2 className="h-section text-lg ink-1">
+                {step.id === 'compromised' && protectedKey
+                  ? 'YOU KEPT THE KEY SECRET.'
+                  : step.id === 'eve-appears'
+                    ? 'Bob needs a new key. Choose the route.'
+                    : step.title}
+              </h2>
             </div>
-            <p className="text-sm ink-2 leading-relaxed">{step.id === 'compromised' && protectedKey ? 'You handed Bob the key in person. Eve intercepted the encrypted message, but the key never crossed her tap. Your message stayed secret in this exercise. What if meeting in person is impossible?' : step.id === 'eve-appears' ? 'Eve is listening to this link. Sending the key here is fast. Delivering it in person keeps it off the link, but Alice must meet Bob first.' : step.body}</p>
+            <p className="text-sm ink-2 leading-relaxed">
+              {step.id === 'compromised' && protectedKey
+                ? 'You handed Bob the key in person. Eve intercepted the encrypted message, but the key never crossed her tap. Your message stayed secret in this exercise. What if meeting in person is impossible?'
+                : step.id === 'eve-appears'
+                  ? 'Eve is listening to this link. Sending the key here is fast. Delivering it in person keeps it off the link, but Alice must meet Bob first.'
+                  : step.body}
+            </p>
 
             {step.id === 'alice-encrypts' && (
               <div className="panel rounded-xl p-4 space-y-3">
@@ -125,7 +128,7 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
                     <label className="label-mono block">Message</label>
                     <input
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={e => setMessage(e.target.value)}
                       className="w-full panel rounded-lg px-3 py-2.5 text-sm font-mono ink-1 outline-none focus:border-[var(--accent)] transition-colors"
                     />
                     <SharedKeyLine revealed={keyRevealed} onReveal={() => setKeyRevealed(true)} />
@@ -160,7 +163,10 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
                 ) : (
                   <>
                     <div className="text-sm ink-1">
-                      Recovered: <span className="font-mono" style={{ color: 'var(--ok)' }}>{decrypted}</span>
+                      Recovered:{' '}
+                      <span className="font-mono" style={{ color: 'var(--ok)' }}>
+                        {decrypted}
+                      </span>
                     </div>
                     <button onClick={() => advance('message-decrypted')} className="btn btn-primary px-5 py-2.5 text-sm">
                       Continue <ArrowRight size={14} />
@@ -174,7 +180,12 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
               <div className="panel rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-center gap-4 text-xs font-mono ink-2">
                   <span className="flex flex-col items-center gap-1">
-                    <span className="grid place-items-center w-10 h-10 rounded-full" style={{ background: 'color-mix(in oklab, #60a5fa 16%, transparent)', color: '#60a5fa' }}>A</span>
+                    <span
+                      className="grid place-items-center w-10 h-10 rounded-full"
+                      style={{ background: 'color-mix(in oklab, #60a5fa 16%, transparent)', color: '#60a5fa' }}
+                    >
+                      A
+                    </span>
                     Alice
                   </span>
                   <ArrowRight size={16} className="ink-3" />
@@ -194,7 +205,12 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
                   </span>
                   <ArrowRight size={16} className="ink-3" />
                   <span className="flex flex-col items-center gap-1">
-                    <span className="grid place-items-center w-10 h-10 rounded-full" style={{ background: 'color-mix(in oklab, #34d399 16%, transparent)', color: '#34d399' }}>B</span>
+                    <span
+                      className="grid place-items-center w-10 h-10 rounded-full"
+                      style={{ background: 'color-mix(in oklab, #34d399 16%, transparent)', color: '#34d399' }}
+                    >
+                      B
+                    </span>
                     Bob
                   </span>
                 </div>
@@ -205,7 +221,15 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
                 >
                   <Radio size={14} /> Send the key over this link
                 </button>
-                <button className="btn btn-ghost px-5 py-2.5 text-sm" onClick={() => { setProtectedKey(true); advance('key-intercepted'); }}>Deliver the key in person</button>
+                <button
+                  className="btn btn-ghost px-5 py-2.5 text-sm"
+                  onClick={() => {
+                    setProtectedKey(true);
+                    advance('key-intercepted');
+                  }}
+                >
+                  Deliver the key in person
+                </button>
               </div>
             )}
 
@@ -221,7 +245,9 @@ export function CampaignScene1({ onNext, onExit }: CampaignScene1Props) {
           <div className="a-pop card sheen glass rounded-[22px] p-6 space-y-4 text-center" style={{ ['--glow' as string]: '#818cf8' }}>
             <h2 className="h-section text-xl ink-1">On to Scene 2</h2>
             <p className="text-sm ink-2 leading-relaxed">
-              {protectedKey ? 'Your route kept the key away from Eve. Now try sending a secret when Alice and Bob cannot meet.' : 'Eve read the key because it crossed her tap. Try a different route on replay, or find a way to send a secret without sharing the key first.'}
+              {protectedKey
+                ? 'Your route kept the key away from Eve. Now try sending a secret when Alice and Bob cannot meet.'
+                : 'Eve read the key because it crossed her tap. Try a different route on replay, or find a way to send a secret without sharing the key first.'}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button onClick={restart} className="btn btn-ghost px-5 py-2.5 text-sm">

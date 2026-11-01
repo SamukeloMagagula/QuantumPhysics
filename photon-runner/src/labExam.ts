@@ -109,14 +109,14 @@ export function markQuestion(q: ExamQuestion, given: ExamAnswer): boolean {
 }
 
 export function markExam(exam: Exam, answers: ExamAnswers): ExamResult {
-  const marks: Mark[] = exam.questions.map((q) => ({
+  const marks: Mark[] = exam.questions.map(q => ({
     id: q.id,
     prompt: q.prompt,
     correct: markQuestion(q, answers[q.id]),
     answered: isAnswered(q, answers[q.id]),
     why: q.why,
   }));
-  const correct = marks.filter((m) => m.correct).length;
+  const correct = marks.filter(m => m.correct).length;
   const total = exam.questions.length;
   // An exam with no questions is a content bug, not a pass.
   const percent = total === 0 ? 0 : Math.round((correct / total) * 100);
@@ -126,7 +126,7 @@ export function markExam(exam: Exam, answers: ExamAnswers): ExamResult {
     total,
     percent,
     passed: total > 0 && percent >= exam.passPercent,
-    unanswered: marks.filter((m) => !m.answered).map((m) => m.id),
+    unanswered: marks.filter(m => !m.answered).map(m => m.id),
   };
 }
 
@@ -180,13 +180,13 @@ export function saveExamProgress(progress: ExamProgress): void {
  */
 export function examUnlocked(sectionLabIds: string[], completedLabIds: string[]): boolean {
   const done = new Set(completedLabIds);
-  return sectionLabIds.length > 0 && sectionLabIds.every((id) => done.has(id));
+  return sectionLabIds.length > 0 && sectionLabIds.every(id => done.has(id));
 }
 
 /** How many labs are still between the learner and the test. */
 export function labsRemaining(sectionLabIds: string[], completedLabIds: string[]): number {
   const done = new Set(completedLabIds);
-  return sectionLabIds.filter((id) => !done.has(id)).length;
+  return sectionLabIds.filter(id => !done.has(id)).length;
 }
 
 /** Deterministic shuffle, so a given seed always presents the same paper. */

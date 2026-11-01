@@ -85,12 +85,17 @@ export function connectFloor(
   SocketImpl: typeof WebSocket | null = typeof WebSocket === 'undefined' ? null : WebSocket,
 ): FloorLink {
   const remotes = new Map<number, RemoteActor>();
-  let latest: { x: number; y: number; facing: Facing; walking: boolean; room: string } & ReportExtras =
-    { x: 0.5, y: 0.7, facing: 'forward', walking: false, room: 'ops' };
+  let latest: { x: number; y: number; facing: Facing; walking: boolean; room: string } & ReportExtras = {
+    x: 0.5,
+    y: 0.7,
+    facing: 'forward',
+    walking: false,
+    room: 'ops',
+  };
   let chat: ChatLine[] = [];
   let since = 0;
   const listeners = new Set<() => void>();
-  const notify = () => listeners.forEach((l) => l());
+  const notify = () => listeners.forEach(l => l());
   let live = false;
   let stopped = false;
   let timer = 0;
@@ -142,9 +147,9 @@ export function connectFloor(
   };
 
   const addChat = (lines: ChatLine[]) => {
-    const fresh = lines.filter((l) => l.id > since);
+    const fresh = lines.filter(l => l.id > since);
     if (!fresh.length) return;
-    since = Math.max(since, ...fresh.map((l) => l.id));
+    since = Math.max(since, ...fresh.map(l => l.id));
     chat = [...chat, ...fresh].slice(-CHAT_KEEP);
   };
 
@@ -177,7 +182,7 @@ export function connectFloor(
       sendReport();
       sender = setInterval(sendReport, SOCKET_SEND_MS) as unknown as number;
     };
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       let msg: { type?: string; peers?: Peer[]; chat?: ChatLine[] };
       try {
         msg = JSON.parse(String(event.data));

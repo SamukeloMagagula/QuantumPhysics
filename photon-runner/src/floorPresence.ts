@@ -121,7 +121,9 @@ function coord(v: unknown): number | null {
 }
 
 export function cleanName(raw: unknown): string {
-  const s = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  const s = String(raw ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return (s || 'Operative').slice(0, 24);
 }
 
@@ -131,7 +133,9 @@ export function cleanName(raw: unknown): string {
  * day somebody adds a wing to one deploy and not another.
  */
 export function cleanRoom(raw: unknown): string {
-  const s = String(raw ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const s = String(raw ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '');
   return (s || 'ops').slice(0, 24);
 }
 
@@ -158,7 +162,7 @@ export function cleanLook(raw: unknown): PeerLook | null {
     accentColor: colour(r.accentColor),
     build: oneOf(r.build, BUILDS),
   };
-  if (Object.values(look).some((v) => v === null)) return null;
+  if (Object.values(look).some(v => v === null)) return null;
   return { ...(look as Omit<PeerLook, 'height'>), height };
 }
 
@@ -229,7 +233,7 @@ export function prune(store: FloorStore, now: number): void {
 export function peersOn(store: FloorStore, now: number, exceptUserId?: number, room?: string): Peer[] {
   prune(store, now);
   return [...store.peers.values()]
-    .filter((p) => p.userId !== exceptUserId && (room === undefined || p.room === room))
+    .filter(p => p.userId !== exceptUserId && (room === undefined || p.room === room))
     .sort((a, b) => b.at - a.at);
 }
 
@@ -251,7 +255,7 @@ export function say(store: FloorStore, now: number, userId: number, phrase: unkn
   prune(store, now);
   const peer = store.peers.get(userId);
   if (!peer) return 'not-on-floor';
-  const last = [...store.chat].reverse().find((l) => l.userId === userId);
+  const last = [...store.chat].reverse().find(l => l.userId === userId);
   if (last && now - last.at < CHAT_COOLDOWN_MS) return 'too-soon';
   const line: ChatLine = { id: store.nextChatId++, userId, name: peer.name, phrase: index, room: peer.room, at: now };
   store.chat.push(line);
@@ -262,5 +266,5 @@ export function say(store: FloorStore, now: number, userId: number, phrase: unkn
 /** Chat in a room newer than the id the caller last saw. */
 export function chatSince(store: FloorStore, room: string, since: unknown): ChatLine[] {
   const after = typeof since === 'number' && Number.isFinite(since) ? since : Number(since) || 0;
-  return store.chat.filter((l) => l.room === room && l.id > after);
+  return store.chat.filter(l => l.room === room && l.id > after);
 }

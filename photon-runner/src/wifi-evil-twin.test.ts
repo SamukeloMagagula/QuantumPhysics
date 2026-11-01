@@ -7,7 +7,7 @@ describe('evilTwinId', () => {
   });
 
   it('returns null when no evil twin exists', () => {
-    const clean = SCAN.filter((n) => n.id !== 'n2');
+    const clean = SCAN.filter(n => n.id !== 'n2');
     expect(evilTwinId(clean)).toBeNull();
   });
 });

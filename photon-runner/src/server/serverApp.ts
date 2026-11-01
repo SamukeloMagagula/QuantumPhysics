@@ -26,7 +26,7 @@ export function createApp({ db, secret, secureCookies = false, enableLegacyHeist
   app.use(cookieParser());
 
   app.use((req, res, next) => {
-    const needsUser = IDENTITY_PREFIXES.some((p) => req.path.startsWith(p)) && !IDENTITY_EXEMPT.has(req.path);
+    const needsUser = IDENTITY_PREFIXES.some(p => req.path.startsWith(p)) && !IDENTITY_EXEMPT.has(req.path);
     if (!needsUser) return next();
     const { user, newCookie } = resolveUser(db, secret, req.cookies[COOKIE]);
     req.user = user;

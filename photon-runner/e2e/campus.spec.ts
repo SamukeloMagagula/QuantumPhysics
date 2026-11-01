@@ -58,7 +58,5 @@ test('a save code carries progress to another browser', async ({ browser }) => {
   // A successful load reloads the page with the restored progress.
   await Promise.all([school.waitForEvent('load'), school.getByRole('button', { name: 'Load' }).click()]);
   await expect(school.getByTestId('world-player')).toBeVisible();
-  await expect
-    .poll(() => school.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}').nickname, APPEARANCE_KEY))
-    .toBe('Nova');
+  await expect.poll(() => school.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}').nickname, APPEARANCE_KEY)).toBe('Nova');
 });

@@ -27,12 +27,7 @@ describe('rooms API', () => {
     const cookie = await withCookie(app);
     const res = await request(app).get('/api/paths/symmetric').set('Cookie', cookie);
     expect(res.status).toBe(200);
-    expect(res.body.rooms.map((r: { id: string }) => r.id)).toEqual([
-      'the-shift',
-      'brute-force',
-      'frequency-analysis',
-      'xor-otp',
-    ]);
+    expect(res.body.rooms.map((r: { id: string }) => r.id)).toEqual(['the-shift', 'brute-force', 'frequency-analysis', 'xor-otp']);
     expect(res.body.rooms.every((r: { completed: boolean }) => r.completed === false)).toBe(true);
   });
 

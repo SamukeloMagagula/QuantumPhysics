@@ -22,8 +22,7 @@ export function useMapZoom(active: boolean) {
   const fitZoom = Math.min(baseWidth / (WORLD_WIDTH + 40), baseHeight / (WORLD_HEIGHT + 40));
   const effectiveZoom = Math.max(fitZoom, Math.min(MAX_ZOOM, zoom));
   const overview = effectiveZoom <= fitZoom + 0.001;
-  const adjustZoom = (factor: number) =>
-    setZoom((z) => Math.max(fitZoom, Math.min(MAX_ZOOM, Math.max(fitZoom, z) * factor)));
+  const adjustZoom = (factor: number) => setZoom(z => Math.max(fitZoom, Math.min(MAX_ZOOM, Math.max(fitZoom, z) * factor)));
 
   useEffect(() => {
     const el = host.current;
@@ -45,7 +44,7 @@ export function useMapZoom(active: boolean) {
       event.preventDefault();
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? size.h : 1);
       const factor = Math.exp(-Math.max(-200, Math.min(200, delta)) * 0.002);
-      setZoom((z) => Math.max(fitZoom, Math.min(MAX_ZOOM, Math.max(fitZoom, z) * factor)));
+      setZoom(z => Math.max(fitZoom, Math.min(MAX_ZOOM, Math.max(fitZoom, z) * factor)));
     };
     el.addEventListener('wheel', wheel, { passive: false });
     return () => el.removeEventListener('wheel', wheel);

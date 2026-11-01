@@ -21,17 +21,23 @@ export interface CharacterAppearance {
   nickname: string;
 }
 
-export const SKIN_TONES = [
-  '#f8d9c0', '#eec1a2', '#d9a179', '#c1855c', '#9c6644', '#7a4b30', '#54331f', '#3b2417',
-];
+export const SKIN_TONES = ['#f8d9c0', '#eec1a2', '#d9a179', '#c1855c', '#9c6644', '#7a4b30', '#54331f', '#3b2417'];
 
-export const HAIR_COLORS = [
-  '#1c1917', '#3f2a1d', '#6b4423', '#a16207', '#d4a017', '#e5e7eb', '#7c3aed', '#0ea5e9', '#e11d48', '#16a34a',
-];
+export const HAIR_COLORS = ['#1c1917', '#3f2a1d', '#6b4423', '#a16207', '#d4a017', '#e5e7eb', '#7c3aed', '#0ea5e9', '#e11d48', '#16a34a'];
 
 export const OUTFIT_COLORS = [
-  '#0ea5e9', '#22c55e', '#f43f5e', '#a855f7', '#f59e0b', '#14b8a6',
-  '#ec4899', '#64748b', '#1e293b', '#f8fafc', '#84cc16', '#fb7185',
+  '#0ea5e9',
+  '#22c55e',
+  '#f43f5e',
+  '#a855f7',
+  '#f59e0b',
+  '#14b8a6',
+  '#ec4899',
+  '#64748b',
+  '#1e293b',
+  '#f8fafc',
+  '#84cc16',
+  '#fb7185',
 ];
 
 export const ACCENT_PALETTE = ['#facc15', '#f472b6', '#38bdf8', '#a3e635', '#fb923c', '#e879f9', '#2dd4bf', '#fca5a5'];
@@ -153,7 +159,7 @@ export const ROLE_APPEARANCES: Record<Role, CharacterAppearance> = {
 
 /** Deterministic pseudo-random appearance, for the "Randomize" button. */
 export function randomAppearance(): CharacterAppearance {
-  const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
   return {
     skinTone: pick(SKIN_TONES),
     hairStyle: pick(HAIR_STYLES).id,

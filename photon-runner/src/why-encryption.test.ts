@@ -47,7 +47,7 @@ describe('the cipher', () => {
 describe('the path a message takes', () => {
   it('names several independent parties, which is the whole point', () => {
     expect(HOPS.length).toBeGreaterThanOrEqual(3);
-    expect(new Set(HOPS.map((h) => h.id)).size).toBe(HOPS.length);
+    expect(new Set(HOPS.map(h => h.id)).size).toBe(HOPS.length);
     for (const h of HOPS) expect(h.note.length).toBeGreaterThan(15);
   });
 });

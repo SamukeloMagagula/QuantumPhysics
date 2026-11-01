@@ -1,4 +1,18 @@
-import { blockIp, canvasPoint, createState, DefenderState, HEIGHT, WIDTH, step, unblockIp, threatAt, reviewThreat, type BlockOutcome, type Threat, type ReviewResult } from './networkDefenderLogic';
+import {
+  blockIp,
+  canvasPoint,
+  createState,
+  DefenderState,
+  HEIGHT,
+  WIDTH,
+  step,
+  unblockIp,
+  threatAt,
+  reviewThreat,
+  type BlockOutcome,
+  type Threat,
+  type ReviewResult,
+} from './networkDefenderLogic';
 
 function draw(ctx: CanvasRenderingContext2D, state: DefenderState): void {
   ctx.fillStyle = '#0b1020';
@@ -68,7 +82,7 @@ export function startNetworkDefender(
   canvas: HTMLCanvasElement,
   onGameOver: (score: number) => void,
   onState?: (state: DefenderState) => void,
-  onInspect?: (threat: Threat) => void
+  onInspect?: (threat: Threat) => void,
 ): DefenderHandle {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -104,7 +118,10 @@ export function startNetworkDefender(
     last = now;
     if (!paused) step(state, dt);
     draw(ctx!, state);
-    if (now - lastPublished >= 100 || state.over) { onState?.(state); lastPublished = now; }
+    if (now - lastPublished >= 100 || state.over) {
+      onState?.(state);
+      lastPublished = now;
+    }
     if (state.over && !ended) {
       ended = true;
       onGameOver(state.score);
@@ -131,7 +148,9 @@ export function startNetworkDefender(
     getState() {
       return state;
     },
-    setPaused(value) { paused = value; },
+    setPaused(value) {
+      paused = value;
+    },
     inspect,
     review(id, choice) {
       const result = reviewThreat(state, id, choice);

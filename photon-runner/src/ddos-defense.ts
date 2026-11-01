@@ -54,8 +54,7 @@ export const WAVES: Wave[] = [
   {
     id: 'w1',
     name: 'Wave 1 — a single loud source',
-    brief:
-      'One machine is hammering the site with about 6,000 requests a second. Real visitors are making a handful of requests each.',
+    brief: 'One machine is hammering the site with about 6,000 requests a second. Real visitors are making a handful of requests each.',
     legit: 400,
     attack: 6_000,
     sources: 1,
@@ -65,8 +64,7 @@ export const WAVES: Wave[] = [
   {
     id: 'w2',
     name: 'Wave 2 — a botnet',
-    brief:
-      'The same volume, now spread across 60,000 machines. Each one individually looks almost reasonable.',
+    brief: 'The same volume, now spread across 60,000 machines. Each one individually looks almost reasonable.',
     legit: 600,
     attack: 14_000,
     sources: 60_000,
@@ -133,8 +131,8 @@ export function simulate(wave: Wave, d: Defenses): Outcome {
   if (linkSaturated) {
     notes.push(
       `Your link carries ${LINK_CAPACITY.toLocaleString()} requests a second and ${Math.round(
-        atLink
-      ).toLocaleString()} arrived. What it cannot carry is dropped, and it cannot tell visitors from the attack.`
+        atLink,
+      ).toLocaleString()} arrived. What it cannot carry is dropped, and it cannot tell visitors from the attack.`,
     );
   }
 
@@ -161,8 +159,8 @@ export function simulate(wave: Wave, d: Defenses): Outcome {
     const survival = appCapacity / appLoad;
     notes.push(
       `The application can serve ${Math.round(appCapacity).toLocaleString()} a second and ${Math.round(
-        appLoad
-      ).toLocaleString()} got through. It is overloaded, and it fails for everyone.`
+        appLoad,
+      ).toLocaleString()} got through. It is overloaded, and it fails for everyone.`,
     );
     legit = legit * (offload + (1 - offload) * survival);
   }
@@ -202,20 +200,14 @@ const lab: Lab = {
     const status = el('p', { class: ACCENT_TEXT });
 
     const control = (label: string, hint: string, node: HTMLElement) =>
-      el(
-        'div',
-        { class: CARD },
-        el('div', { class: 'font-bold ink-1' }, label),
-        el('div', { class: MUTED }, hint),
-        node
-      );
+      el('div', { class: CARD }, el('div', { class: 'font-bold ink-1' }, label), el('div', { class: MUTED }, hint), node);
 
     const rate = el(
       'select',
       { class: SELECT },
       el('option', { value: 'off' }, 'Off'),
       el('option', { value: 'moderate' }, 'Moderate — 60 requests per minute per source'),
-      el('option', { value: 'strict' }, 'Strict — 10 requests per minute per source')
+      el('option', { value: 'strict' }, 'Strict — 10 requests per minute per source'),
     ) as HTMLSelectElement;
     rate.addEventListener('change', () => {
       defenses.rateLimit = rate.value as RateLimit;
@@ -236,7 +228,7 @@ const lab: Lab = {
       { class: SELECT },
       el('option', { value: '1' }, '1× — one server'),
       el('option', { value: '2' }, '2× — double it'),
-      el('option', { value: '4' }, '4× — four times the servers')
+      el('option', { value: '4' }, '4× — four times the servers'),
     ) as HTMLSelectElement;
     capacity.addEventListener('change', () => {
       defenses.capacity = Number(capacity.value);
@@ -251,8 +243,8 @@ const lab: Lab = {
           'div',
           { class: MUTED },
           `Real visitors: ${w.legit.toLocaleString()}/s · Attack: ${w.attack.toLocaleString()}/s from ` +
-            `${w.sources.toLocaleString()} source${w.sources === 1 ? '' : 's'}`
-        )
+            `${w.sources.toLocaleString()} source${w.sources === 1 ? '' : 's'}`,
+        ),
       );
       scoreboard.textContent = `Waves held: ${held.size} of ${WAVES.length}`;
     };
@@ -267,15 +259,15 @@ const lab: Lab = {
           'div',
           { class: 'flex items-baseline gap-3' },
           el('span', { class: `text-2xl font-bold ${out.held ? 'ink-1' : 'ink-1'}` }, `${out.successPercent.toFixed(1)}%`),
-          el('span', { class: out.held ? OK_TEXT : DANGER_TEXT }, out.held ? 'wave held' : 'visitors were turned away')
+          el('span', { class: out.held ? OK_TEXT : DANGER_TEXT }, out.held ? 'wave held' : 'visitors were turned away'),
         ),
         el(
           'div',
           { class: MUTED },
           `${Math.round(out.legitServed).toLocaleString()} of ${out.legitTotal.toLocaleString()} real visitors served · ` +
-            `${Math.round(out.atLink).toLocaleString()}/s arriving at your link`
+            `${Math.round(out.atLink).toLocaleString()}/s arriving at your link`,
         ),
-        ...out.notes.map((n) => el('div', { class: out.linkSaturated ? WARN_TEXT : MUTED }, `— ${n}`))
+        ...out.notes.map(n => el('div', { class: out.linkSaturated ? WARN_TEXT : MUTED }, `— ${n}`)),
       );
 
       if (!out.held) {
@@ -308,13 +300,21 @@ const lab: Lab = {
       brief,
       el('h3', { class: 'text-base font-bold ink-1 mt-4' }, 'Your defences'),
       control('Per-source rate limit', 'Cut off any single source behaving unlike a person.', rate),
-      control('Cache', 'Answer repeat requests without waking the application.', el('label', { class: 'flex items-center gap-2' }, cache, 'Enabled')),
-      control('Upstream scrubbing', 'Filter the traffic before it reaches your own link.', el('label', { class: 'flex items-center gap-2' }, scrub, 'Enabled')),
+      control(
+        'Cache',
+        'Answer repeat requests without waking the application.',
+        el('label', { class: 'flex items-center gap-2' }, cache, 'Enabled'),
+      ),
+      control(
+        'Upstream scrubbing',
+        'Filter the traffic before it reaches your own link.',
+        el('label', { class: 'flex items-center gap-2' }, scrub, 'Enabled'),
+      ),
       control('Application capacity', 'More servers behind the same link.', capacity),
       el('div', { class: 'flex items-center gap-3 flex-wrap mt-2' }, run, scoreboard),
       el('h3', { class: 'text-base font-bold ink-1 mt-4' }, 'Result'),
       result,
-      status
+      status,
     );
   },
   explain() {

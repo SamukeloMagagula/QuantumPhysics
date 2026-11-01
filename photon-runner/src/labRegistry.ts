@@ -39,17 +39,15 @@ export const CATEGORY_ORDER = [
 ];
 
 export function getLab(id: string): Lab | undefined {
-  return LABS.find((l) => l.id === id);
+  return LABS.find(l => l.id === id);
 }
 
 /** The lab ids in a section, in the order they are listed. */
 export function labsInSection(section: string): string[] {
-  return LABS.filter((l) => l.category === section).map((l) => l.id);
+  return LABS.filter(l => l.category === section).map(l => l.id);
 }
 
 /** Sections that actually have labs, in the intended order. */
 export function sections(): string[] {
-  return [...new Set(LABS.map((l) => l.category))].sort(
-    (a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
-  );
+  return [...new Set(LABS.map(l => l.category))].sort((a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b));
 }

@@ -3,10 +3,17 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { NetworkDefenderScreen } from './NetworkDefenderScreen';
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 it('waits for the player to start and offers a fresh round without leaving the mode', () => {
-  vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    vi.fn(() => 1),
+  );
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
   const ctx = new Proxy({}, { get: () => () => {}, set: () => true });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as CanvasRenderingContext2D);

@@ -2,13 +2,27 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { ASSIGNMENTS } from './facilityStory';
 import { ConsoleState, Line, initialConsole, runCommand } from './qkdAttackCommands';
-import { ATTACKS, TARGETS, AttackState, currentQBER, keyFraction, captureReady, isWin, MIN_CAPTURE_PULSES, errorRate, alarmRate } from './qkdAttack';
+import {
+  ATTACKS,
+  TARGETS,
+  AttackState,
+  currentQBER,
+  keyFraction,
+  captureReady,
+  isWin,
+  MIN_CAPTURE_PULSES,
+  errorRate,
+  alarmRate,
+} from './qkdAttack';
 import { SegmentMeter } from './SegmentMeter';
 import { play } from './sound';
 
 const TOOL_NAMES = {
-  intercept: 'Read and resend', beamsplit: 'Take a spare photon', blind: 'Dazzle the detector',
-  trojan: 'Peek at the sender', timeshift: 'Shift the timing',
+  intercept: 'Read and resend',
+  beamsplit: 'Take a spare photon',
+  blind: 'Dazzle the detector',
+  trojan: 'Peek at the sender',
+  timeshift: 'Shift the timing',
 };
 const TOOL_HINTS = {
   intercept: 'Learns bits, but wrong guesses leave errors. Pair with a sender peek when no isolator is fitted.',
@@ -67,7 +81,9 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
   const [state, setState] = useState<ConsoleState>(() =>
     initialSession && (!initialTargetId || initialSession.target.id === initialTargetId)
       ? { ...initialConsole(), session: initialSession }
-      : initialTargetId ? runCommand(initialConsole(), `connect ${initialTargetId}`) : initialConsole()
+      : initialTargetId
+        ? runCommand(initialConsole(), `connect ${initialTargetId}`)
+        : initialConsole(),
   );
   const [advanced, setAdvanced] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -105,7 +121,7 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
 
   const submit = () => {
     if (!input.trim()) return;
-    setState((s) => runCommand(s, input));
+    setState(s => runCommand(s, input));
     setInput('');
     setHistoryIndex(null);
   };
@@ -149,68 +165,162 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
   const active = session?.status === 'active';
   // One warning as a meter crosses into its red zone, not one per burst.
   const danger = Boolean(active && session && (qber >= session.target.abortQBER * 0.75 || session.alarm >= 0.75));
-  useEffect(() => { if (danger) play('warning'); }, [danger]);
+  useEffect(() => {
+    if (danger) play('warning');
+  }, [danger]);
   const execute = (command: string) => {
     if (command.startsWith('connect ')) setScanned(false);
     if (command === 'scan') setScanned(true);
     setState(s => runCommand(s, command));
     setHistoryIndex(null);
   };
-  const objective = !session ? 'Choose a target to begin your intercept.'
-    : !active ? (session.status === 'caught' ? 'Spotted. Your capture was lost. Change your tools and try again.' : isWin(session) ? 'Mission complete. Your capture met the goal.' : 'Safe exit, but the mission goal was not met. Retry to finish the capture.')
-    : session.armed.length === 0 ? 'Scan the defences, then choose an attack. Missing countermeasures are your opening.'
-    : captureReady(session) ? 'Key goal reached. Extract now to bank your result.'
-    : 'Advance the exchange. Watch the error rate and alarm as you collect the key.';
+  const objective = !session
+    ? 'Choose a target to begin your intercept.'
+    : !active
+      ? session.status === 'caught'
+        ? 'Spotted. Your capture was lost. Change your tools and try again.'
+        : isWin(session)
+          ? 'Mission complete. Your capture met the goal.'
+          : 'Safe exit, but the mission goal was not met. Retry to finish the capture.'
+      : session.armed.length === 0
+        ? 'Scan the defences, then choose an attack. Missing countermeasures are your opening.'
+        : captureReady(session)
+          ? 'Key goal reached. Extract now to bank your result.'
+          : 'Advance the exchange. Watch the error rate and alarm as you collect the key.';
 
-  const quickCommands = useMemo(
-    () => (session ? ['scan', 'status', 'attacks'] : ['help', 'targets', 'attacks']),
-    [session]
-  );
+  const quickCommands = useMemo(() => (session ? ['scan', 'status', 'attacks'] : ['help', 'targets', 'attacks']), [session]);
 
   return (
-    <div className={`gap-4 ${embedded ? 'h-full overflow-y-auto flex flex-col lg:grid lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_300px]' : 'grid lg:grid-cols-[1fr_300px]'}`}>
-      {!advanced && <section className="rounded-2xl p-5 shrink-0 lg:overflow-y-auto lg:min-h-0" style={{ background: '#0b1926', color: '#e2edf5' }}>
-        <p className="text-xs uppercase tracking-wider text-cyan-200">Live interception</p>
-        <h2 className="text-2xl font-bold mt-3">{session?.target.name ?? 'Choose a link to investigate'}</h2>
-        <p role="status" className="text-base leading-relaxed mt-4">{objective}</p>
-        {session && <>
-          <div className="flex items-center justify-between gap-3 my-8 text-sm text-center" aria-label="Signal path">
-            <span>Sender<br />◉</span><span aria-hidden="true">→ →</span><span className="rounded-xl bg-cyan-950 p-4">Your tap<br /><strong>{Math.round(key * 100)}% learned</strong></span><span aria-hidden="true">→ →</span><span>Receiver<br />{session.status === 'caught' ? 'Link closed' : 'Listening'}</span>
-          </div>
-          <p className="text-sm text-slate-300">A mission needs at least {MIN_CAPTURE_PULSES} pulses and {Math.round(session.target.keyGoal * 100)}% of the sampled key. A short lucky capture does not count.</p>
-          <div className="grid gap-4 my-5 sm:grid-cols-2" aria-label="Mission meters">
-            <SegmentMeter label="Capture length" value={Math.min(session.round, MIN_CAPTURE_PULSES)} max={MIN_CAPTURE_PULSES} kind="goal" mark={MIN_CAPTURE_PULSES} valueText={`${session.round} / ${MIN_CAPTURE_PULSES} pulses`} />
-            <SegmentMeter label="Key learned" value={key} max={1} kind="goal" mark={session.target.keyGoal} valueText={`${Math.round(key * 100)}% · goal ${Math.round(session.target.keyGoal * 100)}%`} />
-            <SegmentMeter label="Errors seen by receiver" value={qber} max={session.target.abortQBER} mark={session.target.abortQBER} valueText={`${(qber * 100).toFixed(1)}% · closes at ${(session.target.abortQBER * 100).toFixed(0)}%`} />
-            <SegmentMeter label="Alarm" value={session.alarm} max={1} mark={1} valueText={`${Math.round(session.alarm * 100)}%`} />
-          </div>
-          {scanned && <div className="mt-5 rounded-xl bg-slate-900 p-4 space-y-2 text-sm" aria-label="Defence scan">
-            <h3 className="font-bold text-cyan-200">What can catch you?</h3>
-            <p>Spare-photon check: {session.target.decoyStates ? 'ON — photon stealing raises an alarm.' : 'OFF — spare photons are unmonitored.'}</p>
-            <p>Detector monitor: {session.target.detectorMonitoring ? 'ON — dazzling raises an alarm.' : 'OFF — dazzling is unmonitored.'}</p>
-            <p>Sender shield: {session.target.opticalIsolator ? 'ON — peeking is blocked.' : 'OFF — peeking can help Read and resend.'}</p>
-            <p>Detector imbalance: {Math.round(session.target.detectorMismatch * 100)}% — larger gaps help timing attacks.</p>
-          </div>}
-          {active && session.armed.length > 0 && <div className="mt-5 rounded-xl border border-slate-600 p-4 text-sm space-y-2">
-            <h3 className="font-bold">Before the next burst</h3>
-            <p>Expected new errors: {(errorRate(session.armed, session.target) * 100).toFixed(1)}%. The receiver closes the link at {(session.target.abortQBER * 100).toFixed(0)}% sampled errors.</p>
-            <p>Alarm after 500 more pulses: {Math.round(Math.min(1, session.alarm + alarmRate(session.armed, session.target) * 500) * 100)}%. At 100%, you are caught.</p>
-            <p className="text-slate-300">Use the strength sliders to balance the information you gain against the trace you leave. Error counts vary between bursts.</p>
-          </div>}
-          {session.ending && <p className="mt-5 text-sm text-amber-200">{session.ending}</p>}
-          {isWin(session) && <div ref={rewardRef} className="mt-5 rounded-xl border border-emerald-400 p-5"><p className="text-xs text-emerald-200 uppercase">Mission clue unlocked</p><p className="text-lg font-semibold mt-2">{ASSIGNMENTS.find(task => task.target === session.target.id)?.reward}</p><p className="text-sm mt-3 text-slate-300">Return to the map to continue. Assigned missions save automatically.</p></div>}
-        </>}
-        <button className="mt-6 underline text-sm text-cyan-200" onClick={() => setAdvanced(true)}>Open advanced terminal</button>
-      </section>}
+    <div
+      className={`gap-4 ${embedded ? 'h-full overflow-y-auto flex flex-col lg:grid lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_300px]' : 'grid lg:grid-cols-[1fr_300px]'}`}
+    >
+      {!advanced && (
+        <section className="rounded-2xl p-5 shrink-0 lg:overflow-y-auto lg:min-h-0" style={{ background: '#0b1926', color: '#e2edf5' }}>
+          <p className="text-xs uppercase tracking-wider text-cyan-200">Live interception</p>
+          <h2 className="text-2xl font-bold mt-3">{session?.target.name ?? 'Choose a link to investigate'}</h2>
+          <p role="status" className="text-base leading-relaxed mt-4">
+            {objective}
+          </p>
+          {session && (
+            <>
+              <div className="flex items-center justify-between gap-3 my-8 text-sm text-center" aria-label="Signal path">
+                <span>
+                  Sender
+                  <br />◉
+                </span>
+                <span aria-hidden="true">→ →</span>
+                <span className="rounded-xl bg-cyan-950 p-4">
+                  Your tap
+                  <br />
+                  <strong>{Math.round(key * 100)}% learned</strong>
+                </span>
+                <span aria-hidden="true">→ →</span>
+                <span>
+                  Receiver
+                  <br />
+                  {session.status === 'caught' ? 'Link closed' : 'Listening'}
+                </span>
+              </div>
+              <p className="text-sm text-slate-300">
+                A mission needs at least {MIN_CAPTURE_PULSES} pulses and {Math.round(session.target.keyGoal * 100)}% of the sampled key. A
+                short lucky capture does not count.
+              </p>
+              <div className="grid gap-4 my-5 sm:grid-cols-2" aria-label="Mission meters">
+                <SegmentMeter
+                  label="Capture length"
+                  value={Math.min(session.round, MIN_CAPTURE_PULSES)}
+                  max={MIN_CAPTURE_PULSES}
+                  kind="goal"
+                  mark={MIN_CAPTURE_PULSES}
+                  valueText={`${session.round} / ${MIN_CAPTURE_PULSES} pulses`}
+                />
+                <SegmentMeter
+                  label="Key learned"
+                  value={key}
+                  max={1}
+                  kind="goal"
+                  mark={session.target.keyGoal}
+                  valueText={`${Math.round(key * 100)}% · goal ${Math.round(session.target.keyGoal * 100)}%`}
+                />
+                <SegmentMeter
+                  label="Errors seen by receiver"
+                  value={qber}
+                  max={session.target.abortQBER}
+                  mark={session.target.abortQBER}
+                  valueText={`${(qber * 100).toFixed(1)}% · closes at ${(session.target.abortQBER * 100).toFixed(0)}%`}
+                />
+                <SegmentMeter label="Alarm" value={session.alarm} max={1} mark={1} valueText={`${Math.round(session.alarm * 100)}%`} />
+              </div>
+              {scanned && (
+                <div className="mt-5 rounded-xl bg-slate-900 p-4 space-y-2 text-sm" aria-label="Defence scan">
+                  <h3 className="font-bold text-cyan-200">What can catch you?</h3>
+                  <p>
+                    Spare-photon check:{' '}
+                    {session.target.decoyStates ? 'ON — photon stealing raises an alarm.' : 'OFF — spare photons are unmonitored.'}
+                  </p>
+                  <p>
+                    Detector monitor:{' '}
+                    {session.target.detectorMonitoring ? 'ON — dazzling raises an alarm.' : 'OFF — dazzling is unmonitored.'}
+                  </p>
+                  <p>
+                    Sender shield: {session.target.opticalIsolator ? 'ON — peeking is blocked.' : 'OFF — peeking can help Read and resend.'}
+                  </p>
+                  <p>Detector imbalance: {Math.round(session.target.detectorMismatch * 100)}% — larger gaps help timing attacks.</p>
+                </div>
+              )}
+              {active && session.armed.length > 0 && (
+                <div className="mt-5 rounded-xl border border-slate-600 p-4 text-sm space-y-2">
+                  <h3 className="font-bold">Before the next burst</h3>
+                  <p>
+                    Expected new errors: {(errorRate(session.armed, session.target) * 100).toFixed(1)}%. The receiver closes the link at{' '}
+                    {(session.target.abortQBER * 100).toFixed(0)}% sampled errors.
+                  </p>
+                  <p>
+                    Alarm after 500 more pulses:{' '}
+                    {Math.round(Math.min(1, session.alarm + alarmRate(session.armed, session.target) * 500) * 100)}%. At 100%, you are
+                    caught.
+                  </p>
+                  <p className="text-slate-300">
+                    Use the strength sliders to balance the information you gain against the trace you leave. Error counts vary between
+                    bursts.
+                  </p>
+                </div>
+              )}
+              {session.ending && <p className="mt-5 text-sm text-amber-200">{session.ending}</p>}
+              {isWin(session) && (
+                <div ref={rewardRef} className="mt-5 rounded-xl border border-emerald-400 p-5">
+                  <p className="text-xs text-emerald-200 uppercase">Mission clue unlocked</p>
+                  <p className="text-lg font-semibold mt-2">{ASSIGNMENTS.find(task => task.target === session.target.id)?.reward}</p>
+                  <p className="text-sm mt-3 text-slate-300">Return to the map to continue. Assigned missions save automatically.</p>
+                </div>
+              )}
+            </>
+          )}
+          <button className="mt-6 underline text-sm text-cyan-200" onClick={() => setAdvanced(true)}>
+            Open advanced terminal
+          </button>
+        </section>
+      )}
       {/* ---- terminal ---- */}
       <div
         className="rounded-[16px] overflow-hidden flex flex-col min-h-[300px] shrink-0 lg:min-h-0"
-        style={{ display: advanced ? 'flex' : 'none', background: TERMINAL_BG, border: '1px solid rgba(255,255,255,.1)', height: embedded ? '100%' : '68vh' }}
+        style={{
+          display: advanced ? 'flex' : 'none',
+          background: TERMINAL_BG,
+          border: '1px solid rgba(255,255,255,.1)',
+          height: embedded ? '100%' : '68vh',
+        }}
       >
         <div className="px-4 py-3 border-b border-white/10" style={{ background: '#10232d' }}>
-          <p className="text-[10px] uppercase tracking-[.18em]" style={{ color: TONE.accent }}>Intercept operation</p>
-          <p role={advanced ? 'status' : undefined} className="text-sm mt-1" style={{ color: TONE.normal }}>{objective}</p>
-          <button className="text-xs underline mt-2 text-cyan-200" onClick={() => setAdvanced(false)}>Show the signal view</button>
+          <p className="text-[10px] uppercase tracking-[.18em]" style={{ color: TONE.accent }}>
+            Intercept operation
+          </p>
+          <p role={advanced ? 'status' : undefined} className="text-sm mt-1" style={{ color: TONE.normal }}>
+            {objective}
+          </p>
+          <button className="text-xs underline mt-2 text-cyan-200" onClick={() => setAdvanced(false)}>
+            Show the signal view
+          </button>
         </div>
         <div
           ref={scrollRef}
@@ -224,16 +334,13 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
           ))}
         </div>
 
-        <div
-          className="flex items-center gap-2 px-4 py-3 font-mono text-[12.5px]"
-          style={{ borderTop: '1px solid rgba(255,255,255,.09)' }}
-        >
+        <div className="flex items-center gap-2 px-4 py-3 font-mono text-[12.5px]" style={{ borderTop: '1px solid rgba(255,255,255,.09)' }}>
           <span style={{ color: TONE.accent }}>{session ? `${session.target.id}$` : 'qkd$'}</span>
           <input
             ref={inputRef}
             aria-label="Attack command"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             spellCheck={false}
             autoComplete="off"
@@ -247,39 +354,104 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
       {/* ---- live state ---- */}
       <div className="flex flex-col gap-3 shrink-0 lg:min-h-0 lg:overflow-y-auto">
         <div className="rounded-2xl p-4 border border-white/10" style={{ background: '#0c1016', color: TONE.normal }}>
-          <label className="block text-xs mb-2" htmlFor="intercept-target">01 / Choose your target</label>
-          <select id="intercept-target" value={session?.target.id ?? ''} className="w-full rounded-lg p-2 text-xs bg-slate-900 border border-slate-600"
-            onChange={e => { if (e.target.value) execute(`connect ${e.target.value}`); }}>
-            <option value="" disabled>Select a link</option>
-            {TARGETS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <label className="block text-xs mb-2" htmlFor="intercept-target">
+            01 / Choose your target
+          </label>
+          <select
+            id="intercept-target"
+            value={session?.target.id ?? ''}
+            className="w-full rounded-lg p-2 text-xs bg-slate-900 border border-slate-600"
+            onChange={e => {
+              if (e.target.value) execute(`connect ${e.target.value}`);
+            }}
+          >
+            <option value="" disabled>
+              Select a link
+            </option>
+            {TARGETS.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
           </select>
-          {session && <>
-            <button className="mt-3 w-full rounded-lg p-2 text-xs border border-cyan-400/40 text-cyan-200" onClick={() => execute('scan')}>02 / Scan countermeasures</button>
-            <p className="text-xs mt-4 mb-2">03 / Build your attack</p>
-            <div className="flex flex-col gap-2">
-              {Object.values(ATTACKS).map(a => {
-                const armed = session.armed.some(entry => entry.mode === a.mode);
-                return <div key={a.mode}><button disabled={!active} aria-pressed={armed}
-                  onClick={() => execute(armed ? `disarm ${a.mode}` : `arm ${a.mode} 1`)}
-                  className="w-full text-left p-3 rounded-lg border disabled:opacity-40"
-                  style={{ borderColor: armed ? TONE.accent : '#334155', background: armed ? '#12323a' : 'transparent' }}>
-                  <span className="block text-sm font-semibold">{armed ? 'Armed · ' : ''}{TOOL_NAMES[a.mode]}</span>
-                  <span className="block text-xs mt-1" style={{ color: '#a6b5c9' }}>{TOOL_HINTS[a.mode]}</span>
+          {session && (
+            <>
+              <button
+                className="mt-3 w-full rounded-lg p-2 text-xs border border-cyan-400/40 text-cyan-200"
+                onClick={() => execute('scan')}
+              >
+                02 / Scan countermeasures
+              </button>
+              <p className="text-xs mt-4 mb-2">03 / Build your attack</p>
+              <div className="flex flex-col gap-2">
+                {Object.values(ATTACKS).map(a => {
+                  const armed = session.armed.some(entry => entry.mode === a.mode);
+                  return (
+                    <div key={a.mode}>
+                      <button
+                        disabled={!active}
+                        aria-pressed={armed}
+                        onClick={() => execute(armed ? `disarm ${a.mode}` : `arm ${a.mode} 1`)}
+                        className="w-full text-left p-3 rounded-lg border disabled:opacity-40"
+                        style={{ borderColor: armed ? TONE.accent : '#334155', background: armed ? '#12323a' : 'transparent' }}
+                      >
+                        <span className="block text-sm font-semibold">
+                          {armed ? 'Armed · ' : ''}
+                          {TOOL_NAMES[a.mode]}
+                        </span>
+                        <span className="block text-xs mt-1" style={{ color: '#a6b5c9' }}>
+                          {TOOL_HINTS[a.mode]}
+                        </span>
+                      </button>
+                      {armed && (
+                        <label className="block text-xs mt-2 mb-3">
+                          {TOOL_NAMES[a.mode]} strength:{' '}
+                          {Math.round((session.armed.find(entry => entry.mode === a.mode)?.fraction ?? 0) * 100)}%
+                          <input
+                            type="range"
+                            className="w-full mt-2"
+                            min="5"
+                            max="100"
+                            step="5"
+                            disabled={!active}
+                            value={(session.armed.find(entry => entry.mode === a.mode)?.fraction ?? 0) * 100}
+                            onChange={e => execute(`arm ${a.mode} ${Number(e.target.value) / 100}`)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs mt-2" style={{ color: TONE.dim }}>
+                Tools start at full strength. Lower the sliders when the target can spot them.
+              </p>
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <button
+                  disabled={!active}
+                  onClick={() => execute('run 500')}
+                  className="rounded-lg p-2 text-xs bg-cyan-300 text-slate-950 font-semibold disabled:opacity-40"
+                >
+                  Run 500 pulses
                 </button>
-                {armed && <label className="block text-xs mt-2 mb-3">{TOOL_NAMES[a.mode]} strength: {Math.round((session.armed.find(entry => entry.mode === a.mode)?.fraction ?? 0) * 100)}%
-                  <input type="range" className="w-full mt-2" min="5" max="100" step="5" disabled={!active}
-                    value={(session.armed.find(entry => entry.mode === a.mode)?.fraction ?? 0) * 100}
-                    onChange={e => execute(`arm ${a.mode} ${Number(e.target.value) / 100}`)} />
-                </label>}</div>;
-              })}
-            </div>
-            <p className="text-xs mt-2" style={{ color: TONE.dim }}>Tools start at full strength. Lower the sliders when the target can spot them.</p>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <button disabled={!active} onClick={() => execute('run 500')} className="rounded-lg p-2 text-xs bg-cyan-300 text-slate-950 font-semibold disabled:opacity-40">Run 500 pulses</button>
-              <button disabled={!active || !captureReady(session)} onClick={() => execute('extract')} className="rounded-lg p-2 text-xs border border-emerald-400 text-emerald-200 disabled:opacity-40">Extract key</button>
-            </div>
-            {!active && <button className="mt-3 w-full rounded-lg p-2 text-xs border border-white/20" onClick={() => execute(`connect ${session.target.id}`)}>Retry this target</button>}
-          </>}
+                <button
+                  disabled={!active || !captureReady(session)}
+                  onClick={() => execute('extract')}
+                  className="rounded-lg p-2 text-xs border border-emerald-400 text-emerald-200 disabled:opacity-40"
+                >
+                  Extract key
+                </button>
+              </div>
+              {!active && (
+                <button
+                  className="mt-3 w-full rounded-lg p-2 text-xs border border-white/20"
+                  onClick={() => execute(`connect ${session.target.id}`)}
+                >
+                  Retry this target
+                </button>
+              )}
+            </>
+          )}
         </div>
         <div
           className="order-first rounded-[16px] p-4"
@@ -299,38 +471,37 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
                 max={session.target.abortQBER}
                 mark={session.target.abortQBER}
               />
-              <Gauge label={`key stolen · goal ${(session.target.keyGoal * 100).toFixed(0)}%`} value={key} max={1} mark={session.target.keyGoal} kind="goal" />
+              <Gauge
+                label={`key stolen · goal ${(session.target.keyGoal * 100).toFixed(0)}%`}
+                value={key}
+                max={1}
+                mark={session.target.keyGoal}
+                kind="goal"
+              />
               <Gauge label="alarm" value={session.alarm} max={1} mark={1} />
               <div className="text-[11px] font-mono" style={{ color: TONE.dim }}>
                 round {session.round} / {session.target.totalRounds}
               </div>
               {session.status !== 'active' && (
-                <div
-                  className="text-[11px] font-semibold"
-                  style={{ color: session.status === 'caught' ? TONE.bad : TONE.good }}
-                >
+                <div className="text-[11px] font-semibold" style={{ color: session.status === 'caught' ? TONE.bad : TONE.good }}>
                   {session.status.toUpperCase()}
                 </div>
               )}
             </div>
           ) : (
             <p className="text-xs leading-relaxed" style={{ color: TONE.dim }}>
-              No link. Run <span className="font-mono">targets</span>, then{' '}
-              <span className="font-mono">connect &lt;id&gt;</span>.
+              No link. Run <span className="font-mono">targets</span>, then <span className="font-mono">connect &lt;id&gt;</span>.
             </p>
           )}
         </div>
 
         {session && session.armed.length > 0 && (
-          <div
-            className="rounded-[16px] p-4"
-            style={{ background: 'rgba(12,16,22,.86)', border: '1px solid rgba(255,255,255,.1)' }}
-          >
+          <div className="rounded-[16px] p-4" style={{ background: 'rgba(12,16,22,.86)', border: '1px solid rgba(255,255,255,.1)' }}>
             <div className="text-[9px] tracking-wider uppercase mb-3" style={{ color: TONE.dim }}>
               armed
             </div>
             <div className="flex flex-col gap-2">
-              {session.armed.map((a) => (
+              {session.armed.map(a => (
                 <div key={a.mode} className="flex items-center justify-between text-[11px] font-mono">
                   <span style={{ color: TONE.normal }}>{ATTACKS[a.mode].label}</span>
                   <span style={{ color: TONE.dim }}>{(a.fraction * 100).toFixed(0)}%</span>
@@ -340,19 +511,16 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
           </div>
         )}
 
-        <div
-          className="rounded-[16px] p-4"
-          style={{ background: 'rgba(12,16,22,.86)', border: '1px solid rgba(255,255,255,.1)' }}
-        >
+        <div className="rounded-[16px] p-4" style={{ background: 'rgba(12,16,22,.86)', border: '1px solid rgba(255,255,255,.1)' }}>
           <div className="text-[9px] tracking-wider uppercase mb-2" style={{ color: TONE.dim }}>
             quick
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {quickCommands.map((c) => (
+            {quickCommands.map(c => (
               <button
                 key={c}
                 onClick={() => {
-                  setState((s) => runCommand(s, c));
+                  setState(s => runCommand(s, c));
                   inputRef.current?.focus();
                 }}
                 className="px-2.5 py-1 rounded-lg text-[11px] font-mono"

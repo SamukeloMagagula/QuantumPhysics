@@ -52,7 +52,7 @@ describe('errorRate', () => {
     expect(errorRate(at('intercept', 0.4), soft)).toBeCloseTo(0.1, 10);
   });
 
-  it('costs nothing for the attacks that never touch Bob\'s bit', () => {
+  it("costs nothing for the attacks that never touch Bob's bit", () => {
     for (const mode of ['beamsplit', 'blind', 'trojan'] as const) {
       expect(errorRate(at(mode, 1), soft)).toBe(0);
     }
@@ -138,7 +138,7 @@ describe('stepExchange', () => {
     const s = arm(createSession(soft), 'intercept', 1);
     const { state, events } = stepExchange(s, 2000, seeded(11));
     expect(state.status).toBe('caught');
-    expect(events.some((e) => e.kind === 'caught')).toBe(true);
+    expect(events.some(e => e.kind === 'caught')).toBe(true);
     expect(state.ending).toMatch(/abort threshold/i);
   });
 
@@ -211,11 +211,18 @@ describe('targets', () => {
       let wins = 0;
       for (let seed = 1; seed <= 100; seed++) {
         let session = createSession(target);
-        const plan: Armed[] = target.id === 'blacksite'
-          ? [{ mode: 'blind', fraction: 0.45 }, { mode: 'intercept', fraction: 0.15 }]
-          : target.detectorMonitoring
-          ? [{ mode: 'trojan', fraction: 1 }, { mode: 'intercept', fraction: 1 }]
-          : [{ mode: 'blind', fraction: 1 }];
+        const plan: Armed[] =
+          target.id === 'blacksite'
+            ? [
+                { mode: 'blind', fraction: 0.45 },
+                { mode: 'intercept', fraction: 0.15 },
+              ]
+            : target.detectorMonitoring
+              ? [
+                  { mode: 'trojan', fraction: 1 },
+                  { mode: 'intercept', fraction: 1 },
+                ]
+              : [{ mode: 'blind', fraction: 1 }];
         for (const attack of plan) session = arm(session, attack.mode, attack.fraction);
         session = stepExchange(session, 1000, seeded(seed)).state;
         if (isWin(extract(session))) wins++;
@@ -224,9 +231,7 @@ describe('targets', () => {
     }
   });
   it('escalate — later targets are strictly harder to attack quietly', () => {
-    const counts = TARGETS.map(
-      (t) => Number(t.decoyStates) + Number(t.detectorMonitoring) + Number(t.opticalIsolator)
-    );
+    const counts = TARGETS.map(t => Number(t.decoyStates) + Number(t.detectorMonitoring) + Number(t.opticalIsolator));
     for (let i = 1; i < counts.length; i++) {
       expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1]);
     }

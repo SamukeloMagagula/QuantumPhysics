@@ -34,8 +34,14 @@ describe('progress API', () => {
 
   it('merges writes so a stale device cannot erase progress', async () => {
     const cookie = await guestCookie(app);
-    await request(app).put('/api/progress').set('Cookie', cookie).send({ progress: { explored: ['ops'], story: { access: true, completed: 3 } } });
-    const res = await request(app).put('/api/progress').set('Cookie', cookie).send({ progress: { explored: ['breakroom'], story: { access: true, completed: 0 } } });
+    await request(app)
+      .put('/api/progress')
+      .set('Cookie', cookie)
+      .send({ progress: { explored: ['ops'], story: { access: true, completed: 3 } } });
+    const res = await request(app)
+      .put('/api/progress')
+      .set('Cookie', cookie)
+      .send({ progress: { explored: ['breakroom'], story: { access: true, completed: 0 } } });
     expect(res.body.progress.explored.sort()).toEqual(['breakroom', 'ops']);
     expect(res.body.progress.story.completed).toBe(3);
   });
@@ -43,13 +49,19 @@ describe('progress API', () => {
   it('keeps each player to their own progress', async () => {
     const a = await guestCookie(app);
     const b = await guestCookie(app);
-    await request(app).put('/api/progress').set('Cookie', a).send({ progress: { explored: ['ops'] } });
+    await request(app)
+      .put('/api/progress')
+      .set('Cookie', a)
+      .send({ progress: { explored: ['ops'] } });
     expect((await request(app).get('/api/progress').set('Cookie', b)).body.progress).toBeNull();
   });
 
   it('gives a stable save code that carries the player to another browser', async () => {
     const home = await guestCookie(app);
-    await request(app).put('/api/progress').set('Cookie', home).send({ progress: { explored: ['ops'], appearance: { ...DEFAULT_APPEARANCE, nickname: 'Nova' } } });
+    await request(app)
+      .put('/api/progress')
+      .set('Cookie', home)
+      .send({ progress: { explored: ['ops'], appearance: { ...DEFAULT_APPEARANCE, nickname: 'Nova' } } });
     const first = (await request(app).post('/api/progress/code').set('Cookie', home)).body.code;
     const again = (await request(app).post('/api/progress/code').set('Cookie', home)).body.code;
     expect(first).toMatch(/^[2-9A-Z]{4}-[2-9A-Z]{4}$/);

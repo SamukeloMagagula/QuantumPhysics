@@ -106,7 +106,13 @@ describe('resolveMove', () => {
 
   it('never returns a position the actor cannot occupy', () => {
     const from = { x: 0.5, y: 0.66 };
-    for (const [dx, dy] of [[0.03, 0], [-0.03, 0], [0, 0.03], [0, -0.03], [0.03, -0.03]]) {
+    for (const [dx, dy] of [
+      [0.03, 0],
+      [-0.03, 0],
+      [0, 0.03],
+      [0, -0.03],
+      [0.03, -0.03],
+    ]) {
       const to = resolveMove(from, dx, dy);
       expect(canStand(to.x, to.y), `moved into a solid at ${to.x},${to.y}`).toBe(true);
     }
@@ -115,15 +121,15 @@ describe('resolveMove', () => {
 
 describe('hotspots', () => {
   it('covers every station, one each', () => {
-    expect(new Set(HOTSPOTS.map((h) => h.station)).size).toBe(HOTSPOTS.length);
+    expect(new Set(HOTSPOTS.map(h => h.station)).size).toBe(HOTSPOTS.length);
   });
 
   it('puts hardware work at the equipment row rather than the desk', () => {
     // Rebuilding the capture chain is physical work, so it has to be a place
     // the player walks to — not another panel at Workstation 04.
-    const rack = HOTSPOTS.find((h) => h.station === 'rack');
+    const rack = HOTSPOTS.find(h => h.station === 'rack');
     expect(rack, 'no rack station').toBeTruthy();
-    expect(rack!.approach).not.toEqual(HOTSPOTS.find((h) => h.station === 'campaign')!.approach);
+    expect(rack!.approach).not.toEqual(HOTSPOTS.find(h => h.station === 'campaign')!.approach);
   });
 
   it('keeps the hotspots far enough apart to be individually reachable', () => {
@@ -188,7 +194,7 @@ describe('body radius', () => {
 
 describe('depth ordering', () => {
   it('always draws the cutaway walls in front of the actor', () => {
-    const walls = DEPTH_LAYERS.filter((l) => l.alwaysFront);
+    const walls = DEPTH_LAYERS.filter(l => l.alwaysFront);
     expect(walls.length).toBe(2);
     for (const w of walls) expect(layerCoversActor(w, SPAWN.x, SPAWN.y)).toBe(true);
   });
@@ -204,12 +210,12 @@ describe('depth ordering', () => {
   it('ignores an object the actor is not standing in front of or behind', () => {
     // The round table is on the right; an actor over on the far left shares
     // none of its columns, so it must not be considered at all.
-    const round = DEPTH_LAYERS.find((l) => l.src === 'round')!;
+    const round = DEPTH_LAYERS.find(l => l.src === 'round')!;
     expect(layerCoversActor(round, 0.15, 0.6)).toBe(false);
   });
 
   it('covers the actor when he is behind an object, and not when in front', () => {
-    const central = DEPTH_LAYERS.find((l) => l.src === 'central')!;
+    const central = DEPTH_LAYERS.find(l => l.src === 'central')!;
     const x = 0.52;
     const edge = frontEdgeY(OBSTACLES[central.footprint!], x)!;
     expect(edge).toBeGreaterThan(0);

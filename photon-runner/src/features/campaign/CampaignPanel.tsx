@@ -83,9 +83,7 @@ function GoTo({ place }: { place: Place }) {
     >
       <Footprints size={18} color={TONE.accent} />
       <div>
-        <div style={{ color: TONE.accent, fontSize: 12, fontWeight: 700 }}>
-          This one is not desk work.
-        </div>
+        <div style={{ color: TONE.accent, fontSize: 12, fontWeight: 700 }}>This one is not desk work.</div>
         <div style={{ color: TONE.dim, fontSize: 11.5, lineHeight: 1.5 }}>
           Press Esc to stand up, walk to {PLACE_NAMES[place]}, and press E there.
         </div>
@@ -121,13 +119,10 @@ function DoneElsewhere({ place }: { place: Place }) {
 function NothingHere({ onClose }: { onClose: () => void }) {
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4, marginBottom: 8 }}>
-        TRAINING RACK
-      </div>
+      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4, marginBottom: 8 }}>TRAINING RACK</div>
       <p style={{ color: TONE.dim, fontSize: 12.5, lineHeight: 1.6 }}>
-        The bays are as you left them. Hardware tasks are handed out with the
-        case — start a stage at Workstation 04 and come back when one needs the
-        rack.
+        The bays are as you left them. Hardware tasks are handed out with the case — start a stage at Workstation 04 and come back when one
+        needs the rack.
       </p>
       <button onClick={onClose} style={{ ...ghostBtn, marginTop: 18 }}>
         <LogOut size={13} /> Step away
@@ -154,7 +149,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
   // The run itself lives outside React, so standing up and walking to another
   // station does not destroy it — see campaignSession.ts.
   const session = useSyncExternalStore(subscribeSession, getSession, getSession);
-  const active = session.stageId ? getStage(session.stageId) ?? null : null;
+  const active = session.stageId ? (getStage(session.stageId) ?? null) : null;
   const { state, lastOutcome, result } = session;
   const solved = useMemo(() => new Set(session.solved), [session.solved]);
   const elapsed = elapsedMs(session, now);
@@ -198,7 +193,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
     setProgressStore(next);
     saveProgress(next);
     saveCase(mergeCase(loadCase(), { knownFacts: state.knownFacts, evidence: state.evidence }));
-    updateSession((s) => ({ ...s, result: { ms, underPar: rate(active.id, ms) === 'under-par' } }));
+    updateSession(s => ({ ...s, result: { ms, underPar: rate(active.id, ms) === 'under-par' } }));
   };
 
   // A stage ends when its own chapter completes.
@@ -208,17 +203,16 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
   }, [state, active, result]);
 
   const take = (c: Choice) => {
-    updateSession((s) => ({
+    updateSession(s => ({
       ...s,
       lastOutcome: { text: c.outcome, unsupported: !!c.unsupported },
       state: choose(s.state, c.id),
     }));
   };
   const next = () => {
-    updateSession((s) => ({ ...s, lastOutcome: null, state: advance(s.state) }));
+    updateSession(s => ({ ...s, lastOutcome: null, state: advance(s.state) }));
   };
-  const markSolved = (beatId: string) =>
-    updateSession((s) => (s.solved.includes(beatId) ? s : { ...s, solved: [...s.solved, beatId] }));
+  const markSolved = (beatId: string) => updateSession(s => (s.solved.includes(beatId) ? s : { ...s, solved: [...s.solved, beatId] }));
 
   const evidence = useMemo(() => [...state.evidence].reverse(), [state.evidence]);
 
@@ -254,9 +248,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
       {/* ---------------- story ---------------- */}
       <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-          <span style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4 }}>
-            {chapter?.title.toUpperCase()}
-          </span>
+          <span style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4 }}>{chapter?.title.toUpperCase()}</span>
           <span style={{ color: TONE.dim, fontSize: 11 }}>{chapter?.subtitle}</span>
           <span
             style={{
@@ -289,20 +281,12 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
         </div>
 
         {result ? (
-          <StageResult
-            stage={active}
-            chapter={chapter}
-            result={result}
-            onStageSelect={resetSession}
-            onClose={onClose}
-          />
+          <StageResult stage={active} chapter={chapter} result={result} onStageSelect={resetSession} onClose={onClose} />
         ) : !beat ? (
           <p style={{ color: TONE.dim, fontSize: 12 }}>Closing the case…</p>
         ) : (
           <>
-            <div style={{ color: TONE.dim, fontSize: 10, letterSpacing: 1.2, marginBottom: 12 }}>
-              {AREA_NAMES[beat.area].toUpperCase()}
-            </div>
+            <div style={{ color: TONE.dim, fontSize: 10, letterSpacing: 1.2, marginBottom: 12 }}>{AREA_NAMES[beat.area].toUpperCase()}</div>
 
             {beat.objective && (
               <div
@@ -345,9 +329,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
                 }}
               >
                 {lastOutcome.unsupported && (
-                  <div style={{ color: TONE.warn, fontSize: 10, letterSpacing: 1.2, marginBottom: 5 }}>
-                    EVIDENCE CHECK
-                  </div>
+                  <div style={{ color: TONE.warn, fontSize: 10, letterSpacing: 1.2, marginBottom: 5 }}>EVIDENCE CHECK</div>
                 )}
                 <p style={{ color: TONE.text, fontSize: 12.5, lineHeight: 1.65 }}>{lastOutcome.text}</p>
               </div>
@@ -357,21 +339,16 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
                 board is the player's own work, and whisking it away the
                 instant it is right hides both the confirmation and what
                 they just built. */}
-            {beat.exercise && here && (
-              <CampaignExerciseView key={beat.id} exercise={beat.exercise} onSolved={() => markSolved(beat.id)} />
-            )}
-            {beat.exercise && !here &&
-              (solved.has(beat.id) ? <DoneElsewhere place={beatPlace} /> : <GoTo place={beatPlace} />)}
+            {beat.exercise && here && <CampaignExerciseView key={beat.id} exercise={beat.exercise} onSolved={() => markSolved(beat.id)} />}
+            {beat.exercise && !here && (solved.has(beat.id) ? <DoneElsewhere place={beatPlace} /> : <GoTo place={beatPlace} />)}
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {beat.exercise && !solved.has(beat.id) ? (
                 <p style={{ color: TONE.dim, fontSize: 11.5, textAlign: 'center' }}>
-                  {here
-                    ? 'Complete the task above to continue.'
-                    : 'The clock is still running while you walk.'}
+                  {here ? 'Complete the task above to continue.' : 'The clock is still running while you walk.'}
                 </p>
               ) : beat.choices?.length ? (
-                beat.choices.map((c) => (
+                beat.choices.map(c => (
                   <button
                     key={c.id}
                     onClick={() => take(c)}
@@ -427,7 +404,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
         <Section label="what I know">
           {state.knownFacts.length ? (
             <ul style={{ margin: 0, paddingLeft: 15, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {state.knownFacts.map((f) => (
+              {state.knownFacts.map(f => (
                 <li key={f} style={{ color: TONE.text, fontSize: 11.5, lineHeight: 1.5 }}>
                   {f}
                 </li>
@@ -441,7 +418,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
         <Section label={`evidence · ${state.evidence.length}`}>
           {evidence.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {evidence.map((e) => (
+              {evidence.map(e => (
                 <div key={e.id}>
                   <div style={{ color: TONE.text, fontSize: 11.5, fontWeight: 600 }}>{e.label}</div>
                   <div style={{ color: TONE.dim, fontSize: 10.5, lineHeight: 1.45 }}>{e.detail}</div>
@@ -455,7 +432,7 @@ export function CampaignPanel({ onClose, place = 'workstation' }: { onClose: () 
 
         <Section label="clearance">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {(Object.keys(AREA_NAMES) as (keyof typeof AREA_NAMES)[]).map((a) => {
+            {(Object.keys(AREA_NAMES) as (keyof typeof AREA_NAMES)[]).map(a => {
               const open = state.unlocked.includes(a);
               return (
                 <div
@@ -501,29 +478,17 @@ const ghostBtn: React.CSSProperties = {
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 7 }}>
-        {label}
-      </div>
+      <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 7 }}>{label}</div>
       {children}
     </div>
   );
 }
 
-const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p style={{ color: TONE.dim, fontSize: 11, lineHeight: 1.5 }}>{children}</p>
-);
+const Empty = ({ children }: { children: React.ReactNode }) => <p style={{ color: TONE.dim, fontSize: 11, lineHeight: 1.5 }}>{children}</p>;
 
 /** Level select. Stages unlock in order; the rest stay visible but shut,
  * which is the clearance mechanic the campaign bible asks for. */
-function StageSelect({
-  progress,
-  onPick,
-  onClose,
-}: {
-  progress: StageProgress;
-  onPick: (s: StageDef) => void;
-  onClose: () => void;
-}) {
+function StageSelect({ progress, onPick, onClose }: { progress: StageProgress; onPick: (s: StageDef) => void; onClose: () => void }) {
   return (
     <div
       style={{
@@ -537,12 +502,12 @@ function StageSelect({
     >
       <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4 }}>PHANTOM Q CAMPAIGN</div>
       <p style={{ color: TONE.dim, fontSize: 12, lineHeight: 1.6, margin: '6px 0 18px' }}>
-        Seven stages. Clear one to unlock the next. The clock runs while a stage is open and is measured
-        against a par time — beating par is a bonus, not a requirement.
+        Seven stages. Clear one to unlock the next. The clock runs while a stage is open and is measured against a par time — beating par is
+        a bonus, not a requirement.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {STAGES.map((st) => {
+        {STAGES.map(st => {
           const done = isCompleted(progress, st.id);
           const unlocked = isUnlocked(progress, st.id);
           const playable = isPlayable(progress, st.id);
@@ -613,14 +578,12 @@ function StageResult({
   onStageSelect: () => void;
   onClose: () => void;
 }) {
-  const nextUp = STAGES.find((s) => s.order === stage.order + 1);
+  const nextUp = STAGES.find(s => s.order === stage.order + 1);
   return (
     <div>
       <div style={{ color: TONE.good, fontSize: 14, fontWeight: 700, marginBottom: 4 }}>STAGE CLEARED</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-        <span style={{ color: TONE.text, fontSize: 22, fontFamily: 'ui-monospace, monospace' }}>
-          {formatTime(result.ms)}
-        </span>
+        <span style={{ color: TONE.text, fontSize: 22, fontFamily: 'ui-monospace, monospace' }}>{formatTime(result.ms)}</span>
         <span style={{ color: result.underPar ? TONE.good : TONE.dim, fontSize: 11.5 }}>
           {result.underPar ? `under par (${formatTime(stage.parSeconds * 1000)})` : `par ${formatTime(stage.parSeconds * 1000)}`}
         </span>
@@ -628,7 +591,7 @@ function StageResult({
 
       {chapter?.endState && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 16 }}>
-          {chapter.endState.map((e) => (
+          {chapter.endState.map(e => (
             <div
               key={e.label}
               style={{

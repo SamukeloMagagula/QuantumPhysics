@@ -9,10 +9,12 @@ import { WORLD_ART } from './worldLayout';
 it('ships all referenced assets and accounts for every project illustration', () => {
   const publicDir = resolve('public');
   const sources = new Set([
-    ...ROOMS.flatMap(room => room.art.kind === 'image' ? [room.art.src] : []),
+    ...ROOMS.flatMap(room => (room.art.kind === 'image' ? [room.art.src] : [])),
     ...ROOMS.flatMap(room => (room.imageProps ?? []).map(prop => prop.src)),
     ...Object.values(LAYER_FILES).map(file => `/pq/layers/${file}`),
-    '/pq/operator-idle.png', '/pq/operator-idle-left.png', '/pq/operator-walk.png',
+    '/pq/operator-idle.png',
+    '/pq/operator-idle-left.png',
+    '/pq/operator-walk.png',
     '/pq/rooms/door-states.png',
     '/pq/access-card-comic.png',
     WORLD_ART,

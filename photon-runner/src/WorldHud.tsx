@@ -12,7 +12,12 @@ import { nextRank, rankFor, type ExplorerRank } from './worldExploration';
 import { WORLD_ZONES, type CampusZoneId, type WorldZone } from './worldLayout';
 
 /** Name, medal, XP and progress toward the next explorer rank. */
-export const PlayerHud = memo(function PlayerHud({ appearance, explored, missionsDone, onCustomize }: {
+export const PlayerHud = memo(function PlayerHud({
+  appearance,
+  explored,
+  missionsDone,
+  onCustomize,
+}: {
   appearance: CharacterAppearance;
   explored: readonly CampusZoneId[];
   missionsDone: number;
@@ -23,7 +28,13 @@ export const PlayerHud = memo(function PlayerHud({ appearance, explored, mission
   const remaining = upcoming ? upcoming.places - explored.length : 0;
   return (
     <div className="world-player-hud">
-      <button className="world-customize-button" aria-label="Customize character" aria-haspopup="dialog" title="Customize your character" onClick={onCustomize}>
+      <button
+        className="world-customize-button"
+        aria-label="Customize character"
+        aria-haspopup="dialog"
+        title="Customize your character"
+        onClick={onCustomize}
+      >
         <svg viewBox="-13 -54 26 57" aria-hidden="true">
           <WorldCharacter appearance={appearance} facing="south" moving={false} />
         </svg>
@@ -37,7 +48,14 @@ export const PlayerHud = memo(function PlayerHud({ appearance, explored, mission
         <span>
           {explored.length * 25 + missionsDone * 100} XP · {explored.length}/{WORLD_ZONES.length} places · {missionsDone}/4 missions
         </span>
-        <div className="world-explore-pips" role="meter" aria-label="Campus exploration" aria-valuemin={0} aria-valuemax={WORLD_ZONES.length} aria-valuenow={explored.length}>
+        <div
+          className="world-explore-pips"
+          role="meter"
+          aria-label="Campus exploration"
+          aria-valuemin={0}
+          aria-valuemax={WORLD_ZONES.length}
+          aria-valuenow={explored.length}
+        >
           {WORLD_ZONES.map((z, i) => (
             <span key={z.id} data-on={i < explored.length || undefined} />
           ))}
@@ -56,7 +74,11 @@ export function RankUpCard({ rank, onClose }: { rank: ExplorerRank; onClose: () 
       <div>
         <b>Rank up!</b>
         <h2>{rank.name}</h2>
-        <p>{next ? `Discover ${next.places - rank.places} more places to become ${next.name}.` : 'You have discovered every place on campus.'}</p>
+        <p>
+          {next
+            ? `Discover ${next.places - rank.places} more places to become ${next.name}.`
+            : 'You have discovered every place on campus.'}
+        </p>
       </div>
       <button aria-label="Close rank up" onClick={onClose}>
         <X size={16} />
@@ -75,7 +97,14 @@ export function DiscoveryToast({ place }: { place: string }) {
 }
 
 /** Who is on campus, recent quick chat, and the phrases to send. */
-export function PeoplePanel({ online, me, people, chat, onSay, onClose }: {
+export function PeoplePanel({
+  online,
+  me,
+  people,
+  chat,
+  onSay,
+  onClose,
+}: {
   online: boolean;
   me: CampusPerson;
   people: CampusPerson[];
@@ -91,7 +120,9 @@ export function PeoplePanel({ online, me, people, chat, onSay, onClose }: {
           <X size={18} />
         </button>
       </div>
-      {!online && <p className="world-people-note">The campus server isn't answering, so you're exploring solo. Everything else still works.</p>}
+      {!online && (
+        <p className="world-people-note">The campus server isn't answering, so you're exploring solo. Everything else still works.</p>
+      )}
       {online && (
         <ul>
           {[me, ...people].map((p, i) => (
@@ -113,7 +144,7 @@ export function PeoplePanel({ online, me, people, chat, onSay, onClose }: {
       </h3>
       <ol className="world-chat-log">
         {chat.length ? (
-          chat.slice(-6).map((l) => (
+          chat.slice(-6).map(l => (
             <li key={l.id}>
               <b>{l.name}</b> {QUICK_CHAT[l.phrase]}
             </li>
@@ -133,7 +164,11 @@ export function PeoplePanel({ online, me, people, chat, onSay, onClose }: {
   );
 }
 
-export function PlacesPanel({ explored, onGo, onClose }: {
+export function PlacesPanel({
+  explored,
+  onGo,
+  onClose,
+}: {
   explored: readonly CampusZoneId[];
   onGo: (zone: WorldZone) => void;
   onClose: () => void;
@@ -147,9 +182,9 @@ export function PlacesPanel({ explored, onGo, onClose }: {
           <X size={18} />
         </button>
       </div>
-      <input aria-label="Find a place" placeholder="Find a place…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+      <input aria-label="Find a place" placeholder="Find a place…" value={query} onChange={e => setQuery(e.target.value)} autoFocus />
       <nav>
-        {WORLD_ZONES.filter((z) => z.name.toLowerCase().includes(query.toLowerCase())).map((z) => (
+        {WORLD_ZONES.filter(z => z.name.toLowerCase().includes(query.toLowerCase())).map(z => (
           <button key={z.id} onClick={() => onGo(z)}>
             <span style={{ background: explored.includes(z.id) ? '#54b8a5' : z.color }} />
             {z.name}
@@ -162,7 +197,14 @@ export function PlacesPanel({ explored, onGo, onClose }: {
 }
 
 /** Where you are (or are heading), with the actions available there. */
-export function LocationCard({ target, current, nearby, onSit, onOpen, onStop }: {
+export function LocationCard({
+  target,
+  current,
+  nearby,
+  onSit,
+  onOpen,
+  onStop,
+}: {
   target: WorldZone | null;
   current?: WorldZone;
   nearby?: WorldComputer;
@@ -178,7 +220,11 @@ export function LocationCard({ target, current, nearby, onSit, onOpen, onStop }:
       <div>
         <span>{target ? 'ON YOUR WAY TO' : current ? 'YOU ARE HERE' : 'EXPLORING'}</span>
         <h2>{target?.name ?? current?.name ?? 'Main hallway'}</h2>
-        <p>{target ? 'Follow the dotted path, or use movement controls.' : (current?.description ?? 'Follow the indoor hallway to your next room.')}</p>
+        <p>
+          {target
+            ? 'Follow the dotted path, or use movement controls.'
+            : (current?.description ?? 'Follow the indoor hallway to your next room.')}
+        </p>
       </div>
       {!target && nearby && (
         <button className="world-open world-sit" onClick={() => onSit(nearby)}>
@@ -233,12 +279,20 @@ export function SavePanel({ onClose }: { onClose: () => void }) {
       <h3>Continue on this computer</h3>
       <form
         className="world-save-form"
-        onSubmit={(e) => {
+        onSubmit={e => {
           e.preventDefault();
           load();
         }}
       >
-        <input aria-label="Save code" placeholder="ABCD-2345" value={entry} onChange={(e) => setEntry(e.target.value.toUpperCase())} maxLength={12} autoComplete="off" spellCheck={false} />
+        <input
+          aria-label="Save code"
+          placeholder="ABCD-2345"
+          value={entry}
+          onChange={e => setEntry(e.target.value.toUpperCase())}
+          maxLength={12}
+          autoComplete="off"
+          spellCheck={false}
+        />
         <button type="submit" disabled={status.busy || entry.replace(/[^A-Z0-9]/gi, '').length !== 8}>
           {status.busy ? 'Loading…' : 'Load'}
         </button>

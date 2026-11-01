@@ -1,15 +1,5 @@
 import type { Express } from 'express';
-import {
-  FloorStore,
-  chatSince,
-  cleanRoom,
-  createFloorStore,
-  heartbeat,
-  leave,
-  peersOn,
-  say,
-  type SayRefusal,
-} from '../floorPresence';
+import { FloorStore, chatSince, cleanRoom, createFloorStore, heartbeat, leave, peersOn, say, type SayRefusal } from '../floorPresence';
 
 /**
  * Floor presence over HTTP.

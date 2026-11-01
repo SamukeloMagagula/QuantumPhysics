@@ -111,7 +111,11 @@ export function mergeProgress(older: SavedProgress, newer: SavedProgress): Saved
   for (const [id, score] of Object.entries(newer.exams)) {
     const prev = exams[id];
     exams[id] = prev
-      ? { bestPercent: Math.max(prev.bestPercent, score.bestPercent), passed: prev.passed || score.passed, attempts: Math.max(prev.attempts, score.attempts) }
+      ? {
+          bestPercent: Math.max(prev.bestPercent, score.bestPercent),
+          passed: prev.passed || score.passed,
+          attempts: Math.max(prev.attempts, score.attempts),
+        }
       : score;
   }
   return {
@@ -129,8 +133,10 @@ export const SAVE_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 /** Accept codes typed with spaces, dashes or lower case: `k7qm 3xpa` → `K7QM3XPA`. */
 export function normaliseSaveCode(raw: unknown): string | null {
-  const code = String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return code.length === 8 && [...code].every((c) => SAVE_CODE_ALPHABET.includes(c)) ? code : null;
+  const code = String(raw ?? '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  return code.length === 8 && [...code].every(c => SAVE_CODE_ALPHABET.includes(c)) ? code : null;
 }
 
 export function formatSaveCode(code: string): string {

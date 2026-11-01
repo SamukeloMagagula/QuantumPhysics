@@ -14,8 +14,8 @@ export function Leaderboard() {
   useEffect(() => {
     let cancelled = false;
     fetch('/api/leaderboard')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => !cancelled && setEntries((data as { leaderboard: LeaderboardEntry[] }).leaderboard))
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => !cancelled && setEntries((data as { leaderboard: LeaderboardEntry[] }).leaderboard))
       .catch(() => !cancelled && setEntries([]));
     return () => {
       cancelled = true;
@@ -30,7 +30,6 @@ export function Leaderboard() {
         description="Top operatives by points earned across the learning path."
       />
       <div className="space-y-6">
-
         {entries === null && <p className="text-sm ink-3">Loading…</p>}
         {entries?.length === 0 && <p className="text-sm ink-3">No scores yet — be the first.</p>}
 

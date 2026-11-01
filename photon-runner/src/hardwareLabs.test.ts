@@ -9,8 +9,14 @@ describe('lab catalogue', () => {
 
   it('gives every lab a reachable correct answer', () => {
     for (const lab of LABS) {
-      expect(lab.faults.some((f) => f.id === lab.correctFaultId), `${lab.id} fault`).toBe(true);
-      expect(lab.fixes.some((f) => f.id === lab.correctFixId), `${lab.id} fix`).toBe(true);
+      expect(
+        lab.faults.some(f => f.id === lab.correctFaultId),
+        `${lab.id} fault`,
+      ).toBe(true);
+      expect(
+        lab.fixes.some(f => f.id === lab.correctFixId),
+        `${lab.id} fix`,
+      ).toBe(true);
     }
   });
 
@@ -37,7 +43,7 @@ describe('lab catalogue', () => {
   });
 
   it('has unique ids', () => {
-    expect(new Set(LABS.map((l) => l.id)).size).toBe(LABS.length);
+    expect(new Set(LABS.map(l => l.id)).size).toBe(LABS.length);
   });
 
   it('getLab finds a lab and returns null for an unknown id', () => {
@@ -75,19 +81,19 @@ describe('gradeLab', () => {
   });
 });
 
-describe('the optics labs back the console\'s attacks', () => {
+describe("the optics labs back the console's attacks", () => {
   it('teaches why photon-number splitting is possible at all', () => {
     // The multiphoton lab is the physical cause of the beamsplit attack in
     // qkdAttack.ts — if this drifts apart from that, the two stop agreeing.
     const lab = getLab('multiphoton')!;
     expect(lab.lesson).toMatch(/multi-photon/i);
     expect(lab.lesson).toMatch(/decoy/i);
-    expect(lab.readings.some((r) => r.label.includes('Mean photon number'))).toBe(true);
+    expect(lab.readings.some(r => r.label.includes('Mean photon number'))).toBe(true);
   });
 
   it('teaches that an optics fault can masquerade as an eavesdropper', () => {
     const lab = getLab('polariser-drift')!;
-    expect(lab.faults.some((f) => f.id === 'eve')).toBe(true);
+    expect(lab.faults.some(f => f.id === 'eve')).toBe(true);
     expect(lab.correctFaultId).not.toBe('eve');
   });
 });

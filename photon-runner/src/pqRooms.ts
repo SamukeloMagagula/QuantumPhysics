@@ -48,9 +48,22 @@ import {
  * Nothing is traced twice, so nothing can disagree with itself.
  */
 
-export type RoomId = 'facility' | 'ops' | 'bullpen' | 'briefing' | 'breakroom' | 'server'
-  | 'crypto-lab' | 'comms-centre' | 'soc-room' | 'engineering-room' | 'quantum-wing'
-  | 'server-hall' | 'cryogenics-lab' | 'secure-archive' | 'power-control-room';
+export type RoomId =
+  | 'facility'
+  | 'ops'
+  | 'bullpen'
+  | 'briefing'
+  | 'breakroom'
+  | 'server'
+  | 'crypto-lab'
+  | 'comms-centre'
+  | 'soc-room'
+  | 'engineering-room'
+  | 'quantum-wing'
+  | 'server-hall'
+  | 'cryogenics-lab'
+  | 'secure-archive'
+  | 'power-control-room';
 
 export const START_ROOM: RoomId = 'facility';
 
@@ -331,9 +344,21 @@ const BULLPEN: RoomSpec = {
     { id: 'bp-2', name: 'Song', look: 4, seat: { x: 5.2, y: 4.55, facing: 'ne', deskId: 'r1a' } },
     { id: 'bp-3', name: 'Achterberg', look: 7, seat: { x: 7.2, y: 4.55, facing: 'ne', deskId: 'r1a' }, lines: ['Rebasing the capture.'] },
     { id: 'bp-4', name: 'Nwosu', look: 1, seat: { x: 12.0, y: 4.55, facing: 'ne', deskId: 'r1b' } },
-    { id: 'bp-5', name: 'Lindqvist', look: 8, seat: { x: 16.0, y: 4.55, facing: 'ne', deskId: 'r1b' }, lines: ['Sift is done — eleven percent.'] },
+    {
+      id: 'bp-5',
+      name: 'Lindqvist',
+      look: 8,
+      seat: { x: 16.0, y: 4.55, facing: 'ne', deskId: 'r1b' },
+      lines: ['Sift is done — eleven percent.'],
+    },
     { id: 'bp-6', name: 'Baptiste', look: 11, seat: { x: 3.2, y: 8.15, facing: 'ne', deskId: 'r2a' } },
-    { id: 'bp-7', name: 'Okonjo', look: 6, seat: { x: 7.2, y: 8.15, facing: 'ne', deskId: 'r2a' }, lines: ['Who has the Tuesday tap log?'] },
+    {
+      id: 'bp-7',
+      name: 'Okonjo',
+      look: 6,
+      seat: { x: 7.2, y: 8.15, facing: 'ne', deskId: 'r2a' },
+      lines: ['Who has the Tuesday tap log?'],
+    },
     { id: 'bp-8', name: 'Marchetti', look: 3, seat: { x: 14.0, y: 8.15, facing: 'ne', deskId: 'r2b' } },
     { id: 'bp-9', name: 'Dvorak', look: 9, seat: { x: 5.2, y: 11.75, facing: 'ne', deskId: 'r3a' } },
     {
@@ -538,7 +563,6 @@ const SERVER: RoomSpec = {
   ],
 };
 
-
 // Reception is now part of the illustrated facility, rather than a separate wing.
 export const ROOM_SPECS: RoomSpec[] = [BULLPEN, BRIEFING, BREAKROOM, SERVER];
 
@@ -709,7 +733,7 @@ function propPoly(v: IsoView, p: Prop): Poly {
  */
 function seatClip(v: IsoView, props: Prop[], seat: SeatSpec): number | null {
   if (!seat.behind) return null;
-  const p = props.find((q) => q.id === seat.behind);
+  const p = props.find(q => q.id === seat.behind);
   if (!p) return null;
   const top = (p.z ?? 0) + propHeight(p);
   const poly: Poly = [
@@ -725,15 +749,9 @@ function seatClip(v: IsoView, props: Prop[], seat: SeatSpec): number | null {
 }
 
 function buildDoors(v: IsoView, spec: RoomSpec): Door[] {
-  return spec.doors.map((door) => {
-    const anchor =
-      door.wall === 'right'
-        ? isoNorm(v, door.at, 0.1, 1.05)
-        : isoNorm(v, 0.1, door.at, 1.05);
-    const approach =
-      door.wall === 'right'
-        ? isoNorm(v, door.at, DOOR_APPROACH)
-        : isoNorm(v, DOOR_APPROACH, door.at);
+  return spec.doors.map(door => {
+    const anchor = door.wall === 'right' ? isoNorm(v, door.at, 0.1, 1.05) : isoNorm(v, 0.1, door.at, 1.05);
+    const approach = door.wall === 'right' ? isoNorm(v, door.at, DOOR_APPROACH) : isoNorm(v, DOOR_APPROACH, door.at);
     return {
       id: `${spec.id}-${door.to}`,
       to: door.to,
@@ -751,7 +769,7 @@ const SELF_FURNISHED: PropKind[] = ['bench'];
 
 function buildPeople(v: IsoView, spec: RoomSpec): NpcDef[] {
   const perMetre = metreScale(v);
-  return spec.people.map((p) => ({
+  return spec.people.map(p => ({
     id: p.id,
     name: p.name,
     look: p.look,
@@ -760,7 +778,7 @@ function buildPeople(v: IsoView, spec: RoomSpec): NpcDef[] {
           pos: isoNorm(v, p.seat.x, p.seat.y),
           facing: p.seat.facing,
           clipY: seatClip(v, spec.props, p.seat),
-          chair: !SELF_FURNISHED.includes(spec.props.find((q) => q.id === p.seat!.deskId)?.kind as PropKind),
+          chair: !SELF_FURNISHED.includes(spec.props.find(q => q.id === p.seat!.deskId)?.kind as PropKind),
         }
       : null,
     path: (p.route ?? []).map(([x, y]) => isoNorm(v, x, y)),
@@ -774,7 +792,7 @@ function buildPeople(v: IsoView, spec: RoomSpec): NpcDef[] {
 function buildGlows(v: IsoView, spec: RoomSpec): Glow[] {
   const lit: PropKind[] = ['wallscreen', 'wallsign'];
   return spec.props
-    .filter((p) => lit.includes(p.kind))
+    .filter(p => lit.includes(p.kind))
     .map((p, i) => {
       const z0 = p.z ?? 0;
       const z1 = z0 + propHeight(p);
@@ -794,7 +812,7 @@ function buildGlows(v: IsoView, spec: RoomSpec): Glow[] {
         isoNorm(v, corners[1][0], corners[1][1], z0),
         isoNorm(v, corners[1][0], corners[1][1], z1),
         isoNorm(v, corners[0][0], corners[0][1], z1),
-      ].map((n) => [n.x, n.y] as [number, number]);
+      ].map(n => [n.x, n.y] as [number, number]);
       return { poly, phase: i * 1.7 };
     });
 }
@@ -805,9 +823,9 @@ export function buildRoom(spec: RoomSpec): Room {
   // A padlocked door is solid only while it is locked, so it is kept out of
   // the plain obstacle list and handed to the scene as a lock instead.
   const locks = spec.props
-    .filter((p) => p.kind === 'lockdoor')
+    .filter(p => p.kind === 'lockdoor')
     .map((p, i) => ({ id: p.id ?? `lock-${i}`, label: p.text ?? 'Secured wing', poly: propPoly(view, p) }));
-  const portals: Door[] = (spec.portals ?? []).map((pt) => ({
+  const portals: Door[] = (spec.portals ?? []).map(pt => ({
     id: `${spec.id}-${pt.to}`,
     to: pt.to,
     label: pt.label,
@@ -822,8 +840,8 @@ export function buildRoom(spec: RoomSpec): Room {
     art: { kind: 'iso', spec, view },
     floor: {
       walk: isoRectPoly(view, inset, inset, spec.w - inset * 2, spec.d - inset * 2),
-      walks: (spec.annex ?? []).map((a) => isoRectPoly(view, a.x + inset, a.y - inset, a.w - inset * 2, a.d)),
-      obstacles: spec.props.filter((p) => p.kind !== 'lockdoor' && propSolid(p)).map((p) => propPoly(view, p)),
+      walks: (spec.annex ?? []).map(a => isoRectPoly(view, a.x + inset, a.y - inset, a.w - inset * 2, a.d)),
+      obstacles: spec.props.filter(p => p.kind !== 'lockdoor' && propSolid(p)).map(p => propPoly(view, p)),
     },
     locks: locks.length ? locks : undefined,
     actorScale: spec.actorScale,
@@ -918,7 +936,7 @@ export function doorLocked(door: Door, unlocked: boolean): boolean {
 }
 
 export function getRoom(id: RoomId): Room {
-  return ROOMS.find((r) => r.id === id) ?? ROOMS[0];
+  return ROOMS.find(r => r.id === id) ?? ROOMS[0];
 }
 
 /**
@@ -928,7 +946,7 @@ export function getRoom(id: RoomId): Room {
  * points to keep in step with the first.
  */
 export function arrivalFrom(from: RoomId, to: RoomId): Vec2 {
-  const back = getRoom(to).doors.find((d) => d.to === from);
+  const back = getRoom(to).doors.find(d => d.to === from);
   return back ? { ...back.approach } : { ...getRoom(to).spawn };
 }
 

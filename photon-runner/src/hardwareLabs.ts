@@ -67,7 +67,11 @@ export const LABS: HardwareLab[] = [
       { label: 'Fibre attenuation', value: '0.21 dB/km (nominal)' },
     ],
     faults: [
-      { id: 'tec', label: 'Detector cooling has failed', why: 'A warm avalanche photodiode fires on thermally generated carriers, not photons.' },
+      {
+        id: 'tec',
+        label: 'Detector cooling has failed',
+        why: 'A warm avalanche photodiode fires on thermally generated carriers, not photons.',
+      },
       { id: 'fibre', label: 'Fibre has excess loss', why: 'Attenuation is in spec at 0.21 dB/km, so the fibre is fine.' },
       { id: 'laser', label: 'Source power drifted', why: 'The errors appear with no traffic at all, so the source is not involved.' },
     ],
@@ -85,7 +89,7 @@ export const LABS: HardwareLab[] = [
     id: 'polariser-drift',
     track: 'optics',
     title: 'Polariser misalignment',
-    symptom: "QBER sits at a steady 11% and will not settle, but only in the diagonal basis.",
+    symptom: 'QBER sits at a steady 11% and will not settle, but only in the diagonal basis.',
     readings: [
       { label: 'QBER, rectilinear basis', value: '1.1% (nominal)' },
       { label: 'QBER, diagonal basis', value: '10.9%', abnormal: true },
@@ -93,8 +97,16 @@ export const LABS: HardwareLab[] = [
       { label: 'Dark count rate', value: '610 /s (nominal)' },
     ],
     faults: [
-      { id: 'hwp', label: 'The half-wave plate has drifted off 22.5°', why: 'A 1.6° error only skews the basis that plate defines, which is exactly the asymmetry seen.' },
-      { id: 'eve', label: 'An eavesdropper is intercepting', why: 'Intercept-resend damages both bases roughly equally — it would not spare the rectilinear one.' },
+      {
+        id: 'hwp',
+        label: 'The half-wave plate has drifted off 22.5°',
+        why: 'A 1.6° error only skews the basis that plate defines, which is exactly the asymmetry seen.',
+      },
+      {
+        id: 'eve',
+        label: 'An eavesdropper is intercepting',
+        why: 'Intercept-resend damages both bases roughly equally — it would not spare the rectilinear one.',
+      },
       { id: 'detector', label: 'A detector has failed', why: 'Both detectors are clicking at nominal dark rates.' },
     ],
     fixes: [
@@ -119,7 +131,11 @@ export const LABS: HardwareLab[] = [
       { label: 'Decoy states', value: 'disabled', abnormal: true },
     ],
     faults: [
-      { id: 'mu', label: 'Source intensity is too high for a weak coherent source', why: 'At mu = 0.85 a fifth of the pulses carry more than one photon, and every one of those is a free copy for an attacker.' },
+      {
+        id: 'mu',
+        label: 'Source intensity is too high for a weak coherent source',
+        why: 'At mu = 0.85 a fifth of the pulses carry more than one photon, and every one of those is a free copy for an attacker.',
+      },
       { id: 'noise', label: 'Excess channel noise', why: 'QBER is 0.9% — the channel is quiet.' },
       { id: 'align', label: 'Polariser misalignment', why: 'Both bases are clean.' },
     ],
@@ -145,9 +161,17 @@ export const LABS: HardwareLab[] = [
       { label: 'RAM slots populated', value: 'A2, B2 (correct pairing)' },
     ],
     faults: [
-      { id: 'eps', label: 'The CPU power connector is not seated', why: 'Standby power is present, so the PSU is alive — but the CPU rail never comes up, which stops POST before any beep.' },
+      {
+        id: 'eps',
+        label: 'The CPU power connector is not seated',
+        why: 'Standby power is present, so the PSU is alive — but the CPU rail never comes up, which stops POST before any beep.',
+      },
       { id: 'psu', label: 'Power supply has failed', why: 'Both measured rails are within spec.' },
-      { id: 'ram', label: 'Memory is mis-installed', why: 'A2/B2 is the correct dual-channel pairing, and bad RAM usually still POSTs with a beep code.' },
+      {
+        id: 'ram',
+        label: 'Memory is mis-installed',
+        why: 'A2/B2 is the correct dual-channel pairing, and bad RAM usually still POSTs with a beep code.',
+      },
     ],
     fixes: [
       { id: 'seat-eps', label: 'Seat the 8-pin EPS connector fully and retry' },
@@ -172,9 +196,17 @@ export const LABS: HardwareLab[] = [
       { label: 'Cooler mount pressure', value: 'one corner standoff loose', abnormal: true },
     ],
     faults: [
-      { id: 'mount', label: 'The CPU cooler is not making even contact', why: 'A loose corner lifts the cold plate, so heat never reaches the heatsink — idle is fine because idle produces almost none.' },
+      {
+        id: 'mount',
+        label: 'The CPU cooler is not making even contact',
+        why: 'A loose corner lifts the cold plate, so heat never reaches the heatsink — idle is fine because idle produces almost none.',
+      },
       { id: 'fans', label: 'Case airflow has failed', why: 'Both intake fans are running.' },
-      { id: 'cpu', label: 'The processor is faulty', why: 'It clocks correctly until it hits its thermal limit, which is protection working, not failure.' },
+      {
+        id: 'cpu',
+        label: 'The processor is faulty',
+        why: 'It clocks correctly until it hits its thermal limit, which is protection working, not failure.',
+      },
     ],
     fixes: [
       { id: 'remount', label: 'Re-seat the cooler with fresh paste and even standoff pressure' },
@@ -189,11 +221,11 @@ export const LABS: HardwareLab[] = [
 ];
 
 export function labsForTrack(track: LabTrack): HardwareLab[] {
-  return LABS.filter((l) => l.track === track);
+  return LABS.filter(l => l.track === track);
 }
 
 export function getLab(id: string): HardwareLab | null {
-  return LABS.find((l) => l.id === id) ?? null;
+  return LABS.find(l => l.id === id) ?? null;
 }
 
 export interface LabAttempt {
@@ -213,7 +245,7 @@ export interface LabResult {
 export function gradeLab(lab: HardwareLab, attempt: LabAttempt): LabResult {
   const faultCorrect = attempt.faultId === lab.correctFaultId;
   const fixCorrect = attempt.fixId === lab.correctFixId;
-  const chosen = lab.faults.find((f) => f.id === attempt.faultId);
+  const chosen = lab.faults.find(f => f.id === attempt.faultId);
   return {
     faultCorrect,
     fixCorrect,
@@ -225,5 +257,5 @@ export function gradeLab(lab: HardwareLab, attempt: LabAttempt): LabResult {
 /** The readings a student should actually be reading — used to score how
  * well the evidence supports the diagnosis, and to hint when they stall. */
 export function abnormalReadings(lab: HardwareLab): Reading[] {
-  return lab.readings.filter((r) => r.abnormal);
+  return lab.readings.filter(r => r.abnormal);
 }

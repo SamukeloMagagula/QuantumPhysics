@@ -35,10 +35,7 @@ const lab: Lab = {
       if (!text) return;
       comments.push(text);
       // Safe render: el() uses text nodes, so nothing actually executes here.
-      feed.replaceChildren(
-        el('strong', { class: 'ink-1' }, 'Guestbook'),
-        ...comments.map((c) => el('div', { class: 'mt-1' }, c))
-      );
+      feed.replaceChildren(el('strong', { class: 'ink-1' }, 'Guestbook'), ...comments.map(c => el('div', { class: 'mt-1' }, c)));
       (input as HTMLTextAreaElement).value = '';
       if (isXssPayload(text)) {
         result.replaceChildren(
@@ -46,10 +43,10 @@ const lab: Lab = {
             'div',
             { class: DANGER_CARD },
             el('strong', {}, '💥 Your script executed! '),
-            "In a vulnerable app that renders this comment as HTML, that code just ran in " +
-              'every visitor\'s browser — an attacker could steal their session cookie ' +
-              '(document.cookie) or act as them.'
-          )
+            'In a vulnerable app that renders this comment as HTML, that code just ran in ' +
+              "every visitor's browser — an attacker could steal their session cookie " +
+              '(document.cookie) or act as them.',
+          ),
         );
         ctx.complete();
       } else {
@@ -57,9 +54,8 @@ const lab: Lab = {
           el(
             'p',
             { class: MUTED },
-            "Comment posted and shown as plain text. Try injecting a <script> tag or an " +
-              "onerror handler to make it 'run'."
-          )
+            'Comment posted and shown as plain text. Try injecting a <script> tag or an ' + "onerror handler to make it 'run'.",
+          ),
         );
       }
     });
@@ -70,7 +66,7 @@ const lab: Lab = {
       input,
       post,
       result,
-      feed
+      feed,
     );
   },
   explain() {

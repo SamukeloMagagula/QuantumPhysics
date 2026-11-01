@@ -23,7 +23,6 @@ export const INPUT =
   'border border-[color-mix(in_oklab,var(--ink-1)_16%,transparent)] ' +
   'focus:outline-none focus:border-[var(--accent)]';
 
-
 /**
  * Native <select> keeps its own arrow (drawn by the OS, which follows the
  * document's color-scheme), so it only needs an opaque background — a

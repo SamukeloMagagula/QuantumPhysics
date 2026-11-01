@@ -22,7 +22,7 @@ describe('campus computers', () => {
     const desk = WORLD_COMPUTERS[0];
     expect(computerNear(desk.stand, new Set([desk.id]))?.id).not.toBe(desk.id);
   });
-  it('lists the room\'s own program first', () => {
+  it("lists the room's own program first", () => {
     for (const c of WORLD_COMPUTERS) {
       const own = WORLD_ZONES.find(z => z.id === c.zone)!.activity;
       const apps = appsFor(c);

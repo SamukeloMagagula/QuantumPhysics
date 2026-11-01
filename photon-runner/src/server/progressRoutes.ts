@@ -2,7 +2,15 @@ import crypto from 'node:crypto';
 import type { Express, Request } from 'express';
 import type { Db } from './serverDb';
 import { COOKIE, identityCookie, identityCookieOptions } from './serverIdentity';
-import { EMPTY_PROGRESS, SAVE_CODE_ALPHABET, cleanProgress, formatSaveCode, mergeProgress, normaliseSaveCode, type SavedProgress } from '../progressSync';
+import {
+  EMPTY_PROGRESS,
+  SAVE_CODE_ALPHABET,
+  cleanProgress,
+  formatSaveCode,
+  mergeProgress,
+  normaliseSaveCode,
+  type SavedProgress,
+} from '../progressSync';
 
 /** Wrong save-code guesses allowed per address before it has to wait. */
 export const RESTORE_ATTEMPTS = 10;
@@ -26,7 +34,7 @@ function writeProgress(db: Db, userId: number, progress: SavedProgress): void {
 }
 
 function newCode(): string {
-  return Array.from(crypto.randomBytes(8), (b) => SAVE_CODE_ALPHABET[b % SAVE_CODE_ALPHABET.length]).join('');
+  return Array.from(crypto.randomBytes(8), b => SAVE_CODE_ALPHABET[b % SAVE_CODE_ALPHABET.length]).join('');
 }
 
 function saveCodeFor(db: Db, userId: number): string {
@@ -49,7 +57,11 @@ function saveCodeFor(db: Db, userId: number): string {
  * characters from a 31-letter alphabet (~10^12) and wrong guesses are
  * rate limited per address, which is proportionate for classroom progress.
  */
-export function mountProgressRoutes(app: Express, db: Db, { secret, secureCookies = false }: { secret: string; secureCookies?: boolean }): void {
+export function mountProgressRoutes(
+  app: Express,
+  db: Db,
+  { secret, secureCookies = false }: { secret: string; secureCookies?: boolean },
+): void {
   const misses = new Map<string, { count: number; resetAt: number }>();
   const limited = (req: Request) => {
     const key = req.ip ?? 'unknown';
@@ -83,7 +95,9 @@ export function mountProgressRoutes(app: Express, db: Db, { secret, secureCookie
   app.post('/api/progress/restore', (req, res) => {
     if (limited(req)) return void res.status(429).json({ error: 'Too many tries. Wait a few minutes and try again.' });
     const code = normaliseSaveCode(req.body?.code);
-    const row = code ? (db.prepare('SELECT user_id FROM save_codes WHERE code = ?').get(code) as { user_id: number } | undefined) : undefined;
+    const row = code
+      ? (db.prepare('SELECT user_id FROM save_codes WHERE code = ?').get(code) as { user_id: number } | undefined)
+      : undefined;
     if (!row) {
       recordMiss(req);
       return void res.status(404).json({ error: 'That save code was not found. Check it and try again.' });

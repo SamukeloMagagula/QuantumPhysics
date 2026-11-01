@@ -22,22 +22,14 @@ export function QuantumStateBadge({ bit, basis }: { bit: 0 | 1; basis: '+' | '×
 /** A raw or filtered/sifted key, revealed bit-by-bit rather than appearing
  * all at once — small, but it's what makes "here is your key" read as a
  * live cryptographic event instead of a static string dump. */
-export function KeyStrip({
-  label,
-  bits,
-  revealMs = 55,
-}: {
-  label: string;
-  bits: readonly (0 | 1)[];
-  revealMs?: number;
-}) {
+export function KeyStrip({ label, bits, revealMs = 55 }: { label: string; bits: readonly (0 | 1)[]; revealMs?: number }) {
   const [shown, setShown] = useState(0);
 
   useEffect(() => {
     setShown(0);
     if (bits.length === 0) return;
     const id = setInterval(() => {
-      setShown((s) => {
+      setShown(s => {
         if (s + 1 >= bits.length) {
           clearInterval(id);
           return bits.length;
@@ -83,10 +75,7 @@ export function ChannelStatusIndicator({ qber }: { qber: number }) {
   const compromised = qber > ABORT;
   const color = compromised ? 'var(--danger)' : 'var(--ok)';
   return (
-    <div
-      className="a-ring inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass"
-      style={{ ['--glow' as string]: color }}
-    >
+    <div className="a-ring inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass" style={{ ['--glow' as string]: color }}>
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color, boxShadow: `0 0 10px 2px ${color}` }} />
       <span className="text-xs font-bold whitespace-nowrap" style={{ color }}>
         {compromised ? 'Eavesdropping detected' : 'Channel secure'}

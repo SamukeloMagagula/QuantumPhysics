@@ -11,8 +11,11 @@ describe('CampaignScene1', () => {
     render(<CampaignScene1 onNext={vi.fn()} onExit={vi.fn()} />);
     const next = () => user.click(screen.getByRole('button', { name: 'Continue' }));
     await next();
-    await user.click(screen.getByRole('button', { name: /^encrypt/i })); await next();
-    await user.click(screen.getByRole('button', { name: /^decrypt/i })); await next(); await next();
+    await user.click(screen.getByRole('button', { name: /^encrypt/i }));
+    await next();
+    await user.click(screen.getByRole('button', { name: /^decrypt/i }));
+    await next();
+    await next();
     await user.click(screen.getByRole('button', { name: 'Deliver the key in person' }));
     expect(screen.getByRole('heading', { name: 'YOU KEPT THE KEY SECRET.' })).toBeTruthy();
     expect(screen.queryByText('THE KEY HAS BEEN COMPROMISED.')).toBeNull();
@@ -29,7 +32,7 @@ describe('CampaignScene1', () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
-  it('reveals a beat\'s result before advancing — the action button must not both compute and advance in one click', async () => {
+  it("reveals a beat's result before advancing — the action button must not both compute and advance in one click", async () => {
     const user = userEvent.setup();
     render(<CampaignScene1 onNext={vi.fn()} onExit={vi.fn()} />);
 
