@@ -108,6 +108,8 @@ export function NetworkDefenderScreen() {
 
   useEffect(() => {
     if (selected) { inspectionRef.current?.focus({ preventScroll: true }); inspectionRef.current?.scrollIntoView?.({ block: 'nearest' }); }
+    // Focus on a newly selected threat, not on every update to the same one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   useEffect(() => {

@@ -55,7 +55,10 @@ export function WorldMap({ active, destination, onOpen }: {
   });
   const { position, facing, moving, target } = walker;
 
+  // Re-read from storage whenever the map comes back into view: an activity may have changed them.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const appearance = useMemo(() => getAppearance(), [active]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const story = useMemo(() => readFacilityStory(), [active]);
   const assignment = ASSIGNMENTS[story.completed];
   const current = zoneAt(position);
@@ -75,26 +78,28 @@ export function WorldMap({ active, destination, onOpen }: {
     play('sit');
     window.setTimeout(() => play('computerOn'), 250);
   }
-  function stand() {
+  const { setFacing, walkTo } = walker;
+  const stand = useCallback(() => {
     setSeat(null);
-    walker.setFacing('south');
-  }
+    setFacing('south');
+  }, [setFacing]);
 
   // Someone else sat down here first, between our last poll and our click.
   useEffect(() => {
     if (seat && taken.has(seat)) stand();
-  }, [seat, taken]);
+  }, [seat, taken, stand]);
 
+  const { setZoom } = camera;
   const goTo = useCallback((zone: WorldZone) => {
     setSeat(null);
-    walker.walkTo(zone);
+    walkTo(zone);
     setPanel(null);
-    camera.setZoom((z) => Math.max(1, z));
-  }, []);
+    setZoom((z) => Math.max(1, z));
+  }, [walkTo, setZoom]);
   useEffect(() => {
     const zone = WORLD_ZONES.find((z) => z.id === destination);
     if (zone) goTo(zone);
-  }, [destination]);
+  }, [destination, goTo]);
 
   const people: CampusPerson[] = presence.peers.map((a) => ({
     userId: a.userId,

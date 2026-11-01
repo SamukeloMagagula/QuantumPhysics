@@ -24,7 +24,6 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const server = app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
   console.log(`server listening on http://localhost:${PORT}`);
 });
 

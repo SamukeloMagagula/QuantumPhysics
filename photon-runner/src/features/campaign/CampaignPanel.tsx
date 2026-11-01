@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react
 import { Check, Clock, Footprints, Lock, LogOut, Play, Wrench } from 'lucide-react';
 import {
   AREA_NAMES,
-  CampaignState,
   Choice,
   SPEAKER_NAMES,
   Place,

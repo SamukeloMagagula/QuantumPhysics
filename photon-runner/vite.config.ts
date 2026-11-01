@@ -10,7 +10,8 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        // API_PORT lets the browser tests run their own API beside a dev server.
+        target: `http://localhost:${process.env.API_PORT ?? 8787}`,
         changeOrigin: true,
         // The campus floor's WebSocket (/api/floor/ws) rides the same proxy.
         ws: true,
@@ -22,14 +23,14 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    // troika-three-text resolves `three` itself, which can pull a second copy
-    // into the bundle — Three.js warns about this, and it genuinely breaks
-    // `instanceof` checks across the boundary (a Mesh from one copy isn't a
-    // Mesh to the other). One copy, always.
+    // A second copy of `three` pulled in by a dependency would break
+    // `instanceof` checks across the boundary. One copy, always.
     dedupe: ['three'],
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setupStorage.ts'],
+    // Browser tests in e2e/ belong to Playwright.
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });

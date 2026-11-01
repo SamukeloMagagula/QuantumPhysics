@@ -241,7 +241,7 @@ describe('qkd multiplayer API', () => {
     const create = await request(app).post('/api/qkd/game').set('Cookie', cookie).send({ role: 'eve' });
     const code = create.body.code;
     await request(app).post(`/api/qkd/game/${code}/start`).set('Cookie', cookie);
-    let state = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
+    const state = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
     expect(state.body.phase).toBe('eve_move');
     expect(state.body.youAreUpNow).toBe(true);
     expect(state.body.sampleQBER).toBeUndefined();

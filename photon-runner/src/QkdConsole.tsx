@@ -141,6 +141,8 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
     if (previous !== 'active') return;
     if (session?.status === 'caught') play('caught');
     else if (session && session.status !== 'active') play(isWin(session) ? 'win' : 'close');
+    // Only a change of status matters here, not every tick of the session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.status]);
   const qber = session ? currentQBER(session) : 0;
   const key = session ? keyFraction(session) : 0;

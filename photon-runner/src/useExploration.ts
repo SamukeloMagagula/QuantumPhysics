@@ -23,6 +23,8 @@ export function useExploration(active: boolean, room: WorldZone | undefined, atC
       setRankUp(after);
       play('rankUp');
     } else play('discover');
+    // Keyed on the room's id, not the object, which is rebuilt as the player moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, room?.id, atCentre, explored]);
 
   useEffect(() => {

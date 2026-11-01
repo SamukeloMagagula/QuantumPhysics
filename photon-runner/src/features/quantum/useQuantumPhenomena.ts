@@ -21,7 +21,6 @@ export function useQuantumPhenomena() {
   const [cameraPreset, setCameraPreset] = useState<'bench' | 'alice' | 'bob' | 'wave' | 'top'>('bench');
   const [showEMWave, setShowEMWave] = useState(true);
   const [eveEnabled, setEveEnabled] = useState(false);
-  const [eveIntercepted, setEveIntercepted] = useState(false);
 
   /** What Eve actually did to this photon — surfaced so her attack is visible, not implied. */
   interface EveReport {
@@ -585,7 +584,6 @@ export function useQuantumPhenomena() {
     setIsFiring(true);
     setPhotonProgress(0);
     setMeasuredBit(null);
-    setEveIntercepted(false);
     capturedThisShotRef.current = false;
 
     // If Eve is enabled, she measures the photon at her tap point (X = 0) in
@@ -624,7 +622,6 @@ export function useQuantumPhenomena() {
     } else {
       setEveReport(null);
     }
-    setEveIntercepted(intercepted);
 
     const matched = checkBasisMatch(effectivePolarization, bobBasis);
     setIsMatch(matched);

@@ -8,7 +8,7 @@ const SECRET = 'test-secret';
 function freshApp() {
   const db: Db = openDb(':memory:');
   const app = createApp({ db, secret: SECRET, enableLegacyHeist: true });
-  return { db, app };
+  return { app };
 }
 
 async function guestCookie(app: ReturnType<typeof createApp>) {
@@ -17,11 +17,10 @@ async function guestCookie(app: ReturnType<typeof createApp>) {
 }
 
 describe('quantum heist multiplayer API', () => {
-  let db: Db;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    ({ db, app } = freshApp());
+    ({ app } = freshApp());
   });
 
   it('creates a room with a 4-letter code, seats the host in seat 0, fills the rest as computer', async () => {
