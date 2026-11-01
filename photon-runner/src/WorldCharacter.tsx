@@ -1,11 +1,11 @@
-import React, { useId } from 'react';
+import React, { memo, useId } from 'react';
 import type { CharacterAppearance } from './characterAppearance';
 
 export type CharacterFacing = 'north' | 'south' | 'east' | 'west';
 
 /** A small illustrated character, with the feet as its collision anchor.
  * Seated, the legs are tucked under the desk and the body drops onto the chair. */
-export function WorldCharacter({ appearance: a, facing, moving, seated = false }: {
+export const WorldCharacter = memo(function WorldCharacter({ appearance: a, facing, moving, seated = false }: {
   appearance: CharacterAppearance; facing: CharacterFacing; moving: boolean; seated?: boolean;
 }) {
   const id = useId();
@@ -52,4 +52,4 @@ export function WorldCharacter({ appearance: a, facing, moving, seated = false }
       </g>
     </g>
   </g>;
-}
+});

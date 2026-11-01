@@ -98,7 +98,8 @@ export function connectFloor(fetchImpl: typeof fetch = fetch): FloorLink {
         existing.walking = p.walking;
         existing.room = p.room;
         existing.name = p.name;
-        existing.look = p.look ?? null;
+        // Keep the same object while the look is unchanged, so renderers can memoise on it.
+        if (JSON.stringify(existing.look) !== JSON.stringify(p.look ?? null)) existing.look = p.look ?? null;
         existing.seat = p.seat ?? null;
       } else {
         // Someone who has just appeared starts where they are rather than
