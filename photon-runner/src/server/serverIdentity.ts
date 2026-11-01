@@ -61,6 +61,15 @@ function createGuest(db: Db): number {
   throw new Error('could not allocate guest handle');
 }
 
+/** The signed cookie value that identifies `uid`. */
+export function identityCookie(uid: number, secret: string): string {
+  return sign(uid, secret);
+}
+
+export function identityCookieOptions(secure: boolean) {
+  return { maxAge: 1000 * 60 * 60 * 24 * 365, sameSite: 'lax' as const, httpOnly: true, secure };
+}
+
 export interface IdentityResult {
   user: UserRow;
   /** Set only when a new guest was just provisioned — caller must Set-Cookie it. */

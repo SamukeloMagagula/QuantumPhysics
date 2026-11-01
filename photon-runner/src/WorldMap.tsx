@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, LocateFixed, Map, Minus, Plus, Search, Users } from 'lucide-react';
+import { ArrowRight, CloudUpload, LocateFixed, Map, Minus, Plus, Search, Users } from 'lucide-react';
 import { getAppearance } from './characterAppearance';
 import { ASSIGNMENTS, readFacilityStory } from './facilityStory';
 import { QUICK_CHAT } from './floorPresence';
@@ -15,8 +15,10 @@ import { MAX_ZOOM, useMapZoom } from './useMapZoom';
 import { WorldCharacter } from './WorldCharacter';
 import { WorldComputerScreen, type CampusPerson } from './WorldComputer';
 import { computerById, computerNear, type WorldComputer } from './worldComputers';
-import { DiscoveryToast, LocationCard, PeoplePanel, PlacesPanel, PlayerHud, RankUpCard } from './WorldHud';
+import { DiscoveryToast, LocationCard, PeoplePanel, PlacesPanel, PlayerHud, RankUpCard, SavePanel } from './WorldHud';
 import { WORLD_ZONES, centerOf, zoneAt, type WorldActivity, type WorldZone } from './worldLayout';
+
+type Panel = 'places' | 'people' | 'save';
 
 /** The persistent campus: walk, discover places, sit at computers, and see everyone else. */
 export function WorldMap({ active, destination, onOpen }: {
@@ -25,7 +27,7 @@ export function WorldMap({ active, destination, onOpen }: {
   onOpen: (activity: WorldActivity) => void;
 }) {
   const [seat, setSeat] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'places' | 'people' | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
   const seatRef = useRef(seat);
   seatRef.current = seat;
   const nearbyRef = useRef<WorldComputer | undefined>(undefined);
@@ -102,7 +104,7 @@ export function WorldMap({ active, destination, onOpen }: {
   }));
   const me: CampusPerson = { userId: 0, name: appearance.nickname.trim() || 'You', where: current?.short ?? 'Hallway', atComputer: Boolean(seat) };
   const customize = useCallback(() => openRef.current('customize'), []);
-  const togglePanel = (which: 'places' | 'people') => setPanel((p) => (p === which ? null : which));
+  const togglePanel = (which: Panel) => setPanel((p) => (p === which ? null : which));
   const drawAt = computer?.seat ?? position;
 
   return (
@@ -126,6 +128,10 @@ export function WorldMap({ active, destination, onOpen }: {
         >
           <Users size={16} />
           <span>{presence.online ? `${people.length + 1} online` : 'Solo'}</span>
+        </button>
+        <button onClick={() => togglePanel('save')} aria-label="Save progress" aria-expanded={panel === 'save'}>
+          <CloudUpload size={16} />
+          <span>Save</span>
         </button>
         <button onClick={() => camera.setZoom(camera.overview ? 1 : camera.fitZoom)} aria-label={camera.overview ? 'Follow my character' : 'Show whole map'}>
           {camera.overview ? <LocateFixed size={17} /> : <Map size={17} />}
@@ -195,6 +201,7 @@ export function WorldMap({ active, destination, onOpen }: {
       {panel === 'people' && (
         <PeoplePanel online={presence.online} me={me} people={people} chat={presence.chat} onSay={presence.say} onClose={() => setPanel(null)} />
       )}
+      {panel === 'save' && <SavePanel onClose={() => setPanel(null)} />}
       {panel === 'places' && <PlacesPanel explored={explored} onGo={goTo} onClose={() => setPanel(null)} />}
       {computer && active && (
         <WorldComputerScreen computer={computer} online={presence.online} people={people} chat={presence.chat} onLaunch={onOpen} onSay={presence.say} onStand={stand} />

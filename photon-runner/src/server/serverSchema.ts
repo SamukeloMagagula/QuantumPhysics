@@ -112,4 +112,21 @@ CREATE TABLE IF NOT EXISTS heist_game_seats (
     PRIMARY KEY (game_id, seat_index),
     FOREIGN KEY (game_id) REFERENCES heist_games(id)
 );
+
+-- Campus progress that used to live only in one browser: the cleaned
+-- SavedProgress JSON (see src/progressSync.ts), merged on every write.
+CREATE TABLE IF NOT EXISTS player_progress (
+    user_id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- A short code a player types on another computer to continue as themselves.
+CREATE TABLE IF NOT EXISTS save_codes (
+    code TEXT PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 `;

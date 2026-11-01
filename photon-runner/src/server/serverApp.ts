@@ -1,11 +1,12 @@
 import express, { type Express } from 'express';
 import cookieParser from 'cookie-parser';
 import type { Db } from './serverDb';
-import { COOKIE, resolveUser, renameUser } from './serverIdentity';
+import { COOKIE, identityCookieOptions, resolveUser, renameUser } from './serverIdentity';
 import { mountRoomsRoutes } from './roomsRoutes';
 import { mountQkdRoutes } from './qkdRoutes';
 import { mountHeistRoutes } from './legacy/heistRoutes';
 import { mountFloorRoutes } from './floorRoutes';
+import { mountProgressRoutes } from './progressRoutes';
 
 export interface AppOptions {
   db: Db;
@@ -30,12 +31,7 @@ export function createApp({ db, secret, secureCookies = false, enableLegacyHeist
     const { user, newCookie } = resolveUser(db, secret, req.cookies[COOKIE]);
     req.user = user;
     if (newCookie) {
-      res.cookie(COOKIE, newCookie, {
-        maxAge: 1000 * 60 * 60 * 24 * 365,
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: secureCookies,
-      });
+      res.cookie(COOKIE, newCookie, identityCookieOptions(secureCookies));
     }
     next();
   });
@@ -62,6 +58,7 @@ export function createApp({ db, secret, secureCookies = false, enableLegacyHeist
   mountQkdRoutes(app, db);
   if (enableLegacyHeist) mountHeistRoutes(app, db);
   mountFloorRoutes(app);
+  mountProgressRoutes(app, db, { secret, secureCookies });
 
   // Unknown API paths must not fall through to the production SPA fallback.
   app.use('/api', (_req, res) => {

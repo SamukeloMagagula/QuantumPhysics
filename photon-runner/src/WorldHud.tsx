@@ -1,5 +1,6 @@
-import React, { memo, useState } from 'react';
-import { ArrowRight, Compass, MessageCircle, Monitor, X } from 'lucide-react';
+import React, { memo, useEffect, useState } from 'react';
+import { ArrowRight, CloudUpload, Compass, MessageCircle, Monitor, X } from 'lucide-react';
+import { fetchSaveCode, restoreFromCode } from './progressClient';
 import type { CharacterAppearance } from './characterAppearance';
 import type { ChatLine } from './floorClient';
 import { QUICK_CHAT } from './floorPresence';
@@ -197,5 +198,56 @@ export function LocationCard({ target, current, nearby, onSit, onOpen, onStop }:
         </button>
       )}
     </div>
+  );
+}
+
+/** Show this player's save code, or continue as someone else's on this computer. */
+export function SavePanel({ onClose }: { onClose: () => void }) {
+  const [code, setCode] = useState<string | null | undefined>(undefined);
+  const [entry, setEntry] = useState('');
+  const [status, setStatus] = useState<{ busy?: boolean; error?: string }>({});
+  useEffect(() => {
+    fetchSaveCode().then(setCode);
+  }, []);
+  const load = async () => {
+    setStatus({ busy: true });
+    const result = await restoreFromCode(entry);
+    if (result.ok) window.location.reload();
+    else setStatus({ error: result.message });
+  };
+  return (
+    <aside className="world-directory world-save" aria-label="Save progress">
+      <div>
+        <h2>Your progress</h2>
+        <button aria-label="Close save panel" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </div>
+      <p className="world-people-note">Progress saves automatically. To carry on from another computer, use your save code there.</p>
+      <h3>
+        <CloudUpload size={13} /> Your save code
+      </h3>
+      <output className="world-save-code" aria-live="polite">
+        {code === undefined ? 'Getting your code…' : (code ?? 'Unavailable — the campus server is offline.')}
+      </output>
+      <h3>Continue on this computer</h3>
+      <form
+        className="world-save-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          load();
+        }}
+      >
+        <input aria-label="Save code" placeholder="ABCD-2345" value={entry} onChange={(e) => setEntry(e.target.value.toUpperCase())} maxLength={12} autoComplete="off" spellCheck={false} />
+        <button type="submit" disabled={status.busy || entry.replace(/[^A-Z0-9]/gi, '').length !== 8}>
+          {status.busy ? 'Loading…' : 'Load'}
+        </button>
+      </form>
+      {status.error && (
+        <p className="world-save-error" role="alert">
+          {status.error}
+        </p>
+      )}
+    </aside>
   );
 }
