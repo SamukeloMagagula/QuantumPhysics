@@ -1,5 +1,6 @@
-import { afterEach, expect, it } from 'vitest';
-import { discoverRoom, explorerRank, readExplored, saveExplored } from './worldExploration';
+import { afterEach, expect, it, test } from 'vitest';
+import { discoverRoom, explorerRank, nextRank, rankFor, readExplored, saveExplored } from './worldExploration';
+import { WORLD_ZONES } from './worldLayout';
 afterEach(() => localStorage.clear());
 it('awards each room once, including after restoring saved exploration', () => {
   const first = discoverRoom([], 'ops');
@@ -19,5 +20,15 @@ it('earns the final rank only after discovering the whole campus', () => {
   expect(explorerRank(3)).toBe('Signal Scout');
   expect(explorerRank(8)).toBe('Field Explorer');
   expect(explorerRank(13)).not.toBe('Campus Pathfinder');
-  expect(explorerRank(14)).toBe('Campus Pathfinder');
+  expect(explorerRank(15)).toBe('Campus Pathfinder');
+});
+
+test('ranks climb with medals and always point at the next goal', () => {
+  expect(rankFor(0).medal).toBe('recruit');
+  expect(rankFor(3).medal).toBe('bronze');
+  expect(rankFor(8).medal).toBe('silver');
+  expect(rankFor(WORLD_ZONES.length).medal).toBe('gold');
+  expect(nextRank(0)?.name).toBe('Signal Scout');
+  expect(nextRank(7)?.places).toBe(8);
+  expect(nextRank(WORLD_ZONES.length)).toBeUndefined();
 });

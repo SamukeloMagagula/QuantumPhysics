@@ -1,11 +1,13 @@
 import type { Express } from 'express';
 import {
   FloorStore,
+  chatSince,
   cleanRoom,
   createFloorStore,
   heartbeat,
   leave,
   peersOn,
+  say,
 } from '../floorPresence';
 
 /**
@@ -16,8 +18,9 @@ import {
  * no room code. Joining a game should not require a ceremony when the game is
  * "a building you can walk around in".
  *
- * The heartbeat returns the other peers in the same response, so a client
- * needs one request per tick rather than a post and a poll.
+ * The heartbeat returns the other peers — and any quick-chat newer than the
+ * `since` id the client sends — in the same response, so a client needs one
+ * request per tick rather than a post and a poll.
  */
 
 export function mountFloorRoutes(app: Express, store: FloorStore = createFloorStore()): FloorStore {
@@ -25,18 +28,28 @@ export function mountFloorRoutes(app: Express, store: FloorStore = createFloorSt
     const user = req.user!;
     const now = Date.now();
     const room = cleanRoom(req.body?.room);
+    // A callsign set in the character creator wins over the generated handle.
+    const callsign = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
     const ok = heartbeat(store, now, {
       userId: user.id,
-      name: user.display_name,
+      name: callsign || user.display_name,
       x: req.body?.x,
       y: req.body?.y,
       facing: req.body?.facing,
       walking: req.body?.walking,
       room,
+      look: req.body?.look,
+      seat: req.body?.seat,
     });
     // Only the people in the same room: coordinates are per-room, so a peer
     // from another wing has nowhere meaningful to be drawn here.
-    res.json({ ok, peers: peersOn(store, now, user.id, room) });
+    res.json({ ok, peers: peersOn(store, now, user.id, room), chat: chatSince(store, room, req.body?.since) });
+  });
+
+  app.post('/api/floor/hq/chat', (req, res) => {
+    const line = say(store, Date.now(), req.user!.id, req.body?.phrase);
+    if (!line) return void res.status(429).json({ ok: false });
+    res.json({ ok: true, line });
   });
 
   app.get('/api/floor/hq', (req, res) => {

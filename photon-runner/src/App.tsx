@@ -14,6 +14,7 @@ import { nextCampaignScreen } from './features/campaign/campaignProgress';
 import { useTheme } from './theme';
 import { SceneManager } from './engine/SceneManager';
 import { ASSIGNMENTS, readFacilityStory } from './facilityStory';
+import { play } from './sound';
 
 import type { RoomId } from './pqRooms';
 import type { QkdRole } from './QkdLobby';
@@ -200,6 +201,17 @@ export default function App() {
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
   }, [screen]);
+
+  // One soft click for every enabled button, so the whole app answers a press
+  // the same way without each screen wiring its own sound.
+  useEffect(() => {
+    const click = (event: MouseEvent) => {
+      const button = (event.target as HTMLElement | null)?.closest('button');
+      if (button && !button.disabled) play('click');
+    };
+    document.addEventListener('click', click);
+    return () => document.removeEventListener('click', click);
+  }, []);
 
   const goHome = useCallback(() => go('home'), []);
 

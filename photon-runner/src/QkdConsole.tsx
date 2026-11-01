@@ -3,6 +3,8 @@ import { LogOut } from 'lucide-react';
 import { ASSIGNMENTS } from './facilityStory';
 import { ConsoleState, Line, initialConsole, runCommand } from './qkdAttackCommands';
 import { ATTACKS, TARGETS, AttackState, currentQBER, keyFraction, captureReady, isWin, MIN_CAPTURE_PULSES, errorRate, alarmRate } from './qkdAttack';
+import { SegmentMeter } from './SegmentMeter';
+import { play } from './sound';
 
 const TOOL_NAMES = {
   intercept: 'Read and resend', beamsplit: 'Take a spare photon', blind: 'Dazzle the detector',
@@ -44,26 +46,8 @@ const TERMINAL_BG = '#080b11';
 
 /** A labelled meter — the two numbers that decide whether you get caught
  * deserve to be visible at all times, not buried in scrollback. */
-function Gauge({ label, value, max, danger }: { label: string; value: number; max: number; danger?: boolean }) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="text-[9px] tracking-wider uppercase" style={{ color: TONE.dim }}>
-          {label}
-        </span>
-        <span className="text-[11px] font-mono" style={{ color: danger ? TONE.bad : TONE.normal }}>
-          {(value * 100).toFixed(2)}%
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.08)' }}>
-        <div
-          className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${pct}%`, background: danger ? TONE.bad : TONE.accent }}
-        />
-      </div>
-    </div>
-  );
+function Gauge({ label, value, max, mark, kind }: { label: string; value: number; max: number; mark?: number; kind?: 'danger' | 'goal' }) {
+  return <SegmentMeter label={label} value={value} max={max} mark={mark} kind={kind} valueText={`${(value * 100).toFixed(2)}%`} />;
 }
 
 export interface QkdConsoleProps {
@@ -92,6 +76,7 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rewardRef = useRef<HTMLDivElement | null>(null);
+  const lastStatus = useRef<AttackState['status'] | undefined>(undefined);
 
   // Pin to the newest output as it arrives.
   useEffect(() => {
@@ -150,10 +135,19 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
   const session = state.session;
   useEffect(() => {
     if (session && isWin(session)) rewardRef.current?.scrollIntoView?.({ block: 'nearest' });
+    // Only a status that changed while watching gets a sound, not one restored on reopen.
+    const previous = lastStatus.current;
+    lastStatus.current = session?.status;
+    if (previous !== 'active') return;
+    if (session?.status === 'caught') play('caught');
+    else if (session && session.status !== 'active') play(isWin(session) ? 'win' : 'close');
   }, [session?.status]);
   const qber = session ? currentQBER(session) : 0;
   const key = session ? keyFraction(session) : 0;
   const active = session?.status === 'active';
+  // One warning as a meter crosses into its red zone, not one per burst.
+  const danger = Boolean(active && session && (qber >= session.target.abortQBER * 0.75 || session.alarm >= 0.75));
+  useEffect(() => { if (danger) play('warning'); }, [danger]);
   const execute = (command: string) => {
     if (command.startsWith('connect ')) setScanned(false);
     if (command === 'scan') setScanned(true);
@@ -182,8 +176,12 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
             <span>Sender<br />◉</span><span aria-hidden="true">→ →</span><span className="rounded-xl bg-cyan-950 p-4">Your tap<br /><strong>{Math.round(key * 100)}% learned</strong></span><span aria-hidden="true">→ →</span><span>Receiver<br />{session.status === 'caught' ? 'Link closed' : 'Listening'}</span>
           </div>
           <p className="text-sm text-slate-300">A mission needs at least {MIN_CAPTURE_PULSES} pulses and {Math.round(session.target.keyGoal * 100)}% of the sampled key. A short lucky capture does not count.</p>
-          <progress className="w-full my-3 accent-cyan-300" aria-label="Capture length" max={MIN_CAPTURE_PULSES} value={Math.min(session.round, MIN_CAPTURE_PULSES)} />
-          <p className="text-sm">Capture: {session.round} / {MIN_CAPTURE_PULSES} pulses minimum</p>
+          <div className="grid gap-4 my-5 sm:grid-cols-2" aria-label="Mission meters">
+            <SegmentMeter label="Capture length" value={Math.min(session.round, MIN_CAPTURE_PULSES)} max={MIN_CAPTURE_PULSES} kind="goal" mark={MIN_CAPTURE_PULSES} valueText={`${session.round} / ${MIN_CAPTURE_PULSES} pulses`} />
+            <SegmentMeter label="Key learned" value={key} max={1} kind="goal" mark={session.target.keyGoal} valueText={`${Math.round(key * 100)}% · goal ${Math.round(session.target.keyGoal * 100)}%`} />
+            <SegmentMeter label="Errors seen by receiver" value={qber} max={session.target.abortQBER} mark={session.target.abortQBER} valueText={`${(qber * 100).toFixed(1)}% · closes at ${(session.target.abortQBER * 100).toFixed(0)}%`} />
+            <SegmentMeter label="Alarm" value={session.alarm} max={1} mark={1} valueText={`${Math.round(session.alarm * 100)}%`} />
+          </div>
           {scanned && <div className="mt-5 rounded-xl bg-slate-900 p-4 space-y-2 text-sm" aria-label="Defence scan">
             <h3 className="font-bold text-cyan-200">What can catch you?</h3>
             <p>Spare-photon check: {session.target.decoyStates ? 'ON — photon stealing raises an alarm.' : 'OFF — spare photons are unmonitored.'}</p>
@@ -297,10 +295,10 @@ export function QkdConsole({ initialTargetId, initialSession, onClose, embedded,
                 label={`QBER · abort ${(session.target.abortQBER * 100).toFixed(0)}%`}
                 value={qber}
                 max={session.target.abortQBER}
-                danger={qber >= session.target.abortQBER * 0.8}
+                mark={session.target.abortQBER}
               />
-              <Gauge label={`key stolen · goal ${(session.target.keyGoal * 100).toFixed(0)}%`} value={key} max={1} />
-              <Gauge label="alarm" value={session.alarm} max={1} danger={session.alarm > 0.4} />
+              <Gauge label={`key stolen · goal ${(session.target.keyGoal * 100).toFixed(0)}%`} value={key} max={1} mark={session.target.keyGoal} kind="goal" />
+              <Gauge label="alarm" value={session.alarm} max={1} mark={1} />
               <div className="text-[11px] font-mono" style={{ color: TONE.dim }}>
                 round {session.round} / {session.target.totalRounds}
               </div>

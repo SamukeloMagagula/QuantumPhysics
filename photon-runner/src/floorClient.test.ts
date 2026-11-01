@@ -122,4 +122,49 @@ describe('the floor link', () => {
     // Only the parting DELETE may have been added.
     expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBeLessThanOrEqual(calls + 1);
   });
+
+  it('sends its look, seat and callsign along with its position', async () => {
+    const calls: string[] = [];
+    const f = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.body) calls.push(String(init.body));
+      return { ok: true, json: async () => ({ peers: [] }) };
+    }) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    link.report(0.2, 0.3, 'backward', false, 'campus', { name: 'Nova', seat: 'ops-1' });
+    await settle();
+    expect(JSON.parse(calls[0])).toMatchObject({ x: 0.2, y: 0.3, room: 'campus', name: 'Nova', seat: 'ops-1', since: 0 });
+  });
+
+  it('collects quick-chat from heartbeats and asks only for newer lines', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    let chat = [{ id: 4, userId: 2, name: 'P2', phrase: 0, room: 'campus', at: 0 }];
+    const f = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.body) bodies.push(JSON.parse(String(init.body)));
+      return { ok: true, json: async () => ({ peers: [], chat }) };
+    }) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    let heard = 0;
+    link.subscribe(() => heard++);
+    await settle();
+    expect(link.messages().map((l) => l.id)).toEqual([4]);
+    expect(heard).toBeGreaterThan(0);
+    chat = [];
+    await new Promise((r) => setTimeout(r, 260));
+    expect(bodies[bodies.length - 1].since).toBe(4);
+  });
+
+  it('adds its own line as soon as the server accepts it', async () => {
+    const f = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (url.endsWith('/chat') ? { line: { id: 9, userId: 1, name: 'Me', phrase: 3, room: 'campus', at: 0 } } : { peers: [] }),
+    })) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    expect(await link.say(3)).toBe(true);
+    expect(link.messages().map((l) => l.phrase)).toEqual([3]);
+  });
+
+  it('reports a refused line rather than throwing', async () => {
+    const link = track(connectFloor(fakeFetch(() => [], false)));
+    expect(await link.say(0)).toBe(false);
+  });
 });
