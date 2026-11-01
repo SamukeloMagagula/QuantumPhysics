@@ -136,20 +136,20 @@ describe('floor presence', () => {
 
   it('only lets players on the floor speak, in phrases from the list', () => {
     const s = createFloorStore();
-    expect(say(s, 1000, 1, 0)).toBeNull();
+    expect(say(s, 1000, 1, 0)).toBe('not-on-floor');
     heartbeat(s, 1000, { userId: 1, name: 'A', x: 0.5, y: 0.5, room: 'campus' });
-    expect(say(s, 1000, 1, QUICK_CHAT.length)).toBeNull();
-    expect(say(s, 1000, 1, 'hello')).toBeNull();
+    expect(say(s, 1000, 1, QUICK_CHAT.length)).toBe('unknown-phrase');
+    expect(say(s, 1000, 1, 'hello')).toBe('unknown-phrase');
     expect(say(s, 1000, 1, 2)).toMatchObject({ name: 'A', phrase: 2, room: 'campus' });
   });
 
   it('slows down someone repeating themselves', () => {
     const s = createFloorStore();
     heartbeat(s, 1000, { userId: 1, name: 'A', x: 0.5, y: 0.5 });
-    expect(say(s, 1000, 1, 0)).not.toBeNull();
-    expect(say(s, 1000 + CHAT_COOLDOWN_MS - 1, 1, 1)).toBeNull();
+    expect(say(s, 1000, 1, 0)).toMatchObject({ phrase: 0 });
+    expect(say(s, 1000 + CHAT_COOLDOWN_MS - 1, 1, 1)).toBe('too-soon');
     heartbeat(s, 1000 + CHAT_COOLDOWN_MS, { userId: 1, name: 'A', x: 0.5, y: 0.5 });
-    expect(say(s, 1000 + CHAT_COOLDOWN_MS, 1, 1)).not.toBeNull();
+    expect(say(s, 1000 + CHAT_COOLDOWN_MS, 1, 1)).toMatchObject({ phrase: 1 });
   });
 
   it('serves chat per room, newer than what the caller has seen, and forgets old lines', () => {

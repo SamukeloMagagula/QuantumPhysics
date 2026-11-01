@@ -8,6 +8,7 @@ import {
   leave,
   peersOn,
   say,
+  type SayRefusal,
 } from '../floorPresence';
 
 /**
@@ -22,6 +23,9 @@ import {
  * `since` id the client sends — in the same response, so a client needs one
  * request per tick rather than a post and a poll.
  */
+
+/** A bad phrase is the client's mistake; speaking off the floor or too fast is a matter of timing. */
+const SAY_STATUS: Record<SayRefusal, number> = { 'unknown-phrase': 400, 'not-on-floor': 409, 'too-soon': 429 };
 
 export function mountFloorRoutes(app: Express, store: FloorStore = createFloorStore()): FloorStore {
   app.post('/api/floor/hq', (req, res) => {
@@ -48,7 +52,7 @@ export function mountFloorRoutes(app: Express, store: FloorStore = createFloorSt
 
   app.post('/api/floor/hq/chat', (req, res) => {
     const line = say(store, Date.now(), req.user!.id, req.body?.phrase);
-    if (!line) return void res.status(429).json({ ok: false });
+    if (typeof line === 'string') return void res.status(SAY_STATUS[line]).json({ ok: false, error: line });
     res.json({ ok: true, line });
   });
 

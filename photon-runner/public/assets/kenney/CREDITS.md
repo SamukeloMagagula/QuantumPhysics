@@ -16,3 +16,8 @@ with no attribution required. Credit is given here anyway.
 Downloaded 2026-11-01. Only media and license files were kept (shortcut,
 `.ini` and Illustrator source files were left out). Each pack's original
 license file is in its folder.
+
+The sounds the game plays (listed in `src/sound.ts`) also have `.mp3`
+copies beside the original `.ogg` files, converted with ffmpeg (LAME,
+VBR quality 5) for browsers without Ogg Vorbis support such as older
+Safari. Same CC0 license.

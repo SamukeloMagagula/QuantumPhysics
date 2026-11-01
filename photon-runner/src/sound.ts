@@ -46,6 +46,14 @@ const cache = new Map<string, HTMLAudioElement>();
 /** jsdom has no media playback, and tests should stay silent anyway. */
 const canPlay = typeof Audio !== 'undefined' && !(typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent));
 
+/**
+ * Kenney ships Ogg Vorbis, which older Safari (notably iPads) cannot play.
+ * Every sound listed above also has an .mp3 beside it (see
+ * public/assets/kenney/CREDITS.md); browsers without Ogg get those.
+ */
+const useMp3 = canPlay && !new Audio().canPlayType('audio/ogg; codecs="vorbis"');
+const playable = (file: string) => (useMp3 ? file.replace(/\.ogg$/, '.mp3') : file);
+
 export function isMuted(): boolean { return muted; }
 
 export function setMuted(next: boolean): void {
@@ -57,7 +65,7 @@ export function setMuted(next: boolean): void {
 export function play(name: SoundName, loudness = 1): void {
   if (muted || !canPlay) return;
   const sound = SOUNDS[name];
-  const file = sound.files[Math.floor(Math.random() * sound.files.length)];
+  const file = playable(sound.files[Math.floor(Math.random() * sound.files.length)]);
   let base = cache.get(file);
   if (!base) { base = new Audio(file); base.preload = 'auto'; cache.set(file, base); }
   // A fresh copy per play so quick repeats (footsteps, clicks) can overlap.

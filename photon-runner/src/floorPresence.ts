@@ -241,17 +241,18 @@ export function leave(store: FloorStore, userId: number): void {
 /**
  * Say one of the quick-chat phrases. Only someone currently on the floor can
  * speak, and only into the room they are standing in. Returns the line, or
- * null when the phrase is unknown, the speaker is not here, or they are
- * talking faster than the cooldown allows.
+ * why it was refused: the phrase is not on the list, the speaker is not on
+ * the floor, or they are talking faster than the cooldown allows.
  */
-export function say(store: FloorStore, now: number, userId: number, phrase: unknown): ChatLine | null {
+export type SayRefusal = 'unknown-phrase' | 'not-on-floor' | 'too-soon';
+export function say(store: FloorStore, now: number, userId: number, phrase: unknown): ChatLine | SayRefusal {
   const index = typeof phrase === 'number' ? phrase : Number(phrase);
-  if (!Number.isInteger(index) || index < 0 || index >= QUICK_CHAT.length) return null;
+  if (!Number.isInteger(index) || index < 0 || index >= QUICK_CHAT.length) return 'unknown-phrase';
   prune(store, now);
   const peer = store.peers.get(userId);
-  if (!peer) return null;
+  if (!peer) return 'not-on-floor';
   const last = [...store.chat].reverse().find((l) => l.userId === userId);
-  if (last && now - last.at < CHAT_COOLDOWN_MS) return null;
+  if (last && now - last.at < CHAT_COOLDOWN_MS) return 'too-soon';
   const line: ChatLine = { id: store.nextChatId++, userId, name: peer.name, phrase: index, room: peer.room, at: now };
   store.chat.push(line);
   if (store.chat.length > CHAT_HISTORY) store.chat.splice(0, store.chat.length - CHAT_HISTORY);
