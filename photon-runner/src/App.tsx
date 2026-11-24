@@ -33,6 +33,7 @@ const QkdLobby = lazy(() => import('./QkdLobby').then(m => ({ default: m.QkdLobb
 const QkdGameScreen = lazy(() => import('./QkdGameScreen').then(m => ({ default: m.QkdGameScreen })));
 const CampaignScene1 = lazy(() => import('./features/campaign/CampaignScene1').then(m => ({ default: m.CampaignScene1 })));
 const CampaignScene2 = lazy(() => import('./features/campaign/CampaignScene2').then(m => ({ default: m.CampaignScene2 })));
+const CryptoLabScene = lazy(() => import('./world3d/CryptoLabScene').then(m => ({ default: m.CryptoLabScene })));
 
 type Screen =
   | { name: 'first-mission' }
@@ -41,6 +42,7 @@ type Screen =
   | { name: 'forensics' }
   | { name: 'server-hall-3d' }
   | { name: 'facility-3d' }
+  | { name: 'crypto-lab-3d' }
   | { name: 'home' }
   | { name: 'campus' }
   | { name: 'quantum-lab-interior' }
@@ -73,6 +75,8 @@ function sectionOf(screen: Screen): Section {
       return 'qkd-attack';
     case 'facility-3d':
       return 'facility3d';
+    case 'crypto-lab-3d':
+      return 'home';
     case 'labs':
     case 'lab':
     case 'lab-exam':
@@ -104,6 +108,7 @@ const BREADCRUMBS: Record<Screen['name'], string> = {
   'first-mission': 'Operation 01 · Find the meeting place',
   'server-hall-3d': 'Phantom Q · Server Hall 3D',
   'facility-3d': 'Phantom Q · 3D Facility',
+  'crypto-lab-3d': 'Phantom Q · Cryptography Lab (3D pilot)',
   home: '',
   campus: 'Research Campus',
   'quantum-lab-interior': 'Quantum Lab',
@@ -135,6 +140,7 @@ const SCREEN_IDS: Screen['name'][] = [
   'first-mission',
   'server-hall-3d',
   'facility-3d',
+  'crypto-lab-3d',
   'home',
   'campus',
   'quantum-lab-interior',
@@ -266,6 +272,7 @@ export default function App() {
   );
 
   const mapScreen = ['home', 'campus', 'qkd-attack', 'server-hall-3d', 'facility-3d', 'quantum-lab-interior'].includes(screen.name);
+  const is3DPilot = screen.name === 'crypto-lab-3d';
   const openActivity = (activity: WorldActivity) => {
     const screens: Record<WorldActivity, Screen['name']> = {
       mission:
@@ -294,7 +301,7 @@ export default function App() {
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)', color: 'var(--ink-1)' }}>
       <TopNav
-        active={mapScreen ? 'home' : sectionOf(screen)}
+        active={mapScreen || is3DPilot ? 'home' : sectionOf(screen)}
         onSelect={handleSelectSection}
         onBack={undefined}
         breadcrumb={undefined}
@@ -304,9 +311,22 @@ export default function App() {
 
       <main ref={mainRef} className="flex-1 min-h-0 relative overflow-hidden">
         <div className="absolute inset-0" inert={!mapScreen || undefined}>
-          <WorldMap active={mapScreen} destination={destination} onOpen={openActivity} />
+          <WorldMap active={mapScreen} destination={destination} onOpen={openActivity} onOpen3DPilot={() => go('crypto-lab-3d')} />
         </div>
-        {!mapScreen && (
+        <div className="absolute inset-0" style={{ zIndex: is3DPilot ? 10 : undefined }} inert={!is3DPilot || undefined}>
+          {is3DPilot && (
+            <Suspense
+              fallback={
+                <p role="status" className="p-6 ink-2">
+                  Loading…
+                </p>
+              }
+            >
+              <CryptoLabScene onExit={() => go('campus')} onOpen={openActivity} />
+            </Suspense>
+          )}
+        </div>
+        {!mapScreen && !is3DPilot && (
           <ActivityOverlay title={BREADCRUMBS[screen.name]} onClose={goHome}>
             <Suspense
               fallback={

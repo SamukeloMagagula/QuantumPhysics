@@ -204,6 +204,8 @@ export function LocationCard({
   onSit,
   onOpen,
   onStop,
+  show3DPilot,
+  onOpen3DPilot,
 }: {
   target: WorldZone | null;
   current?: WorldZone;
@@ -211,6 +213,8 @@ export function LocationCard({
   onSit: (computer: WorldComputer) => void;
   onOpen: (zone: WorldZone) => void;
   onStop: () => void;
+  show3DPilot?: boolean;
+  onOpen3DPilot?: () => void;
 }) {
   return (
     <div className="world-location" aria-live="polite">
@@ -235,6 +239,12 @@ export function LocationCard({
       {!target && current && (
         <button className="world-open" onClick={() => onOpen(current)}>
           {current.action}
+          <ArrowRight size={17} />
+        </button>
+      )}
+      {!target && show3DPilot && onOpen3DPilot && (
+        <button className="world-open" onClick={onOpen3DPilot}>
+          Try 3D pilot
           <ArrowRight size={17} />
         </button>
       )}

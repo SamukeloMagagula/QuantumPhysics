@@ -25,10 +25,12 @@ export function WorldMap({
   active,
   destination,
   onOpen,
+  onOpen3DPilot,
 }: {
   active: boolean;
   destination?: RoomId;
   onOpen: (activity: WorldActivity) => void;
+  onOpen3DPilot?: () => void;
 }) {
   const [seat, setSeat] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -250,6 +252,8 @@ export function WorldMap({
           onSit={sit}
           onOpen={zone => onOpen(zone.activity)}
           onStop={walker.stopWalking}
+          show3DPilot={current?.id === 'crypto-lab'}
+          onOpen3DPilot={onOpen3DPilot}
         />
         <div className="world-footnote">
           <span>Click a room to walk there · WASD / arrows to explore · E to interact or sit at a computer</span>
