@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BOB_KEYS,
-  EVE_KEYS,
-  SCENE2_MESSAGE,
-  decrypt,
-  encrypt,
-  makeKeypair,
-  simulateMitm,
-} from './campaignScene2Logic';
+import { BOB_KEYS, EVE_KEYS, SCENE2_MESSAGE, decrypt, encrypt, makeKeypair, simulateMitm } from './campaignScene2Logic';
 
 describe('campaign scene 2 — asymmetric encrypt/decrypt', () => {
   it('round-trips a message through a fresh keypair', () => {

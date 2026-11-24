@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SCENE2_STEPS,
-  advanceScene2,
-  currentScene2Step,
-  initialScene2,
-  isScene2Finished,
-} from './campaignScene2Tutorial';
+import { SCENE2_STEPS, advanceScene2, currentScene2Step, initialScene2, isScene2Finished } from './campaignScene2Tutorial';
 
 describe('scene 2 script', () => {
   it('gives every step a unique id and real copy', () => {
-    expect(new Set(SCENE2_STEPS.map((s) => s.id)).size).toBe(SCENE2_STEPS.length);
+    expect(new Set(SCENE2_STEPS.map(s => s.id)).size).toBe(SCENE2_STEPS.length);
     for (const s of SCENE2_STEPS) expect(s.body.length).toBeGreaterThan(10);
   });
 
@@ -28,8 +22,8 @@ describe('scene 2 script', () => {
   });
 
   it('teaches the clean asymmetric flow before the MITM twist begins', () => {
-    const eveFails = SCENE2_STEPS.findIndex((s) => s.id === 'eve-fails');
-    const mitmSwap = SCENE2_STEPS.findIndex((s) => s.id === 'mitm-swap');
+    const eveFails = SCENE2_STEPS.findIndex(s => s.id === 'eve-fails');
+    const mitmSwap = SCENE2_STEPS.findIndex(s => s.id === 'mitm-swap');
     expect(eveFails).toBeGreaterThanOrEqual(0);
     expect(mitmSwap).toBeGreaterThan(eveFails);
   });

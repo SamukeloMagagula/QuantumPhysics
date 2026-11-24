@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SCENE1_STEPS,
-  advanceScene1,
-  currentScene1Step,
-  initialScene1,
-  isScene1Finished,
-} from './campaignScene1Tutorial';
+import { SCENE1_STEPS, advanceScene1, currentScene1Step, initialScene1, isScene1Finished } from './campaignScene1Tutorial';
 
 describe('scene 1 script', () => {
   it('gives every step a unique id and real copy', () => {
-    expect(new Set(SCENE1_STEPS.map((s) => s.id)).size).toBe(SCENE1_STEPS.length);
+    expect(new Set(SCENE1_STEPS.map(s => s.id)).size).toBe(SCENE1_STEPS.length);
     for (const s of SCENE1_STEPS) expect(s.body.length).toBeGreaterThan(10);
   });
 
@@ -43,8 +37,8 @@ describe('scene 1 script', () => {
   });
 
   it('ends on the key-compromise beat before the final continue', () => {
-    const eveIndex = SCENE1_STEPS.findIndex((s) => s.id === 'eve-appears');
-    const compromisedIndex = SCENE1_STEPS.findIndex((s) => s.id === 'compromised');
+    const eveIndex = SCENE1_STEPS.findIndex(s => s.id === 'eve-appears');
+    const compromisedIndex = SCENE1_STEPS.findIndex(s => s.id === 'compromised');
     expect(compromisedIndex).toBe(eveIndex + 1);
     expect(compromisedIndex).toBe(SCENE1_STEPS.length - 1);
   });

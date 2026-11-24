@@ -82,16 +82,16 @@ describe('role identity presets', () => {
   it('each preset only uses values the UI can actually render', () => {
     for (const a of Object.values(presets)) {
       expect(SKIN_TONES).toContain(a.skinTone);
-      expect(HAIR_STYLES.map((h) => h.id)).toContain(a.hairStyle);
-      expect(OUTFITS.map((o) => o.id)).toContain(a.outfit);
-      expect(ACCESSORIES.map((x) => x.id)).toContain(a.accessory);
-      expect(BUILDS.map((b) => b.id)).toContain(a.build);
+      expect(HAIR_STYLES.map(h => h.id)).toContain(a.hairStyle);
+      expect(OUTFITS.map(o => o.id)).toContain(a.outfit);
+      expect(ACCESSORIES.map(x => x.id)).toContain(a.accessory);
+      expect(BUILDS.map(b => b.id)).toContain(a.build);
       expect(a.height).toBeGreaterThanOrEqual(0.92);
       expect(a.height).toBeLessThanOrEqual(1.08);
     }
   });
 
-  it('carries its own name — these are meant to be shown, unlike the player\'s own appearance', () => {
+  it("carries its own name — these are meant to be shown, unlike the player's own appearance", () => {
     expect(ALICE_APPEARANCE.nickname).toBe('Alice');
     expect(BOB_APPEARANCE.nickname).toBe('Bob');
     expect(EVE_APPEARANCE.nickname).toBe('Eve');
@@ -115,10 +115,10 @@ describe('randomAppearance', () => {
     for (let i = 0; i < 40; i++) {
       const a = randomAppearance();
       expect(SKIN_TONES).toContain(a.skinTone);
-      expect(HAIR_STYLES.map((h) => h.id)).toContain(a.hairStyle);
-      expect(OUTFITS.map((o) => o.id)).toContain(a.outfit);
-      expect(ACCESSORIES.map((x) => x.id)).toContain(a.accessory);
-      expect(BUILDS.map((b) => b.id)).toContain(a.build);
+      expect(HAIR_STYLES.map(h => h.id)).toContain(a.hairStyle);
+      expect(OUTFITS.map(o => o.id)).toContain(a.outfit);
+      expect(ACCESSORIES.map(x => x.id)).toContain(a.accessory);
+      expect(BUILDS.map(b => b.id)).toContain(a.build);
       expect(a.height).toBeGreaterThanOrEqual(0.92);
       expect(a.height).toBeLessThanOrEqual(1.08);
     }

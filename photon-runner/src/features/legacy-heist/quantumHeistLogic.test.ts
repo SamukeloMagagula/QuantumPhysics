@@ -31,29 +31,29 @@ function playing(): GameState {
   return { ...s, phase: 'play', killCooldown: 0 };
 }
 
-const crewOf = (s: GameState) => s.operatives.filter((o) => o.role === 'crew');
+const crewOf = (s: GameState) => s.operatives.filter(o => o.role === 'crew');
 
 describe('createGame', () => {
   it('seats six operatives with exactly one Eve', () => {
     for (let i = 0; i < 30; i++) {
       const s = createGame();
       expect(s.operatives).toHaveLength(CREW_SIZE);
-      expect(s.operatives.filter((o) => o.role === 'eve')).toHaveLength(1);
-      expect(s.operatives.every((o) => o.alive)).toBe(true);
+      expect(s.operatives.filter(o => o.role === 'eve')).toHaveLength(1);
+      expect(s.operatives.every(o => o.alive)).toBe(true);
     }
   });
 
   it('marks exactly one operative as you, and state.you points at them', () => {
     for (let i = 0; i < 30; i++) {
       const s = createGame();
-      const mine = s.operatives.filter((o) => o.isYou);
+      const mine = s.operatives.filter(o => o.isYou);
       expect(mine).toHaveLength(1);
       expect(s.you).toBe(mine[0]);
     }
   });
 
   it('can seat the player as Eve', () => {
-    expect(Array.from({ length: 80 }, () => createGame()).some((s) => s.you.role === 'eve')).toBe(true);
+    expect(Array.from({ length: 80 }, () => createGame()).some(s => s.you.role === 'eve')).toBe(true);
   });
 
   it('starts with a kill cooldown so Eve cannot open on a compromise', () => {
@@ -110,7 +110,7 @@ describe('compromise', () => {
     const s = playing();
     const victim = crewOf(s)[0];
     const after = compromise(s, victim.id, { x: 3, z: -4 });
-    expect(after.operatives.find((o) => o.id === victim.id)!.alive).toBe(false);
+    expect(after.operatives.find(o => o.id === victim.id)!.alive).toBe(false);
     expect(after.nodes).toHaveLength(1);
     expect(after.nodes[0]).toMatchObject({ id: victim.id, x: 3, z: -4, reported: false });
     expect(after.killCooldown).toBe(KILL_COOLDOWN);
@@ -203,7 +203,7 @@ describe('reporting and meetings', () => {
     for (const o of aliveOf(s)) s = castVote(s, o.id, target.id);
     s = resolveMeeting(s);
     expect(s.meeting!.result).toMatchObject({ ejected: target.id, wasEve: false });
-    expect(s.operatives.find((o) => o.id === target.id)!.alive).toBe(false);
+    expect(s.operatives.find(o => o.id === target.id)!.alive).toBe(false);
     expect(s.phase).toBe('play');
   });
 

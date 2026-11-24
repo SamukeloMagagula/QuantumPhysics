@@ -74,7 +74,9 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
           return;
         }
         const data = (await res.json()) as GameState;
-        if (!cancelled) { setState(data); }
+        if (!cancelled) {
+          setState(data);
+        }
       } catch {
         if (!cancelled) setError('Connection lost — retrying…');
       }
@@ -95,15 +97,21 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
       if (!response.ok) throw new Error('Could not start the game. Please try again.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Connection lost. Please try again.');
-    } finally { setSubmitting(false); }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const act = async (action: Record<string, unknown>) => {
     setSubmitting(true);
     setError(null);
-    try { setState(await postAction(code, action)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Connection lost. Your move was not confirmed; try again.'); }
-    finally { setSubmitting(false); }
+    try {
+      setState(await postAction(code, action));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection lost. Your move was not confirmed; try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (error && !state) {
@@ -130,18 +138,18 @@ export function QkdGameScreen({ code, onExit }: QkdGameScreenProps) {
     <div className="min-h-full px-4 py-8 md:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <Header state={state} onExit={onExit} />
-        {error && <p role="alert" className="text-sm text-[var(--warn)]">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-[var(--warn)]">
+            {error}
+          </p>
+        )}
         <Seats state={state} />
 
         {state.phase === 'lobby' && <LobbyPanel state={state} submitting={submitting} onStart={start} />}
-        {state.phase === 'alice_setup' && (
-          <AliceSetupPanel state={state} submitting={submitting} onSubmit={(n, s) => act({ n, s })} />
-        )}
+        {state.phase === 'alice_setup' && <AliceSetupPanel state={state} submitting={submitting} onSubmit={(n, s) => act({ n, s })} />}
         {state.phase === 'eve_move' && <EveMovePanel state={state} submitting={submitting} onSubmit={act} />}
         {state.phase === 'bob_decision' && <BobDecisionPanel state={state} submitting={submitting} onSubmit={act} />}
-        {state.phase === 'resolve' && (
-          <ResolvePanel state={state} submitting={submitting} onNext={() => act({ next: true })} />
-        )}
+        {state.phase === 'resolve' && <ResolvePanel state={state} submitting={submitting} onNext={() => act({ next: true })} />}
         {state.phase === 'accusation' && <AccusationPanel state={state} submitting={submitting} onSubmit={act} />}
         {state.phase === 'ended' && <EndedPanel state={state} onExit={onExit} />}
       </div>
@@ -160,10 +168,7 @@ function Header({ state, onExit }: { state: GameState; onExit: () => void }) {
     ended: 'Game over',
   };
   return (
-    <header
-      className="pb-4 mb-2 border-b flex items-start justify-between gap-4"
-      style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}
-    >
+    <header className="pb-4 mb-2 border-b flex items-start justify-between gap-4" style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}>
       <div className="min-w-0">
         <div className="label-mono mb-1.5">Quantum Intercept · room</div>
         <h1 className="h-section text-[22px] md:text-[26px] ink-1 font-mono tracking-[.12em]">{state.code}</h1>
@@ -188,7 +193,15 @@ function Seats({ state }: { state: GameState }) {
             className="grid place-items-center w-7 h-7 rounded-full"
             style={{ background: 'rgb(var(--glass-tint)/.14)', color: s.submitted ? 'var(--ok)' : 'var(--ink-3)' }}
           >
-            {s.role === 'alice' ? <Radio size={12} /> : s.role === 'bob' ? <ShieldCheck size={12} /> : s.role === 'eve' ? <Eye size={12} /> : <Crosshair size={12} />}
+            {s.role === 'alice' ? (
+              <Radio size={12} />
+            ) : s.role === 'bob' ? (
+              <ShieldCheck size={12} />
+            ) : s.role === 'eve' ? (
+              <Eye size={12} />
+            ) : (
+              <Crosshair size={12} />
+            )}
           </span>
           <div>
             <div className="font-semibold ink-1">{s.role ? s.role[0].toUpperCase() + s.role.slice(1) : s.codename}</div>
@@ -205,7 +218,9 @@ function Seats({ state }: { state: GameState }) {
 function LobbyPanel({ state, submitting, onStart }: { state: GameState; submitting: boolean; onStart: () => void }) {
   return (
     <div className="glass rounded-2xl p-5 text-center space-y-3">
-      <p className="text-sm ink-2">Waiting to start. Share code <span className="font-mono font-bold ink-1">{state.code}</span> for others to join.</p>
+      <p className="text-sm ink-2">
+        Waiting to start. Share code <span className="font-mono font-bold ink-1">{state.code}</span> for others to join.
+      </p>
       {state.yourRole && (
         <button onClick={onStart} disabled={submitting} className="btn btn-primary px-6 py-3 text-sm mx-auto">
           {submitting ? <Loader2 size={15} className="animate-spin" /> : <Radio size={15} />} Start game
@@ -235,14 +250,14 @@ function AliceSetupPanel({
           <span className="ink-3">Qubits sent (n)</span>
           <span className="font-mono ink-1">{n}</span>
         </div>
-        <input type="range" min={8} max={64} value={n} onChange={(e) => setN(Number(e.target.value))} className="w-full" />
+        <input type="range" min={8} max={64} value={n} onChange={e => setN(Number(e.target.value))} className="w-full" />
       </div>
       <div>
         <div className="flex justify-between text-xs mb-1.5">
           <span className="ink-3">Sample size (s) — checked for errors, not usable as key</span>
           <span className="font-mono ink-1">{s}</span>
         </div>
-        <input type="range" min={0} max={n} value={Math.min(s, n)} onChange={(e) => setS(Number(e.target.value))} className="w-full" />
+        <input type="range" min={0} max={n} value={Math.min(s, n)} onChange={e => setS(Number(e.target.value))} className="w-full" />
       </div>
       <button onClick={() => onSubmit(n, s)} disabled={submitting} className="btn btn-primary px-6 py-3 text-sm">
         {submitting ? <Loader2 size={15} className="animate-spin" /> : <Radio size={15} />} Send qubits
@@ -281,9 +296,12 @@ function EveMovePanel({
 
   return (
     <div className="glass rounded-2xl p-5 space-y-4">
-      <p className="text-sm ink-1 font-medium">Pick your method. Tapping/spoofing risks introducing errors Bob can detect; a pure botnet run stays invisible on the wire but only matters if it can crack the key in time.</p>
+      <p className="text-sm ink-1 font-medium">
+        Pick your method. Tapping/spoofing risks introducing errors Bob can detect; a pure botnet run stays invisible on the wire but only
+        matters if it can crack the key in time.
+      </p>
       <div className="seg w-fit">
-        {(['tap', 'spoof', 'bruteforce'] as const).map((m) => (
+        {(['tap', 'spoof', 'bruteforce'] as const).map(m => (
           <button key={m} data-on={method === m} onClick={() => setMethod(m)} className="px-3 py-1.5 text-xs font-semibold capitalize">
             {m === 'bruteforce' ? 'Brute-force' : m}
           </button>
@@ -295,18 +313,30 @@ function EveMovePanel({
             <span className="ink-3">Qubits to tap (from the start of the stream)</span>
             <span className="font-mono ink-1">{tapCount}</span>
           </div>
-          <input type="range" min={1} max={32} value={tapCount} onChange={(e) => setTapCount(Number(e.target.value))} className="w-full" />
+          <input type="range" min={1} max={32} value={tapCount} onChange={e => setTapCount(Number(e.target.value))} className="w-full" />
         </div>
       )}
       {method === 'spoof' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="text-xs ink-3 mb-1.5">Start index</div>
-            <input type="number" min={0} value={spoofStart} onChange={(e) => setSpoofStart(Number(e.target.value))} className="w-full panel rounded-xl px-3 py-2 text-sm ink-1" />
+            <input
+              type="number"
+              min={0}
+              value={spoofStart}
+              onChange={e => setSpoofStart(Number(e.target.value))}
+              className="w-full panel rounded-xl px-3 py-2 text-sm ink-1"
+            />
           </div>
           <div>
             <div className="text-xs ink-3 mb-1.5">Length</div>
-            <input type="number" min={1} value={spoofLen} onChange={(e) => setSpoofLen(Number(e.target.value))} className="w-full panel rounded-xl px-3 py-2 text-sm ink-1" />
+            <input
+              type="number"
+              min={1}
+              value={spoofLen}
+              onChange={e => setSpoofLen(Number(e.target.value))}
+              className="w-full panel rounded-xl px-3 py-2 text-sm ink-1"
+            />
           </div>
         </div>
       )}
@@ -315,7 +345,7 @@ function EveMovePanel({
           <span className="ink-3">Botnet workers (crack the final key within the round)</span>
           <span className="font-mono ink-1">{workers}</span>
         </div>
-        <input type="range" min={0} max={100} value={workers} onChange={(e) => setWorkers(Number(e.target.value))} className="w-full" />
+        <input type="range" min={0} max={100} value={workers} onChange={e => setWorkers(Number(e.target.value))} className="w-full" />
       </div>
       <button onClick={submit} disabled={submitting} className="btn btn-primary px-6 py-3 text-sm">
         {submitting ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />} Commit move
@@ -377,7 +407,7 @@ function ResolvePanel({ state, submitting, onNext }: { state: GameState; submitt
         </p>
       )}
       <div className="grid grid-cols-3 gap-2 text-center">
-        {(['alice', 'bob', 'eve'] as const).map((role) => (
+        {(['alice', 'bob', 'eve'] as const).map(role => (
           <div key={role} className="panel rounded-xl py-2.5">
             <div className="text-[10px] label-mono">{role}</div>
             <div className="text-lg font-mono font-bold ink-1">
@@ -414,12 +444,12 @@ function AccusationPanel({
     );
   }
   if (!state.youAreUpNow) return <WaitingPanel label="Vote submitted — waiting on the other crewmate…" />;
-  const candidates = state.seats.filter((s) => s.codename);
+  const candidates = state.seats.filter(s => s.codename);
   return (
     <div className="glass rounded-2xl p-5 space-y-4">
       <p className="text-sm ink-1 font-medium">Rounds are over. Who was Eve? You and your co-defender both need to name her correctly.</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {candidates.map((c) => (
+        {candidates.map(c => (
           <button
             key={c.codename}
             onClick={() => onSubmit({ accuse: c.codename })}
@@ -440,7 +470,10 @@ function EndedPanel({ state, onExit }: { state: GameState; onExit: () => void })
   return (
     <div className="space-y-4">
       {res && (
-        <div className="a-pop glass rounded-2xl p-5 text-center space-y-2" style={{ borderColor: res.crewWon ? 'var(--ok)' : 'var(--danger)' }}>
+        <div
+          className="a-pop glass rounded-2xl p-5 text-center space-y-2"
+          style={{ borderColor: res.crewWon ? 'var(--ok)' : 'var(--danger)' }}
+        >
           <Award size={24} className="mx-auto" style={{ color: res.crewWon ? 'var(--ok)' : 'var(--danger)' }} />
           <h2 className="h-section text-2xl ink-1">{res.crewWon ? 'The crew caught Eve!' : 'Eve got away.'}</h2>
           {reveal && (
@@ -458,7 +491,7 @@ function EndedPanel({ state, onExit }: { state: GameState; onExit: () => void })
           <div className="space-y-2">
             {[...state.scores]
               .sort((a, b) => b.score - a.score)
-              .map((s) => (
+              .map(s => (
                 <div key={s.role} className="flex items-center justify-between text-sm">
                   <span className="ink-1">
                     {s.name} <span className="ink-4 text-xs">({s.role})</span>

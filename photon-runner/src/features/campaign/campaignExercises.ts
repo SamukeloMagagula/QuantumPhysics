@@ -158,7 +158,7 @@ export function checkOrder(ex: OrderExercise, arrangement: string[]): OrderResul
     if (a > b) return { ok: false, message: c.message, misplaced: [c.before, c.after] };
   }
 
-  const expected = ex.events.map((e) => e.id);
+  const expected = ex.events.map(e => e.id);
   const misplaced = arrangement.filter((id, i) => expected[i] !== id);
   return { ok: misplaced.length === 0, misplaced };
 }
@@ -254,9 +254,9 @@ export interface PhishResult {
 }
 
 export function checkPhish(ex: PhishExercise, foundTells: string[], action: string): PhishResult {
-  const genuine = ex.tells.filter((t) => t.suspicious).map((t) => t.id);
-  const found = foundTells.filter((id) => genuine.includes(id));
-  const chosen = ex.actions.find((a) => a.id === action);
+  const genuine = ex.tells.filter(t => t.suspicious).map(t => t.id);
+  const found = foundTells.filter(id => genuine.includes(id));
+  const chosen = ex.actions.find(a => a.id === action);
   if (!chosen) return { ok: false, message: 'No action taken.' };
 
   if (action !== ex.correctAction) return { ok: false, message: chosen.outcome };
@@ -273,10 +273,8 @@ export function checkPhish(ex: PhishExercise, foundTells: string[], action: stri
 /** True when the exercise has been satisfied and the beat may advance. */
 export function isSolved(ex: Exercise, answer: unknown): boolean {
   if (ex.kind === 'order') return Array.isArray(answer) && checkOrder(ex, answer as string[]).ok;
-  if (ex.kind === 'classify')
-    return !!answer && typeof answer === 'object' && checkClassify(ex, answer as Record<string, string>).ok;
-  if (ex.kind === 'rack')
-    return !!answer && typeof answer === 'object' && checkRack(ex, answer as Record<string, string>).ok;
+  if (ex.kind === 'classify') return !!answer && typeof answer === 'object' && checkClassify(ex, answer as Record<string, string>).ok;
+  if (ex.kind === 'rack') return !!answer && typeof answer === 'object' && checkRack(ex, answer as Record<string, string>).ok;
   if (ex.kind === 'phish') {
     const a = answer as { tells?: string[]; action?: string } | undefined;
     return !!a && checkPhish(ex, a.tells ?? [], a.action ?? '').ok;

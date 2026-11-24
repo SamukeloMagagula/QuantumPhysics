@@ -53,7 +53,7 @@ const q = (
   answer: string,
   points: number,
   hint: string,
-  overrides: Partial<Pick<RoomQuestion, 'caseInsensitive' | 'trim'>> = {}
+  overrides: Partial<Pick<RoomQuestion, 'caseInsensitive' | 'trim'>> = {},
 ): RoomQuestion => ({
   id,
   prompt,
@@ -107,7 +107,7 @@ Decrypt it by shifting each letter back by 3, then answer the questions.`,
             'exact',
             'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9',
             15,
-            'Shift each letter back by three positions.'
+            'Shift each letter back by three positions.',
           ),
           q(
             'key',
@@ -115,7 +115,7 @@ Decrypt it by shifting each letter back by 3, then answer the questions.`,
             'number',
             'b7a56873cd771f2c446d369b649430b65a756ba278ff97ec81bb6f55b2e73569',
             10,
-            'There are 26 letters and a shift of 0 does nothing, so how many non-zero shifts remain?'
+            'There are 26 letters and a shift of 0 does nothing, so how many non-zero shifts remain?',
           ),
         ],
       },
@@ -155,7 +155,7 @@ Esp dpncpe qwlr td BFLYEFX
             'exact',
             '8fb7cf7a46995c95da6ad4cca750efb66946b771aca070d5948ea80ca33237b4',
             20,
-            'Read down the brute-force list for the line that becomes English.'
+            'Read down the brute-force list for the line that becomes English.',
           ),
         ],
       },
@@ -198,7 +198,7 @@ hqllvgkr ol tfzkghn.
             'exact',
             '67671a2f53dd910a8b35840edb6a0a1e751ae5532178ca7f025b823eee317992',
             30,
-            "Map the most common cipher letter to 'e', then work outwards. The password is one word."
+            "Map the most common cipher letter to 'e', then work outwards. The password is one word.",
           ),
         ],
       },
@@ -240,7 +240,7 @@ possibilities. Try all 256 keys and recover the flag:
             'flag',
             '0d857849630d3e54c823c37aff13c235101a235f142c5f450bf6532edd889955',
             35,
-            'Try all 256 keys and read the line that looks like flag{...}.'
+            'Try all 256 keys and read the line that looks like flag{...}.',
           ),
         ],
       },
@@ -259,18 +259,18 @@ export const PATHS: LearningPath[] = [
 ];
 
 export function getRoom(id: string): Room | undefined {
-  return ROOMS.find((r) => r.id === id);
+  return ROOMS.find(r => r.id === id);
 }
 
 export function getPath(id: string): LearningPath | undefined {
-  return PATHS.find((p) => p.id === id);
+  return PATHS.find(p => p.id === id);
 }
 
 export function findQuestion(room: Room, taskId: string, questionId: string): RoomQuestion | undefined {
-  const task = room.tasks.find((t) => t.id === taskId);
-  return task?.questions.find((qq) => qq.id === questionId);
+  const task = room.tasks.find(t => t.id === taskId);
+  return task?.questions.find(qq => qq.id === questionId);
 }
 
 export function roomQuestionIds(room: Room): string[] {
-  return room.tasks.flatMap((t) => t.questions.map((qq) => qq.id));
+  return room.tasks.flatMap(t => t.questions.map(qq => qq.id));
 }

@@ -1,34 +1,72 @@
 # Quantum Lab
 
 A browser-based platform for teaching quantum key distribution — by attacking
-it. Entirely TypeScript: a walkable headquarters wrapped around a
-terminal-driven **QKD hacking simulation**, plus a narrative campaign,
-hardware-diagnosis labs, and a security-labs section with end-of-section
-tests.
+it. Entirely TypeScript: a shared, walkable campus wrapped around a
+terminal-driven **QKD hacking simulation**, plus hardware-diagnosis labs, a
+security-labs section with end-of-section tests, and live multiplayer on the
+campus floor.
 
 The central idea is that BB84's guarantee is best understood from the
 attacker's side. You play Eve on a fibre link: scan the target, work out
 which countermeasure it is missing, and build an attack out of what it
 cannot see — then read the trail you left and learn why it gave you away.
 
-## Phantom Q Headquarters — the main game
+## The campus — the main game
 
-The playable scene is the client's **Page 8** headquarters illustration,
-driven by their image-to-map pipeline rather than a 3D engine. Their handoff
-is explicit about this:
+Home is a walkable map of the Phantom Q building: operations, the crypto lab,
+comms, the SOC, engineering, the quantum wing, the bullpen and the corridors
+between them, drawn over one illustration (`public/pq/discovery-building-v1.png`).
+Click to walk there, or use WASD / the arrow keys / the on-screen joystick.
+Walking into a room for the first time counts towards an **explorer rank**,
+shown as a medal in the HUD, with a rank-up card when you earn the next one.
 
-> The Page 8 image is the visual world. Demarcation supplies spatial data.
-> Projective mapping supplies floor movement. Do not restart this scene in
-> Unity or Blender.
+Every station is reached by walking to it. Stand near something and press
+`E` (or tap it) to open the activity in an overlay; `Esc` closes it and leaves
+you where you were.
 
-So the rendered artwork *is* the set. What the game holds is the spatial
-intelligence traced over it — a walkable floor polygon, tight furniture
-footprints, and interaction anchors, all in normalised coordinates so the
-canvas can be any size. A sprite operator walks the floor feet-anchored,
-and cropped furniture layers are re-drawn over him when he steps behind
-them, which is what gives a flat image real depth.
+### Desk computers
 
-Four stations in the room:
+Fourteen chairs across the building have a computer on the desk. Walk up to a
+free one and press `E` to sit; the screen opens a small desktop whose programs
+depend on the room — the attack console in comms, the labs in the crypto lab,
+and so on — plus a list of who is online and quick chat. Other players see you
+seated, and a taken chair cannot be sat in twice.
+
+### The floor is shared
+
+Everyone on the campus is in the same building — no lobby, no room code. You
+see other players walk, with their name tag and the look they chose in the
+character creator, and they appear in a People panel.
+
+Talking is **quick chat** only: twelve preset phrases ("Hi!", "Follow me",
+"Need help?" …) shown as speech bubbles. That is deliberate — the game runs
+in classrooms, and preset phrases need no moderation.
+
+Positions travel over a WebSocket (`/api/floor/ws`) at about 20 updates a
+second each way. If the socket cannot open — a proxy that blocks it, say —
+the client falls back to an HTTP heartbeat and keeps retrying the socket, so
+the floor never depends on it. Presence is held in memory, not the database:
+a position with a four-second shelf life has no business in SQLite, and with
+no API running the campus simply plays single-player.
+
+Activities themselves stay per-player. You see each other move; your attack
+session, labs and scores are your own.
+
+### Progress follows you
+
+Explored rooms, story progress, labs, tests and your look are mirrored to the
+server for your guest identity, merged so nothing earned is ever lost. The
+**Save** panel on the map gives an 8-character save code; entering it in
+another browser or device brings that progress across.
+
+### Sound
+
+Short UI and game sounds from Kenney's CC0 packs (`public/assets/kenney/`),
+quiet by default and mutable from the top bar. Sound never carries
+information the screen does not, so muting loses nothing. Each sound has an
+`.mp3` copy for browsers without Ogg Vorbis.
+
+The main stations on the campus:
 
 ### Communications console — the attack terminal
 
@@ -67,97 +105,13 @@ Accuse wrongly after a *quiet* attack and the game explains why the error
 rate pointed nowhere — the lesson being that decoy states and detector
 monitoring exist for exactly the attacks QBER cannot see.
 
-### Workstation 04 — the campaign
+### Workstation 04 campaign (not wired in)
 
-The client's persistent object: the same workstation for the whole game,
-because it becomes part of the evidence chain. It runs the **Phantom Q
-campaign**, structured as seven stages — the Prologue plus Incidents 01 to
-06. Clear a stage and the next unlocks; the rest stay visible but shut,
-mirroring the clearance mechanic the bible asks for. The Prologue and
-Incident 01 are implemented; the remaining five are specified and labelled
-`NOT YET BUILT` rather than hidden.
-
-Each stage is timed against a par time, and the best clear time is kept.
-The clock counts **up**, and going over par never fails you — the campaign
-teaches "verify before you escalate", and a countdown that punished
-careful work would undercut the whole lesson. Par is something to beat on
-a replay, not a pass mark.
-
-The Prologue is deliberately not a security lesson. You register, create a
-training credential (fictional — the game says so in as many words), take
-part in Eve's *authorised* credential check, log in to Workstation 04, and
-send Alice's files to Bob. Two go fine. The third does not arrive, then
-arrives altered, and a credential event appears that nothing authorised
-explains. You escalate PQ-001 knowing something failed and not who did it.
-
-Two of the bible's rules are enforced in code rather than left to prose,
-and both are covered by tests:
-
-- **Eve is not the villain.** She is authorised security support. Accusing
-  her returns `CLAIM NOT SUPPORTED` with the evidential position spelled
-  out — not a wrong-answer buzzer — and never dead-ends the story.
-- **The Prologue explains nothing.** No CIA vocabulary, no encryption, no
-  attacker, no method. A test asserts none of those words appear in it.
-  Incident 01 then names what you already lived through.
-
-Poor decisions produce believable consequences rather than popups: retry
-without reconfirming the source and the transfer still happens — you just
-never get Alice's confirmation into evidence.
-
-**You play the reasoning rather than read it.** Pick the right file off
-Alice's USB and send it. Rebuild the PQ-001 timeline from shuffled events —
-put Bob's "nothing received" before the transfer and it answers `SEQUENCE
-CONFLICT — Bob cannot report a missing transfer before the transfer
-occurs`, not "wrong". Sort statements into FACT / ASSUMPTION / UNKNOWN, and
-build the CIA board, where marking confidentiality *affected* is rejected
-because no evidence establishes anyone read the file — it is in question,
-which is as far as the evidence goes. Every misplacement explains where the
-statement belongs and why, because the why is the lesson.
-
-Not all of it is desk work. Some tasks are physical, and the campaign says
-so: the capture chain is rebuilt at the **equipment row**, which means
-standing up, walking across the floor and working there. The desk shows the
-briefing and withholds the task until you are at the hardware, and the stage
-clock keeps running while you walk, because the walk is part of the run. A
-run therefore lives outside the panel — standing up does not destroy it, and
-sitting down anywhere resumes exactly where you left off.
-
-Two of the hands-on tasks are worth calling out:
-
-- **Seat the capture chain.** Pick a module up, carry it, seat it in a bay.
-  Put the splitter where the tap goes and it explains the chain rather than
-  buzzing: nothing downstream sees anything until the line lands on the tap.
-- **Handle a phishing attempt.** A message arrives from a lookalike domain
-  claiming to be Phantom Q Security and asking for your training credential.
-  Taking the right action on instinct is refused — a report you cannot
-  describe is one that gets set aside — so you have to find what is actually
-  wrong with it first. Two of its five details are deliberately not tells.
-  Note who did *not* send it: the bible fixes Eve as authorised security
-  support, so the message only claims to be security, and it is defeated with
-  the habit the Prologue taught — authorised activity is logged, so check the
-  log rather than the letterhead.
-
-Evidence carries between stages: an investigation opens with the artefacts
-already earned, never an empty board.
-
-The hardware bench (below) is reachable from this same workstation.
-
-### The floor is shared
-
-Walking into headquarters puts you in the same room as anyone else who is
-there — no lobby, no room code. You see each other's name tag and movement,
-with the same depth ordering as the local player, so someone stepping behind
-a desk is occluded by it correctly.
-
-Presence is deliberately ephemeral and held in memory rather than the
-database: a position with a four-second shelf life has no business being
-written to SQLite several times a second, and a position from a session that
-ended is worse than none. It is also never a dependency — with no API
-running, the link reports nobody, backs off, and the scene plays exactly as
-it does single-player.
-
-Campaign runs remain per-player. You see each other move; the stage, clock
-and case board are still your own.
+`src/features/campaign/` also holds a seven-stage Phantom Q campaign for a
+single persistent workstation — story, timed stages, evidence-board exercises
+and hands-on tasks, all covered by tests — that the campus does not currently
+open. Only its two Quantum Breach scenes are reachable (from the home hub).
+Wiring the rest to a campus computer is a product decision, not a code fix.
 
 ### Hardware bench
 
@@ -174,7 +128,6 @@ is an optics fault — Eve cannot damage one basis and leave the other clean.
 
 ## Also here
 
-- **Research Campus** — a walkable exterior hub linking the other modes.
 - **Quantum Breach** — a single-player campaign: symmetric encryption
   (until Eve intercepts the key), then asymmetric (until a man-in-the-middle
   twist shows why authentication still matters).
@@ -252,52 +205,48 @@ them separately: `npm run dev:client` / `npm run dev:server`.
 
 ## Graphics
 
-The headquarters scene is 2D and resolution-independent: it letterboxes to
-the artwork's aspect and draws at device pixel ratio, so it stays sharp on
-any display without a GPU budget. A shallow parallax camera gives it depth
-without touching the art — the frame is overscanned a couple of percent and
-panned against the player with a slight dolly front to back. The furniture
-layers deliberately do *not* pan further than the background: they are crops
-of the same illustration, so offsetting them would ghost them against the
-furniture already painted in, and exact registration is worth more than the
-extra depth cue.
+The campus is an SVG over one illustration: it scales to any screen, zooms up
+to 2.5×, and draws players, furniture occlusion and labels as memoised layers
+so other people walking around do not re-render the map. Tinted icons use
+CSS masks over Kenney's game icons.
 
 The whole app is theme-aware. Every surface, including the labs, is drawn
 from one set of tokens, so the light/dark toggle in the top bar covers all of
 it.
 
-The remaining 3D modes (Research Campus, Quantum 3D Lab, and the retired
-facility) share a four-tier quality setting — Balanced, High, Ultra and 4K —
-where the 4K tier renders at 4× supersampling with 2k procedural textures
-and 4k shadow maps.
+The remaining 3D modes (Quantum 3D Lab and the 3D facility) share a
+four-tier quality setting — Balanced, High, Ultra and 4K.
 
 ## What's here
 
 Everything lives under `photon-runner/`. Tests sit beside the modules they cover.
 
 - **`src/server/`** — Express API, SQLite schema and storage, guest identity,
-  production configuration, room grading and multiplayer services. The entry
-  point is `serverIndex.ts`; `serverConfig.ts` validates startup settings.
-- **`src/features/campaign/`** — campaign story, stages, exercises, persistence,
-  workstation panels and Quantum Breach scenes. Rules remain independent of React.
-- **`src/features/quantum/`** — the quantum simulator screen, its controller
-  hook (`useQuantumPhenomena.ts`) and Eve's report panels (`EveReports.tsx`).
-- **`src/features/legacy-heist/`** and **`src/server/legacy/`** — the retired
-  social-deduction mode and its opt-in API. It remains covered by tests.
-- **`src/engine/`** — reusable state, scene, asset and interaction registries.
-- **`src/ui/`** — shared page components.
-- **`src/App.tsx`** — navigation and lazy loading for individual screens.
-  The home screen does not eagerly load the WebGL engine or its font builder.
-- **`src/pq*.ts`**, **`PhantomQScene.tsx`** — headquarters artwork,
-  geometry, NPCs and rendering. The facility entrance is the starting room;
-  reception is part of that illustration, not a separate active wing.
+  progress sync and save codes (`progressRoutes.ts`), floor presence over HTTP
+  (`floorRoutes.ts`) and WebSocket (`floorSocket.ts`), rooms and Quantum
+  Intercept. The entry point is `serverIndex.ts`; `serverConfig.ts` validates
+  startup settings.
+- **`src/WorldMap.tsx`** and its hooks — the campus: `useCharacterMovement`,
+  `useMapZoom`, `useCampusPresence`, `useExploration`, with `MapBackdrop`,
+  `RemotePlayers`, `WorldHud` and `WorldCharacter` as render layers.
+- **`src/worldComputers.ts`**, **`WorldComputer.tsx`** — desk computers and
+  their desktop.
+- **`src/floorPresence.ts`**, **`floorClient.ts`** — the shared presence and
+  quick-chat rules (used by both server transports) and the client link.
+- **`src/progressSync.ts`**, **`progressClient.ts`** — progress merge rules
+  and the client side of sync and save codes.
+- **`src/sound.ts`** — sound effects and mute.
+- **`src/features/campaign/`** — Quantum Breach scenes and the unwired
+  workstation campaign (above).
+- **`src/features/quantum/`** — the quantum simulator screen.
+- **`src/features/legacy-heist/`** and **`src/server/legacy/`** — rules and
+  opt-in API of the retired social-deduction mode, kept under test.
 - **`src/qkdAttack*.ts`**, **`qkdForensics.ts`**, **`qkdEngine.ts`** —
   attack simulation, evidence and shared BB84 rules.
 - **`src/lab*.ts`**, individual challenge modules and lab screens — security
-  exercises, section tests and browser-local progress.
-- **`src/GameEngine.ts`**, **`scene*.ts`**, **`postFx.ts`** — 3D rendering,
-  procedural scenes, quality settings and post-processing.
-- **`public/pq/`** — facility and operations artwork, depth layers and sprites.
+  exercises, section tests and progress.
+- **`public/pq/`** — building artwork. **`public/assets/kenney/`** — CC0
+  sounds and icons (see its `CREDITS.md`).
 - **`public/fonts/`** — bundled Inter fonts (SIL OFL).
 - **`data/`** — SQLite database, created on first run and gitignored.
 
@@ -325,16 +274,21 @@ unseated guests are rejected before its state changes.
 ```
 cd photon-runner
 npm run typecheck
+npm run lint
 npm test
+npm run test:e2e
 npm run build
 ```
 
-Run the suite for the current test count. The pure logic — attack simulation, forensics, labs and their
-tests, the DDoS balance, scene map and walk rules, floor presence, BB84
-engine — is covered directly; the rendering is verified by running the app
-rather than by unit test.
+`npm test` runs the Vitest suite: the pure logic — attack simulation,
+forensics, labs, the DDoS balance, map and walk rules, floor presence,
+progress merging — plus API and WebSocket tests against an in-memory
+database. `npm run test:e2e` drives the real app in Chromium with Playwright
+(two players on the floor, sitting at a computer, save codes); run
+`npx playwright install chromium` once first. `npm run format` applies
+Prettier.
 
 ## Tech
 
-TypeScript · React · Three.js · Vite · Express · better-sqlite3 · Vitest ·
-troika-three-text
+TypeScript · React · Three.js · Vite · Express · ws · better-sqlite3 · Vitest ·
+Playwright

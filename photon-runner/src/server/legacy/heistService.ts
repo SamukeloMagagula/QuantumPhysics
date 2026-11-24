@@ -34,7 +34,7 @@ import {
 } from '../../features/legacy-heist/quantumHeistLogic';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
-const MAP_IDS = new Set(MAPS.map((m) => m.id));
+const MAP_IDS = new Set(MAPS.map(m => m.id));
 
 export class HeistError extends Error {
   status: number;
@@ -95,15 +95,11 @@ function getSeats(db: Db, gameId: number): SeatRow[] {
 }
 
 function seatForUser(db: Db, gameId: number, userId: number): SeatRow | undefined {
-  return db.prepare('SELECT * FROM heist_game_seats WHERE game_id = ? AND user_id = ?').get(gameId, userId) as
-    | SeatRow
-    | undefined;
+  return db.prepare('SELECT * FROM heist_game_seats WHERE game_id = ? AND user_id = ?').get(gameId, userId) as SeatRow | undefined;
 }
 
 function seatAt(db: Db, gameId: number, seatIndex: number): SeatRow | undefined {
-  return db.prepare('SELECT * FROM heist_game_seats WHERE game_id = ? AND seat_index = ?').get(gameId, seatIndex) as
-    | SeatRow
-    | undefined;
+  return db.prepare('SELECT * FROM heist_game_seats WHERE game_id = ? AND seat_index = ?').get(gameId, seatIndex) as SeatRow | undefined;
 }
 
 function state(g: GameRow): GameState {
@@ -111,10 +107,7 @@ function state(g: GameRow): GameState {
 }
 
 function setState(db: Db, gameId: number, s: GameState): void {
-  db.prepare('UPDATE heist_games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-    JSON.stringify(s),
-    gameId
-  );
+  db.prepare('UPDATE heist_games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(s), gameId);
 }
 
 export interface RoomSummary {
@@ -135,11 +128,11 @@ export function createRoom(db: Db, user: UserRow, mapId: string): RoomSummary {
   codenames.forEach((codename, seatIndex) => {
     if (seatIndex === 0) {
       db.prepare(
-        "INSERT INTO heist_game_seats (game_id, seat_index, codename, kind, user_id, display_name) VALUES (?, ?, ?, 'human', ?, ?)"
+        "INSERT INTO heist_game_seats (game_id, seat_index, codename, kind, user_id, display_name) VALUES (?, ?, ?, 'human', ?, ?)",
       ).run(gid, seatIndex, codename, user.id, user.display_name);
     } else {
       db.prepare(
-        "INSERT INTO heist_game_seats (game_id, seat_index, codename, kind, display_name) VALUES (?, ?, ?, 'computer', 'Computer')"
+        "INSERT INTO heist_game_seats (game_id, seat_index, codename, kind, display_name) VALUES (?, ?, ?, 'computer', 'Computer')",
       ).run(gid, seatIndex, codename);
     }
   });
@@ -151,13 +144,13 @@ export function joinRoom(db: Db, code: string, user: UserRow): RoomSummary {
   if (g.phase !== 'lobby') throw new HeistError('room already started', 409);
   if (seatForUser(db, g.id, user.id)) throw new HeistError('already seated in this room', 409);
   const seats = getSeats(db, g.id);
-  const open = seats.find((s) => s.kind === 'computer' && s.user_id === null);
+  const open = seats.find(s => s.kind === 'computer' && s.user_id === null);
   if (!open) throw new HeistError('room is full', 409);
   db.prepare("UPDATE heist_game_seats SET kind = 'human', user_id = ?, display_name = ? WHERE game_id = ? AND seat_index = ?").run(
     user.id,
     user.display_name,
     g.id,
-    open.seat_index
+    open.seat_index,
   );
   return { code: g.code, mapId: g.map_id, seatIndex: open.seat_index, codename: open.codename };
 }
@@ -188,7 +181,7 @@ export function startRoom(db: Db, code: string, user: UserRow): void {
   });
   db.prepare("UPDATE heist_games SET phase = 'play', state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
     JSON.stringify(initial),
-    g.id
+    g.id,
   );
 }
 
@@ -235,7 +228,7 @@ export function getState(db: Db, code: string, user: UserRow): RoomStateView {
   const mySeat = seatForUser(db, g.id, user.id);
   const isHost = g.host_user_id === user.id;
 
-  const seatViews: SeatView[] = seats.map((s) => ({
+  const seatViews: SeatView[] = seats.map(s => ({
     seatIndex: s.seat_index,
     codename: s.codename,
     kind: s.kind,
@@ -270,12 +263,12 @@ export function getState(db: Db, code: string, user: UserRow): RoomStateView {
   if (g.phase === 'lobby' || !mySeat) return base;
 
   const s = state(g);
-  const me = s.operatives.find((o) => o.id === mySeat.codename);
+  const me = s.operatives.find(o => o.id === mySeat.codename);
   if (!me) return base;
 
   base.you = { codename: me.id, role: me.role, alive: me.alive };
-  base.seats = seatViews.map((sv) => {
-    const op = s.operatives.find((o) => o.id === sv.codename);
+  base.seats = seatViews.map(sv => {
+    const op = s.operatives.find(o => o.id === sv.codename);
     return { ...sv, alive: op?.alive ?? sv.alive };
   });
   base.keyProgress = s.keyProgress;
@@ -283,7 +276,12 @@ export function getState(db: Db, code: string, user: UserRow): RoomStateView {
   base.killCooldown = s.killCooldown;
   base.canKillNow = me.role === 'eve' && me.alive && s.phase === 'play' && s.killCooldown <= 0;
   if (s.crisis) {
-    base.crisis = { kind: s.crisis.kind, secondsLeft: Math.max(0, Math.ceil(s.crisis.secondsLeft)), held: s.crisis.held.length, required: s.crisis.required.length };
+    base.crisis = {
+      kind: s.crisis.kind,
+      secondsLeft: Math.max(0, Math.ceil(s.crisis.secondsLeft)),
+      held: s.crisis.held.length,
+      required: s.crisis.required.length,
+    };
   }
   if (s.meeting) {
     base.meeting = {
@@ -307,13 +305,13 @@ export function updatePosition(
   db: Db,
   code: string,
   user: UserRow,
-  updates: { seatIndex: number; x: number; z: number; facing: number; walking: boolean }[]
+  updates: { seatIndex: number; x: number; z: number; facing: number; walking: boolean }[],
 ): void {
   const g = getGame(db, code);
   const mySeat = seatForUser(db, g.id, user.id);
   const isHost = g.host_user_id === user.id;
   const stmt = db.prepare(
-    'UPDATE heist_game_seats SET x = ?, z = ?, facing = ?, walking = ?, last_seen = CURRENT_TIMESTAMP WHERE game_id = ? AND seat_index = ?'
+    'UPDATE heist_game_seats SET x = ?, z = ?, facing = ?, walking = ?, last_seen = CURRENT_TIMESTAMP WHERE game_id = ? AND seat_index = ?',
   );
   for (const u of updates) {
     const seat = seatAt(db, g.id, u.seatIndex);
@@ -429,5 +427,5 @@ export function pullSignals(db: Db, code: string, user: UserRow): { from: number
 export function aliveCodenames(db: Db, code: string): string[] {
   const g = getGame(db, code);
   if (g.phase === 'lobby') return [];
-  return aliveOf(state(g)).map((o) => o.id);
+  return aliveOf(state(g)).map(o => o.id);
 }

@@ -30,8 +30,12 @@ export function xorEncrypt(text: string, key: string): string {
 
 export function xorDecrypt(hex: string, key: string): string {
   if (!key) return '';
-  const bytes = hex.trim().split(/\s+/).filter(Boolean).map((h) => parseInt(h, 16));
-  if (bytes.length === 0 || bytes.some((b) => Number.isNaN(b))) return '';
+  const bytes = hex
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(h => parseInt(h, 16));
+  if (bytes.length === 0 || bytes.some(b => Number.isNaN(b))) return '';
   const k = encoder.encode(key);
   return decoder.decode(new Uint8Array(bytes.map((v, i) => v ^ k[i % k.length])));
 }
@@ -75,15 +79,20 @@ const lab: Lab = {
 
     const paintWire = (payload: string, readable: boolean) => {
       wire.replaceChildren(
-        ...HOPS.map((h) =>
+        ...HOPS.map(h =>
           el(
             'div',
             { class: CARD },
-            el('div', { class: 'flex items-center justify-between gap-3' }, el('strong', { class: ACCENT_TEXT }, h.label), el('span', { class: readable ? WARN_TEXT : OK_TEXT }, readable ? 'can read this' : 'carries noise')),
+            el(
+              'div',
+              { class: 'flex items-center justify-between gap-3' },
+              el('strong', { class: ACCENT_TEXT }, h.label),
+              el('span', { class: readable ? WARN_TEXT : OK_TEXT }, readable ? 'can read this' : 'carries noise'),
+            ),
             el('div', { class: MUTED }, h.note),
-            el('div', { class: 'break-all mt-1' }, payload)
-          )
-        )
+            el('div', { class: 'break-all mt-1' }, payload),
+          ),
+        ),
       );
     };
 
@@ -96,8 +105,8 @@ const lab: Lab = {
           { class: MUTED },
           readable
             ? 'She did not have to break anything. She only had to be on the path.'
-            : 'She is still on the path and still capturing. Without the key it buys her nothing.'
-        )
+            : 'She is still on the path and still capturing. Without the key it buys her nothing.',
+        ),
       );
     };
 
@@ -179,7 +188,7 @@ const lab: Lab = {
       bobKey,
       el('div', { class: 'flex gap-2 flex-wrap mt-2' }, decrypt),
       bobOut,
-      status
+      status,
     );
   },
   explain() {

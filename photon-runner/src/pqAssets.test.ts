@@ -4,16 +4,20 @@ import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { ROOMS } from './pqRooms';
 import { LAYER_FILES } from './pqScene';
+import { WORLD_ART } from './worldLayout';
 
 it('ships all referenced assets and accounts for every project illustration', () => {
   const publicDir = resolve('public');
   const sources = new Set([
-    ...ROOMS.flatMap(room => room.art.kind === 'image' ? [room.art.src] : []),
+    ...ROOMS.flatMap(room => (room.art.kind === 'image' ? [room.art.src] : [])),
     ...ROOMS.flatMap(room => (room.imageProps ?? []).map(prop => prop.src)),
     ...Object.values(LAYER_FILES).map(file => `/pq/layers/${file}`),
-    '/pq/operator-idle.png', '/pq/operator-idle-left.png', '/pq/operator-walk.png',
+    '/pq/operator-idle.png',
+    '/pq/operator-idle-left.png',
+    '/pq/operator-walk.png',
     '/pq/rooms/door-states.png',
     '/pq/access-card-comic.png',
+    WORLD_ART,
   ]);
   const hash = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex');
   const used = new Set([...sources].map(src => hash(resolve(publicDir, '.' + src))));

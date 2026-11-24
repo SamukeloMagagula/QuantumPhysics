@@ -1,5 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectFloor } from './floorClient';
+
+// These tests drive the HTTP transport; the socket has its own tests below.
+beforeEach(() => vi.stubGlobal('WebSocket', undefined));
+afterEach(() => vi.unstubAllGlobals());
 
 const peer = (id: number, x: number, y: number, over: Record<string, unknown> = {}) => ({
   userId: id,
@@ -20,7 +24,7 @@ function fakeFetch(peers: () => unknown, ok = true) {
   })) as unknown as typeof fetch;
 }
 
-const settle = () => new Promise((r) => setTimeout(r, 0));
+const settle = () => new Promise(r => setTimeout(r, 0));
 
 describe('the floor link', () => {
   const links: { stop(): void }[] = [];
@@ -61,7 +65,7 @@ describe('the floor link', () => {
     const link = track(connectFloor(fakeFetch(() => where)));
     await settle();
     where = [peer(2, 0.8, 0.8)];
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 260));
     const before = link.actors()[0].x;
     link.tick(0.05);
     const after = link.actors()[0].x;
@@ -83,7 +87,7 @@ describe('the floor link', () => {
     await settle();
     expect(link.actors()).toHaveLength(1);
     list = [];
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise(r => setTimeout(r, 260));
     expect(link.actors()).toHaveLength(0);
   });
 
@@ -118,8 +122,126 @@ describe('the floor link', () => {
     await settle();
     const calls = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
     link.stop();
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 300));
     // Only the parting DELETE may have been added.
     expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBeLessThanOrEqual(calls + 1);
+  });
+
+  it('sends its look, seat and callsign along with its position', async () => {
+    const calls: string[] = [];
+    const f = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.body) calls.push(String(init.body));
+      return { ok: true, json: async () => ({ peers: [] }) };
+    }) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    link.report(0.2, 0.3, 'backward', false, 'campus', { name: 'Nova', seat: 'ops-1' });
+    await settle();
+    expect(JSON.parse(calls[0])).toMatchObject({ x: 0.2, y: 0.3, room: 'campus', name: 'Nova', seat: 'ops-1', since: 0 });
+  });
+
+  it('collects quick-chat from heartbeats and asks only for newer lines', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    let chat = [{ id: 4, userId: 2, name: 'P2', phrase: 0, room: 'campus', at: 0 }];
+    const f = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.body) bodies.push(JSON.parse(String(init.body)));
+      return { ok: true, json: async () => ({ peers: [], chat }) };
+    }) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    let heard = 0;
+    link.subscribe(() => heard++);
+    await settle();
+    expect(link.messages().map(l => l.id)).toEqual([4]);
+    expect(heard).toBeGreaterThan(0);
+    chat = [];
+    await new Promise(r => setTimeout(r, 260));
+    expect(bodies[bodies.length - 1].since).toBe(4);
+  });
+
+  it('adds its own line as soon as the server accepts it', async () => {
+    const f = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        url.endsWith('/chat') ? { line: { id: 9, userId: 1, name: 'Me', phrase: 3, room: 'campus', at: 0 } } : { peers: [] },
+    })) as unknown as typeof fetch;
+    const link = track(connectFloor(f));
+    expect(await link.say(3)).toBe(true);
+    expect(link.messages().map(l => l.phrase)).toEqual([3]);
+  });
+
+  it('reports a refused line rather than throwing', async () => {
+    const link = track(connectFloor(fakeFetch(() => [], false)));
+    expect(await link.say(0)).toBe(false);
+  });
+});
+
+/** A stand-in WebSocket the test opens, feeds and closes by hand. */
+class FakeSocket {
+  static last: FakeSocket | null = null;
+  sent: string[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  constructor(public url: URL) {
+    FakeSocket.last = this;
+  }
+  send(data: string) {
+    this.sent.push(data);
+  }
+  close() {
+    this.onclose?.();
+  }
+}
+
+describe('the floor link over a socket', () => {
+  const links: { stop(): void }[] = [];
+  afterEach(() => {
+    for (const l of links.splice(0)) l.stop();
+    FakeSocket.last = null;
+  });
+  const okFetch = () => vi.fn(async () => ({ ok: true, json: async () => ({ peers: [], chat: [] }) })) as unknown as typeof fetch;
+
+  it('moves to the socket after HTTP works, and stops polling while it is up', async () => {
+    const f = okFetch();
+    const link = connectFloor(f, FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    expect(FakeSocket.last?.url.pathname).toBe('/api/floor/ws');
+    FakeSocket.last!.onopen!();
+    expect(link.transport()).toBe('socket');
+    link.report(0.3, 0.4, 'left', true, 'campus');
+    await new Promise(r => setTimeout(r, 120));
+    expect(JSON.parse(FakeSocket.last!.sent.at(-1)!)).toMatchObject({ type: 'report', x: 0.3, room: 'campus' });
+    const polls = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    await new Promise(r => setTimeout(r, 500));
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(polls);
+  });
+
+  it('takes peers and chat from pushed state', async () => {
+    const link = connectFloor(okFetch(), FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    FakeSocket.last!.onopen!();
+    FakeSocket.last!.onmessage!({
+      data: JSON.stringify({
+        type: 'state',
+        peers: [peer(5, 0.2, 0.2)],
+        chat: [{ id: 3, userId: 5, name: 'P5', phrase: 1, room: 'campus', at: 0 }],
+      }),
+    });
+    expect(link.actors().map(a => a.userId)).toEqual([5]);
+    expect(link.messages().map(l => l.id)).toEqual([3]);
+  });
+
+  it('falls back to HTTP the moment the socket drops', async () => {
+    const f = okFetch();
+    const link = connectFloor(f, FakeSocket as unknown as typeof WebSocket);
+    links.push(link);
+    await settle();
+    FakeSocket.last!.onopen!();
+    const before = (f as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    FakeSocket.last!.close();
+    expect(link.transport()).toBe('http');
+    await settle();
+    expect((f as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBeGreaterThan(before);
   });
 });

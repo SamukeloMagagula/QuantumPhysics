@@ -578,9 +578,9 @@ export const EXAMS: Exam[] = [
 ];
 
 export function getExam(id: string): Exam | undefined {
-  return EXAMS.find((e) => e.id === id);
+  return EXAMS.find(e => e.id === id);
 }
 
 export function examForSection(section: string): Exam | undefined {
-  return EXAMS.find((e) => e.section === section);
+  return EXAMS.find(e => e.section === section);
 }

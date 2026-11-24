@@ -1,8 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Dices, RotateCcw, Shirt, Headphones, Scissors, PersonStanding } from 'lucide-react';
-import * as THREE from 'three';
-import { GameEngine, Game } from './GameEngine';
-import { createHumanoid, Humanoid } from './sceneCharacter';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Dices, RotateCcw, Shirt, Headphones, Scissors, PersonStanding } from 'lucide-react';
+import { WorldCharacter, type CharacterFacing } from './WorldCharacter';
 import {
   ACCENT_PALETTE,
   ACCESSORIES,
@@ -33,118 +31,6 @@ const TABS: { id: Tab; label: string; Icon: React.ComponentType<{ size?: number 
   { id: 'gear', label: 'Gear', Icon: Headphones },
 ];
 
-/**
- * Turntable preview. Exposes setAppearance so changing an option rebuilds only
- * the figure — the scene, lights, and camera persist, so there's no flicker or
- * reset of the angle the user dragged to.
- */
-interface PreviewGame extends Game {
-  setAppearance(a: CharacterAppearance): void;
-  nudgeSpin(delta: number): void;
-  setDragging(dragging: boolean): void;
-}
-
-function createPreviewGame(initial: CharacterAppearance): PreviewGame {
-  let humanoid: Humanoid | null = null;
-  let engineRef: GameEngine | null = null;
-  let spin = 0.4;
-  let autoSpin = true;
-  let appearance = initial;
-  let walkClock = 0;
-
-  const build = () => {
-    if (!engineRef) return;
-    if (humanoid) {
-      engineRef.scene.remove(humanoid.group);
-      humanoid.dispose();
-    }
-    humanoid = createHumanoid(0x8b5cf6, { appearance, rimGlow: false });
-    engineRef.scene.add(humanoid.group);
-  };
-
-  return {
-    id: 'character-preview',
-    title: 'preview',
-
-    init(engine) {
-      engineRef = engine;
-      engine.scene.background = new THREE.Color(0x0b0620);
-      engine.scene.fog = null;
-      engine.camera.position.set(0, 1.15, 3.15);
-      engine.camera.lookAt(0, 0.98, 0);
-
-      engine.scene.add(new THREE.HemisphereLight(0x8ab4ff, 0x1a1030, 1.05));
-
-      // The flat/matte character materials have no surface micro-detail to
-      // soften a highlight, so a rounded up-facing surface (e.g. the crown
-      // of the head) can blow out under a strong key light — kept lower
-      // than before for that reason.
-      const key = new THREE.DirectionalLight(0xffffff, 1.5);
-      key.position.set(2.6, 4.2, 3.4);
-      engine.scene.add(key);
-
-      const rimA = new THREE.DirectionalLight(0x22d3ee, 1.8);
-      rimA.position.set(-3.4, 2.2, -2.2);
-      engine.scene.add(rimA);
-
-      const rimB = new THREE.DirectionalLight(0xa855f7, 1.5);
-      rimB.position.set(3.2, 1.4, -2.8);
-      engine.scene.add(rimB);
-
-      // Turntable disc + glow ring under the figure.
-      const disc = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.85, 0.85, 0.05, 48),
-        new THREE.MeshStandardMaterial({ color: 0x1a1140, roughness: 0.35, metalness: 0.6 })
-      );
-      disc.position.y = -0.025;
-      engine.scene.add(disc);
-
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.86, 0.012, 8, 64),
-        new THREE.MeshBasicMaterial({ color: 0x22d3ee })
-      );
-      ring.position.y = 0.002;
-      ring.rotation.x = Math.PI / 2;
-      engine.scene.add(ring);
-
-      build();
-    },
-
-    setAppearance(a) {
-      appearance = a;
-      build();
-    },
-
-    nudgeSpin(delta) {
-      spin += delta;
-    },
-
-    setDragging(dragging) {
-      autoSpin = !dragging;
-    },
-
-    update(dt) {
-      if (autoSpin) spin += dt * 0.45;
-      if (humanoid) {
-        humanoid.group.rotation.y = spin;
-        // Alternate idle and a short walk so the rig visibly animates.
-        walkClock = (walkClock + dt) % 8;
-        humanoid.setWalking(walkClock > 5);
-        humanoid.update(dt);
-      }
-    },
-
-    dispose() {
-      humanoid?.dispose();
-      humanoid = null;
-      engineRef = null;
-    },
-
-    setMoveVector() {},
-    interact() {},
-  };
-}
-
 function Swatches({
   colors,
   value,
@@ -159,7 +45,7 @@ function Swatches({
   return (
     <Field label={label}>
       <div className="flex flex-wrap gap-2">
-        {colors.map((c) => (
+        {colors.map(c => (
           <button
             key={c}
             type="button"
@@ -202,7 +88,7 @@ function OptionGrid<T extends string>({
 }) {
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-      {options.map((o) => (
+      {options.map(o => (
         <button
           key={o.id}
           type="button"
@@ -225,105 +111,54 @@ function OptionGrid<T extends string>({
 }
 
 export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<GameEngine | null>(null);
-  const gameRef = useRef<PreviewGame | null>(null);
-  const dragRef = useRef<{ active: boolean; x: number }>({ active: false, x: 0 });
-
+  const [facing, setFacing] = useState<CharacterFacing>('south');
+  const [walking, setWalking] = useState(false);
   const [appearance, setAppearance] = useState<CharacterAppearance>(getAppearance);
   const [tab, setTab] = useState<Tab>('body');
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const engine = new GameEngine();
-    if (!engine.mount(canvas)) return;
-    const game = createPreviewGame(appearance);
-    engine.setGame(game);
-    engineRef.current = engine;
-    gameRef.current = game;
-    return () => {
-      engine.dispose();
-      engineRef.current = null;
-      gameRef.current = null;
-    };
-    // Mount once; appearance updates flow through the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    gameRef.current?.setAppearance(appearance);
-  }, [appearance]);
 
   const set = useCallback(<K extends keyof CharacterAppearance>(key: K, value: CharacterAppearance[K]) => {
-    setSaved(false);
-    setAppearance((a) => ({ ...a, [key]: value }));
+    setAppearance(a => ({ ...a, [key]: value }));
   }, []);
-
-  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    dragRef.current = { active: true, x: e.clientX };
-    gameRef.current?.setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragRef.current.active) return;
-    const dx = e.clientX - dragRef.current.x;
-    dragRef.current.x = e.clientX;
-    gameRef.current?.nudgeSpin(dx * 0.011);
-  };
-  const endDrag = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    dragRef.current.active = false;
-    gameRef.current?.setDragging(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  };
 
   const handleSave = () => {
     saveAppearance(appearance);
-    setSaved(true);
     onDone();
   };
 
   const summary = useMemo(
     () =>
       [
-        BUILDS.find((b) => b.id === appearance.build)?.label,
-        HAIR_STYLES.find((h) => h.id === appearance.hairStyle)?.label + ' hair',
-        OUTFITS.find((o) => o.id === appearance.outfit)?.label,
-        appearance.accessory !== 'none' ? ACCESSORIES.find((a) => a.id === appearance.accessory)?.label : null,
+        BUILDS.find(b => b.id === appearance.build)?.label,
+        HAIR_STYLES.find(h => h.id === appearance.hairStyle)?.label + ' hair',
+        OUTFITS.find(o => o.id === appearance.outfit)?.label,
+        appearance.accessory !== 'none' ? ACCESSORIES.find(a => a.id === appearance.accessory)?.label : null,
       ]
         .filter(Boolean)
         .join(' · '),
-    [appearance]
+    [appearance],
   );
 
   return (
     <div className="bg-scene bg-mesh min-h-full px-4 py-8 md:px-8">
       <div className="max-w-6xl mx-auto">
-        <header className="pb-4 mb-6 border-b flex flex-wrap items-end justify-between gap-4"
-          style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}>
+        <header
+          className="pb-4 mb-6 border-b flex flex-wrap items-end justify-between gap-4"
+          style={{ borderColor: 'rgb(var(--glass-border)/.16)' }}
+        >
           <div>
             <div className="label-mono mb-1.5">Appearance</div>
             <h1 className="h-section text-[22px] md:text-[26px] ink-1">Character Creator</h1>
-            <p className="text-[13px] ink-2 mt-1.5">
-              Build your operative. Drag the figure to spin it.
-            </p>
+            <p className="text-[13px] ink-2 mt-1.5">Make this character yours. Preview changes here, then save to wear them on the map.</p>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                setSaved(false);
-                setAppearance((a) => ({ ...randomAppearance(), nickname: a.nickname }));
-              }}
+              onClick={() => setAppearance(a => ({ ...randomAppearance(), nickname: a.nickname }))}
               className="btn btn-ghost px-4 py-2.5 text-xs"
             >
               <Dices size={13} /> Randomize
             </button>
             <button
-              onClick={() => {
-                setSaved(false);
-                setAppearance((a) => ({ ...DEFAULT_APPEARANCE, nickname: a.nickname }));
-              }}
+              onClick={() => setAppearance(a => ({ ...DEFAULT_APPEARANCE, nickname: a.nickname }))}
               className="btn btn-ghost px-4 py-2.5 text-xs"
             >
               <RotateCcw size={13} /> Reset
@@ -333,33 +168,46 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
           {/* ---------------- preview ---------------- */}
-          <div className="a-pop glass rounded-[22px] p-4 relative overflow-hidden">
-            <canvas
-              ref={canvasRef}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-              className="w-full aspect-[3/4] max-h-[540px] rounded-2xl cursor-grab active:cursor-grabbing"
-            />
-            <div className="absolute left-6 bottom-6 right-6 flex items-end justify-between gap-3 pointer-events-none">
-              <div>
-                <div className="text-lg font-semibold ink-1">
-                  {appearance.nickname.trim() || 'Unnamed Operative'}
-                </div>
-                <div className="label-mono !tracking-[.1em]">{summary}</div>
-              </div>
-              <div
-                className="w-9 h-9 rounded-full border-2 shrink-0"
-                style={{ backgroundColor: appearance.accentColor }}
-              />
+          <section className="character-custom-preview panel rounded-[22px] p-4" aria-label="Live character preview">
+            <svg
+              viewBox="-24 -57 48 64"
+              role="img"
+              aria-label={`${appearance.nickname.trim() || 'Your character'} preview`}
+              className="character-preview-figure"
+            >
+              <WorldCharacter appearance={appearance} facing={facing} moving={walking} />
+            </svg>
+            <h2 className="text-lg font-semibold text-center">{appearance.nickname.trim() || 'Your character'}</h2>
+            <p className="text-xs ink-2 text-center mt-1">{summary}</p>
+            <div className="flex flex-wrap justify-center gap-2 mt-4" role="group" aria-label="Preview direction">
+              {(
+                [
+                  ['south', 'Front'],
+                  ['west', 'Left'],
+                  ['north', 'Back'],
+                  ['east', 'Right'],
+                ] as const
+              ).map(([direction, label]) => (
+                <button
+                  key={direction}
+                  className="btn btn-ghost px-3 py-2 text-xs"
+                  aria-pressed={facing === direction}
+                  onClick={() => setFacing(direction)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          </div>
+            <button className="btn btn-ghost mx-auto mt-2 px-4 py-2 text-xs" aria-pressed={walking} onClick={() => setWalking(!walking)}>
+              {walking ? 'Stop walking preview' : 'Preview walking'}
+            </button>
+            <p className="text-xs ink-3 text-center mt-4">Changes apply when you save. Cancel keeps your current look.</p>
+          </section>
 
           {/* ---------------- controls ---------------- */}
           <div className="a-rise glass rounded-[22px] p-5 space-y-5" style={{ animationDelay: '90ms' }}>
             <div className="seg w-full">
-              {TABS.map((t) => (
+              {TABS.map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
@@ -376,24 +224,21 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
             <div key={tab} className="a-rise space-y-5 min-h-[268px]">
               {tab === 'body' && (
                 <>
-                  <Swatches
-                    label="Skin Tone"
-                    colors={SKIN_TONES}
-                    value={appearance.skinTone}
-                    onChange={(c) => set('skinTone', c)}
-                  />
+                  <Swatches label="Skin Tone" colors={SKIN_TONES} value={appearance.skinTone} onChange={c => set('skinTone', c)} />
                   <Field label="Build">
-                    <OptionGrid options={BUILDS} value={appearance.build} onChange={(v) => set('build', v)} cols={3} />
+                    <OptionGrid options={BUILDS} value={appearance.build} onChange={v => set('build', v)} cols={3} />
                   </Field>
                   <Field label={`Height · ${Math.round(appearance.height * 100)}%`}>
                     <input
                       type="range"
+                      aria-label="Character height"
                       min={0.92}
                       max={1.08}
                       step={0.01}
                       value={appearance.height}
-                      onChange={(e) => set('height', Number(e.target.value))}
-                      className="w-full" style={{ accentColor: "var(--accent)" }}
+                      onChange={e => set('height', Number(e.target.value))}
+                      className="w-full"
+                      style={{ accentColor: 'var(--accent)' }}
                     />
                   </Field>
                 </>
@@ -402,37 +247,28 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
               {tab === 'hair' && (
                 <>
                   <Field label="Style">
-                    <OptionGrid
-                      options={HAIR_STYLES}
-                      value={appearance.hairStyle}
-                      onChange={(v) => set('hairStyle', v)}
-                    />
+                    <OptionGrid options={HAIR_STYLES} value={appearance.hairStyle} onChange={v => set('hairStyle', v)} />
                   </Field>
-                  <Swatches
-                    label="Hair Color"
-                    colors={HAIR_COLORS}
-                    value={appearance.hairColor}
-                    onChange={(c) => set('hairColor', c)}
-                  />
+                  <Swatches label="Hair Color" colors={HAIR_COLORS} value={appearance.hairColor} onChange={c => set('hairColor', c)} />
                 </>
               )}
 
               {tab === 'outfit' && (
                 <>
                   <Field label="Outfit">
-                    <OptionGrid options={OUTFITS} value={appearance.outfit} onChange={(v) => set('outfit', v)} cols={3} />
+                    <OptionGrid options={OUTFITS} value={appearance.outfit} onChange={v => set('outfit', v)} cols={3} />
                   </Field>
                   <Swatches
                     label="Primary"
                     colors={OUTFIT_COLORS}
                     value={appearance.outfitPrimary}
-                    onChange={(c) => set('outfitPrimary', c)}
+                    onChange={c => set('outfitPrimary', c)}
                   />
                   <Swatches
                     label="Secondary"
                     colors={OUTFIT_COLORS}
                     value={appearance.outfitSecondary}
-                    onChange={(c) => set('outfitSecondary', c)}
+                    onChange={c => set('outfitSecondary', c)}
                   />
                 </>
               )}
@@ -440,26 +276,19 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
               {tab === 'gear' && (
                 <>
                   <Field label="Accessory">
-                    <OptionGrid
-                      options={ACCESSORIES}
-                      value={appearance.accessory}
-                      onChange={(v) => set('accessory', v)}
-                    />
+                    <OptionGrid options={ACCESSORIES} value={appearance.accessory} onChange={v => set('accessory', v)} />
                   </Field>
-                  <Swatches
-                    label="Accent"
-                    colors={ACCENT_PALETTE}
-                    value={appearance.accentColor}
-                    onChange={(c) => set('accentColor', c)}
-                  />
+                  <Swatches label="Accent" colors={ACCENT_PALETTE} value={appearance.accentColor} onChange={c => set('accentColor', c)} />
                 </>
               )}
             </div>
 
             <Field label="Callsign">
               <input
+                aria-label="Callsign"
+                maxLength={16}
                 value={appearance.nickname}
-                onChange={(e) => set('nickname', e.target.value.slice(0, 16))}
+                onChange={e => set('nickname', e.target.value.slice(0, 16))}
                 placeholder="Optional"
                 className="w-full panel rounded-xl px-3 py-2.5 text-sm ink-1 outline-none focus:border-[var(--accent)] transition-colors"
               />
@@ -467,7 +296,7 @@ export function CustomizeScreen({ onDone, onBack }: CustomizeScreenProps) {
 
             <div className="flex gap-2 pt-1">
               <button onClick={handleSave} className="btn btn-primary flex-1 py-3 text-sm">
-                {saved ? <><Check size={14} /> Saved</> : 'Save & continue'}
+                Save appearance
               </button>
               <button onClick={onBack ?? onDone} className="btn btn-ghost px-5 py-3 text-sm">
                 Cancel

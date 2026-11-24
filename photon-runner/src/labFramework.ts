@@ -32,8 +32,8 @@ function writeCompleted(ids: string[]): void {
 export function createGuestStore(): ProgressStore {
   return {
     all: () => readCompleted(),
-    isComplete: (id) => readCompleted().includes(id),
-    markComplete: (id) => {
+    isComplete: id => readCompleted().includes(id),
+    markComplete: id => {
       const cur = readCompleted();
       if (!cur.includes(id)) writeCompleted([...cur, id]);
     },
@@ -59,10 +59,12 @@ export function mountLab(container: HTMLElement, lab: Lab, store: ProgressStore,
       explainZone.classList.remove('hidden');
       explainZone.replaceChildren(
         el('p', { class: DONE_TEXT }, 'Challenge complete — you can keep experimenting.'),
-        el('details', {},
+        el(
+          'details',
+          {},
           el('summary', { class: 'cursor-pointer text-base font-bold ink-1' }, 'Why it worked & how to defend'),
-          el('div', { class: 'prose-room mt-3', html: lab.explain() })
-        )
+          el('div', { class: 'prose-room mt-3', html: lab.explain() }),
+        ),
       );
       store.markComplete(lab.id);
       onComplete?.(lab.id);

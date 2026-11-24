@@ -5,7 +5,13 @@ import App from './App';
 import { SceneManager } from './engine/SceneManager';
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
 });
 
 afterEach(() => {
@@ -17,11 +23,22 @@ afterEach(() => {
 
 it('loads a screen on navigation and preserves room parameters across lazy loading', async () => {
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: vi.fn() });
-  const room = { id: 'intro', title: 'Room navigation check', summary: 'Practice', difficulty: 'Easy', estimatedMinutes: 5, completed: false, tasks: [] };
+  const room = {
+    id: 'intro',
+    title: 'Room navigation check',
+    summary: 'Practice',
+    difficulty: 'Easy',
+    estimatedMinutes: 5,
+    completed: false,
+    tasks: [],
+  };
   const fetchMock = vi.fn(async (url: string) => {
-    const body = url === '/api/paths/symmetric'
-      ? { path: { id: 'symmetric', title: 'Learning path check', description: 'Practice encryption' }, rooms: [room] }
-      : url === '/api/badges' ? { badges: [] } : room;
+    const body =
+      url === '/api/paths/symmetric'
+        ? { path: { id: 'symmetric', title: 'Learning path check', description: 'Practice encryption' }, rooms: [room] }
+        : url === '/api/badges'
+          ? { badges: [] }
+          : room;
     return { ok: true, json: async () => body };
   });
   vi.stubGlobal('fetch', fetchMock);

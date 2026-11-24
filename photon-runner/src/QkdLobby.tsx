@@ -7,7 +7,11 @@ export type QkdRole = 'alice' | 'bob' | 'eve';
 const ROLE_INFO: Record<QkdRole, { label: string; blurb: string; glow: string }> = {
   alice: { label: 'Alice', blurb: 'Sends the quantum key — picks how many qubits, how many to sacrifice as a sample.', glow: '#60a5fa' },
   bob: { label: 'Bob', blurb: 'Receives the key and decides, from the sample error rate, whether to keep or abort it.', glow: '#34d399' },
-  eve: { label: 'Eve', blurb: 'Secretly intercepts the channel — tap qubits, spoof a basis, or brute-force the key with a botnet.', glow: '#fb7185' },
+  eve: {
+    label: 'Eve',
+    blurb: 'Secretly intercepts the channel — tap qubits, spoof a basis, or brute-force the key with a botnet.',
+    glow: '#fb7185',
+  },
 };
 
 interface QkdLobbyProps {
@@ -56,16 +60,13 @@ export function QkdLobby({ onEnterGame, onExit }: QkdLobbyProps) {
 
   return (
     <Page width="reading">
-      <PageHeader
-        eyebrow="Multiplayer"
-        title="Quantum Intercept"
-      />
+      <PageHeader eyebrow="Multiplayer" title="Quantum Intercept" />
       <div className="space-y-6">
         <header className="hidden">
           <h1>Quantum Intercept</h1>
           <p className="text-sm ink-2 mt-2 max-w-xl leading-relaxed">
-            A real BB84 key exchange with up to three players on the same network — Alice sends, Bob
-            receives, Eve secretly taps the line. After three rounds, Alice and Bob vote on who Eve was.
+            A real BB84 key exchange with up to three players on the same network — Alice sends, Bob receives, Eve secretly taps the line.
+            After three rounds, Alice and Bob vote on who Eve was.
           </p>
         </header>
 
@@ -83,7 +84,7 @@ export function QkdLobby({ onEnterGame, onExit }: QkdLobbyProps) {
             <label className="label-mono block mb-2">Game code</label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
+              onChange={e => setCode(e.target.value.toUpperCase().slice(0, 4))}
               placeholder="ABCD"
               className="w-40 panel rounded-xl px-3 py-2.5 text-lg font-mono tracking-[0.3em] text-center ink-1 outline-none focus:border-[var(--accent)] transition-colors"
             />

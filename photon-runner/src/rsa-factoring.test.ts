@@ -9,9 +9,11 @@ it('requires a correct factor pair before opening the vault', () => {
   const button = (text: string) => [...container.querySelectorAll('button')].find(b => b.textContent === text)!;
   button('Unlock the vault').click();
   expect(complete).not.toHaveBeenCalled();
-  button('43').click(); button('53').click();
+  button('43').click();
+  button('53').click();
   expect(button('Unlock the vault').disabled).toBe(true);
-  button('43').click(); button('61').click();
+  button('43').click();
+  button('61').click();
   button('Unlock the vault').click();
   expect(complete).toHaveBeenCalledOnce();
   expect(container.textContent).toContain('1729');

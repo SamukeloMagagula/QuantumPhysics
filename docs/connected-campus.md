@@ -14,6 +14,13 @@ the full-campus fit and 250%. Zooming out gradually centers the camera on the
 campus so the entire map fits at the minimum. Pinch gestures do not select rooms.
 The location card opens that department's activity; E also opens it.
 
+**Edit look** on the character badge opens the creator directly. It uses the
+same illustrated character as the map for live front, side, back and walking
+previews. Players can set skin tone, build, height, hairstyle and colour,
+clothing, accessories, accent colours and a callsign. **Save appearance** applies
+the draft and persists it in this browser; **Cancel** leaves the saved appearance
+untouched. The creator also remains available from More and the Break Room.
+
 Activities open in one shared panel. **Back to map** or Escape closes the panel
 without replacing the world or resetting its position. Navigation to an activity
 pauses movement. Mission consoles retain their current session when reopened,
@@ -63,3 +70,43 @@ After the artwork update, desktop and phone checks also verified that all
 illustration assets load, the character can walk from Operations into
 Cryptography, and both discoveries persist in local storage. Neither viewport
 reported JavaScript errors or horizontal overflow.
+
+## Compact building layout
+
+Superseded by the continuous interior below; retained as implementation history.
+
+Neighbouring room tiles now touch, with a narrow central hallway between the
+two wings. Short shared corridors replace the long connections between rows.
+The building backdrop, camera fitting and exploration log use the compact
+rectangular bounds. Door-only movement and collision checks remain in place.
+
+Validation for this layout: all 11 targeted layout/navigation tests passed,
+including every one of the 196 department-pair routes and doorway collision
+checks. TypeScript and the production build passed. Chrome checks at 1440px
+and 390px widths confirmed whole-map rendering without JavaScript errors or
+horizontal overflow. The existing large-chunk build warning remains.
+
+## Continuous interior and cafeteria
+
+The current map uses one generated raster interior,
+`public/pq/discovery-building-v1.png`, replacing the temporary SVG furnishings.
+It depicts shared partition walls, indoor corridors and distinct department
+furniture inside one outer shell. Original image assets remain available for
+legacy scenes. The generation prompt is saved in `building-art-prompt.md`.
+The complete artwork is 1373 x 1146 pixels; actual room bounds, clear floor
+bands and door openings were traced in `worldLayout.ts` after generation.
+
+A fifteenth room, the Cafeteria, includes a serving counter, dining tables and
+seating. It is reachable through Places and manual movement, awards discovery
+XP, and offers the character customization activity. Exploration totals and
+the Pathfinder threshold follow the room count. Interior collision geometry
+is independent of the former image bounds; `worldArtwork.ts` has been removed.
+Each room's bounds, floor band, door and corridor row live in one table in
+`worldLayout.ts`. The Cafeteria is a map-only place (`CampusZoneId`), not a
+scene `RoomId`. The badge shows the callsign alongside the explorer rank.
+
+Validation: 15 targeted tests passed, covering all 225 room-pair routes,
+shared partition walls, door openings, exploration and activity navigation.
+TypeScript and production build passed. Desktop (1440px) and phone (390px)
+Chrome checks reached the cafeteria and showed no JavaScript errors or
+horizontal overflow. The existing large-chunk warning remains.

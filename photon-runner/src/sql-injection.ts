@@ -94,7 +94,8 @@ function tokenize(input: string): Token[] | null {
     const upper = word.toUpperCase();
     if (upper === 'AND') tokens.push({ type: 'AND' });
     else if (upper === 'OR') tokens.push({ type: 'OR' });
-    else if (/^[0-9]+$/.test(word)) tokens.push({ type: 'NUMBER', value: word }); // bare numeric literal, e.g. 1=1
+    else if (/^[0-9]+$/.test(word))
+      tokens.push({ type: 'NUMBER', value: word }); // bare numeric literal, e.g. 1=1
     else tokens.push({ type: 'IDENT', value: word });
     i = j;
   }
@@ -237,10 +238,10 @@ const lab: Lab = {
           el('th', { class: 'py-1.5 pr-3' }, 'username'),
           el('th', { class: 'py-1.5 pr-3' }, 'password'),
           el('th', { class: 'py-1.5 pr-3' }, 'role'),
-          el('th', { class: 'py-1.5' }, 'WHERE match')
-        )
+          el('th', { class: 'py-1.5' }, 'WHERE match'),
+        ),
       ),
-      tbody
+      tbody,
     );
 
     const renderTable = () => {
@@ -256,22 +257,20 @@ const lab: Lab = {
         errorBox.classList.add('hidden');
       }
 
-      const rows = result.error ? FAKE_USERS.map((u2) => ({ user: u2, matched: false })) : result.rows;
+      const rows = result.error ? FAKE_USERS.map(u2 => ({ user: u2, matched: false })) : result.rows;
       for (const { user: row, matched } of rows) {
         tbody.append(
           el(
             'tr',
             {
-              class: matched
-                ? 'bg-emerald-500/15 text-[var(--ok)] border-b border-slate-800/60'
-                : 'ink-3 border-b border-slate-800/60',
+              class: matched ? 'bg-emerald-500/15 text-[var(--ok)] border-b border-slate-800/60' : 'ink-3 border-b border-slate-800/60',
             },
             el('td', { class: 'py-1.5 pr-3' }, String(row.id)),
             el('td', { class: 'py-1.5 pr-3' }, row.username),
             el('td', { class: 'py-1.5 pr-3' }, row.password),
             el('td', { class: 'py-1.5 pr-3' }, row.role),
-            el('td', { class: 'py-1.5 font-bold' }, matched ? 'MATCH' : '—')
-          )
+            el('td', { class: 'py-1.5 font-bold' }, matched ? 'MATCH' : '—'),
+          ),
         );
       }
       return result;
@@ -292,10 +291,10 @@ const lab: Lab = {
         status.className = 'text-[var(--danger)]';
         return;
       }
-      const first = result.rows.find((r) => r.matched);
+      const first = result.rows.find(r => r.matched);
       if (first) {
         status.textContent = `Access granted — logged in as ${first.user.username} (${first.user.role}). ${
-          result.rows.filter((r) => r.matched).length > 1 ? 'The WHERE clause matched every row — that tautology is the bug.' : ''
+          result.rows.filter(r => r.matched).length > 1 ? 'The WHERE clause matched every row — that tautology is the bug.' : ''
         }`;
         status.className = 'text-[var(--ok)]';
         ctx.complete();
@@ -318,8 +317,12 @@ const lab: Lab = {
       errorBox,
       submit,
       status,
-      el('p', { class: `${MUTED} mt-3` }, "The database (server-side — an attacker can't normally see this table, but you can, to learn from it):"),
-      el('div', { class: `${CARD} overflow-x-auto` }, table)
+      el(
+        'p',
+        { class: `${MUTED} mt-3` },
+        "The database (server-side — an attacker can't normally see this table, but you can, to learn from it):",
+      ),
+      el('div', { class: `${CARD} overflow-x-auto` }, table),
     );
   },
   explain() {

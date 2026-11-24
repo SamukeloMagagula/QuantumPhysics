@@ -33,15 +33,7 @@ export function CampaignExerciseView({ exercise, onSolved }: { exercise: Exercis
 // ------------------------------------------------------------------ order
 
 /** Nudge control for reordering a timeline row. */
-function IconBtn({
-  onClick,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
+function IconBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -68,11 +60,11 @@ function OrderView({ ex, onSolved }: { ex: OrderExercise; onSolved: () => void }
   // Seeded per mount so the puzzle is stable while you work on it, but not
   // the same arrangement every playthrough.
   const seed = useMemo(() => Math.floor(Math.random() * 100000) + 1, []);
-  const [items, setItems] = useState<string[]>(() => shuffleEvents(ex, seed).map((e) => e.id));
+  const [items, setItems] = useState<string[]>(() => shuffleEvents(ex, seed).map(e => e.id));
   const [feedback, setFeedback] = useState<string | null>(null);
   const [solved, setSolved] = useState(false);
 
-  const label = (id: string) => ex.events.find((e) => e.id === id)?.label ?? id;
+  const label = (id: string) => ex.events.find(e => e.id === id)?.label ?? id;
 
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -91,10 +83,7 @@ function OrderView({ ex, onSolved }: { ex: OrderExercise; onSolved: () => void }
       onSolved();
       return;
     }
-    setFeedback(
-      r.message ??
-        `Not yet — ${r.misplaced.length} ${r.misplaced.length === 1 ? 'event is' : 'events are'} out of position.`
-    );
+    setFeedback(r.message ?? `Not yet — ${r.misplaced.length} ${r.misplaced.length === 1 ? 'event is' : 'events are'} out of position.`);
   };
 
   return (
@@ -102,7 +91,7 @@ function OrderView({ ex, onSolved }: { ex: OrderExercise; onSolved: () => void }
       {ex.baseline && (
         <div style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px dashed rgba(255,255,255,.12)' }}>
           <Label>normal baseline</Label>
-          {ex.baseline.map((b) => (
+          {ex.baseline.map(b => (
             <div key={b} style={{ color: TONE.good, fontSize: 11, fontFamily: 'ui-monospace, monospace' }}>
               {b}
             </div>
@@ -124,9 +113,7 @@ function OrderView({ ex, onSolved }: { ex: OrderExercise; onSolved: () => void }
               border: '1px solid rgba(255,255,255,.09)',
             }}
           >
-            <span style={{ color: TONE.dim, fontSize: 10, fontFamily: 'ui-monospace, monospace', width: 16 }}>
-              {i + 1}
-            </span>
+            <span style={{ color: TONE.dim, fontSize: 10, fontFamily: 'ui-monospace, monospace', width: 16 }}>{i + 1}</span>
             <span style={{ color: TONE.text, fontSize: 12, flex: 1 }}>{label(id)}</span>
             {!solved && (
               <>
@@ -143,11 +130,7 @@ function OrderView({ ex, onSolved }: { ex: OrderExercise; onSolved: () => void }
       </div>
 
       <Feedback text={feedback} />
-      {!solved ? (
-        <Primary onClick={submit}>Check the sequence</Primary>
-      ) : (
-        <Solved>Timeline reconstructed</Solved>
-      )}
+      {!solved ? <Primary onClick={submit}>Check the sequence</Primary> : <Solved>Timeline reconstructed</Solved>}
     </Frame>
   );
 }
@@ -171,19 +154,19 @@ function ClassifyView({ ex, onSolved }: { ex: ClassifyExercise; onSolved: () => 
   return (
     <Frame prompt={ex.prompt}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ex.items.map((item) => {
-          const miss = review?.wrong.find((w) => w.id === item.id);
+        {ex.items.map(item => {
+          const miss = review?.wrong.find(w => w.id === item.id);
           const right = review?.correct.includes(item.id);
           return (
             <div key={item.id}>
               <div style={{ color: TONE.text, fontSize: 12, lineHeight: 1.5, marginBottom: 5 }}>{item.text}</div>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {ex.buckets.map((b) => {
+                {ex.buckets.map(b => {
                   const on = placed[item.id] === b.id;
                   return (
                     <button
                       key={b.id}
-                      onClick={() => !solved && setPlaced((p) => ({ ...p, [item.id]: b.id }))}
+                      onClick={() => !solved && setPlaced(p => ({ ...p, [item.id]: b.id }))}
                       title={b.hint}
                       style={{
                         padding: '5px 10px',
@@ -204,7 +187,7 @@ function ClassifyView({ ex, onSolved }: { ex: ClassifyExercise; onSolved: () => 
               </div>
               {miss && (
                 <div style={{ color: TONE.warn, fontSize: 11, lineHeight: 1.5, marginTop: 4 }}>
-                  Belongs in {ex.buckets.find((b) => b.id === miss.belongs)?.label}. {miss.why}
+                  Belongs in {ex.buckets.find(b => b.id === miss.belongs)?.label}. {miss.why}
                 </div>
               )}
             </div>
@@ -212,14 +195,8 @@ function ClassifyView({ ex, onSolved }: { ex: ClassifyExercise; onSolved: () => 
         })}
       </div>
 
-      {review && !review.ok && review.unplaced.length > 0 && (
-        <Feedback text={`${review.unplaced.length} statement(s) still unplaced.`} />
-      )}
-      {!solved ? (
-        <Primary onClick={submit}>Submit the board</Primary>
-      ) : (
-        <Solved>Board agreed with the evidence</Solved>
-      )}
+      {review && !review.ok && review.unplaced.length > 0 && <Feedback text={`${review.unplaced.length} statement(s) still unplaced.`} />}
+      {!solved ? <Primary onClick={submit}>Submit the board</Primary> : <Solved>Board agreed with the evidence</Solved>}
     </Frame>
   );
 }
@@ -247,7 +224,7 @@ function TransferView({ ex, onSolved }: { ex: TransferExercise; onSolved: () => 
     <Frame prompt={ex.prompt}>
       <Label>alice&apos;s usb</Label>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {ex.files.map((f) => {
+        {ex.files.map(f => {
           const on = picked === f.id;
           return (
             <button

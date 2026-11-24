@@ -1,15 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, Check, RotateCcw, X } from 'lucide-react';
-import {
-  ExamAnswers,
-  ExamQuestion,
-  ExamResult,
-  loadExamProgress,
-  markExam,
-  recordAttempt,
-  saveExamProgress,
-  shuffle,
-} from './labExam';
+import { ExamAnswers, ExamQuestion, ExamResult, loadExamProgress, markExam, recordAttempt, saveExamProgress, shuffle } from './labExam';
 import { getExam } from './labExams';
 import { Meta, Page, PageHeader } from './ui/Page';
 
@@ -53,10 +44,10 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
   const retake = () => {
     setAnswers({});
     setResult(null);
-    setAttempt((a) => a + 1);
+    setAttempt(a => a + 1);
   };
 
-  const answered = exam.questions.filter((q) => answers[q.id] !== undefined).length;
+  const answered = exam.questions.filter(q => answers[q.id] !== undefined).length;
 
   return (
     <Page width="reading">
@@ -78,7 +69,6 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
         }
       />
       <div className="space-y-4">
-
         {result ? (
           <Review exam={exam} result={result} onRetake={retake} onBack={onBack} />
         ) : (
@@ -90,7 +80,7 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
                 question={q}
                 seed={seed}
                 value={answers[q.id]}
-                onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
+                onChange={v => setAnswers(a => ({ ...a, [q.id]: v }))}
               />
             ))}
 
@@ -102,9 +92,7 @@ export function LabExamView({ examId, onBack }: { examId: string; onBack: () => 
                 Submit answers
               </button>
             </div>
-            <p className="text-[11px] ink-4 text-center">
-              You can submit with questions unanswered — they simply count as wrong.
-            </p>
+            <p className="text-[11px] ink-4 text-center">You can submit with questions unanswered — they simply count as wrong.</p>
           </>
         )}
       </div>
@@ -133,19 +121,13 @@ function QuestionCard({
         <span className="label-mono !text-[10px] ink-4 pt-0.5">{String(index).padStart(2, '0')}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm ink-1 font-semibold leading-relaxed">{question.prompt}</p>
-          {question.kind === 'multi' && (
-            <p className="text-[11px] ink-4 mt-1">Select every one that applies.</p>
-          )}
+          {question.kind === 'multi' && <p className="text-[11px] ink-4 mt-1">Select every one that applies.</p>}
           <div className="mt-3">
-            {question.kind === 'choose' && (
-              <ChooseInput question={question} seed={seed} value={value as string} onChange={onChange} />
-            )}
+            {question.kind === 'choose' && <ChooseInput question={question} seed={seed} value={value as string} onChange={onChange} />}
             {question.kind === 'multi' && (
               <MultiInput question={question} seed={seed} value={(value as string[]) ?? []} onChange={onChange} />
             )}
-            {question.kind === 'order' && (
-              <OrderInput question={question} seed={seed} value={value as string[]} onChange={onChange} />
-            )}
+            {question.kind === 'order' && <OrderInput question={question} seed={seed} value={value as string[]} onChange={onChange} />}
           </div>
         </div>
       </div>
@@ -193,7 +175,7 @@ function ChooseInput({
   const options = useMemo(() => shuffle(question.options, seed), [question, seed]);
   return (
     <div className="flex flex-col gap-2">
-      {options.map((o) => (
+      {options.map(o => (
         <button key={o.id} onClick={() => onChange(o.id)} style={optionStyle(value === o.id)}>
           <span style={marker(value === o.id, true)} />
           <span>{o.text}</span>
@@ -215,11 +197,10 @@ function MultiInput({
   onChange: (v: string[]) => void;
 }) {
   const options = useMemo(() => shuffle(question.options, seed), [question, seed]);
-  const toggle = (id: string) =>
-    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter(v => v !== id) : [...value, id]);
   return (
     <div className="flex flex-col gap-2">
-      {options.map((o) => (
+      {options.map(o => (
         <button key={o.id} onClick={() => toggle(o.id)} style={optionStyle(value.includes(o.id))}>
           <span style={marker(value.includes(o.id), false)} />
           <span>{o.text}</span>
@@ -241,9 +222,9 @@ function OrderInput({
   onChange: (v: string[]) => void;
 }) {
   // Start from a shuffle so the authored order is not handed over for free.
-  const initial = useMemo(() => shuffle(question.items, seed).map((i) => i.id), [question, seed]);
+  const initial = useMemo(() => shuffle(question.items, seed).map(i => i.id), [question, seed]);
   const order = value ?? initial;
-  const label = (id: string) => question.items.find((i) => i.id === id)?.text ?? id;
+  const label = (id: string) => question.items.find(i => i.id === id)?.text ?? id;
 
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -320,7 +301,7 @@ function Review({
       </section>
 
       {exam.questions.map((q, i) => {
-        const mark = result.marks.find((m) => m.id === q.id)!;
+        const mark = result.marks.find(m => m.id === q.id)!;
         return (
           <section key={q.id} className="panel rounded-2xl p-5">
             <div className="flex gap-3">
@@ -362,15 +343,13 @@ function Review({
 function CorrectAnswer({ question }: { question: ExamQuestion }) {
   const items = question.kind === 'order' ? question.items : question.options;
   const ids = question.kind === 'choose' ? [question.answer] : question.answer;
-  const text = ids.map((id) => items.find((o) => o.id === id)?.text ?? id);
+  const text = ids.map(id => items.find(o => o.id === id)?.text ?? id);
   return (
     <div className="mt-2">
-      <div className="label-mono !text-[9px] ink-4">
-        {question.kind === 'order' ? 'correct order' : 'answer'}
-      </div>
+      <div className="label-mono !text-[9px] ink-4">{question.kind === 'order' ? 'correct order' : 'answer'}</div>
       {question.kind === 'order' ? (
         <ol className="text-[12px] ink-3 list-decimal pl-5 mt-0.5 space-y-0.5">
-          {text.map((t) => (
+          {text.map(t => (
             <li key={t}>{t}</li>
           ))}
         </ol>
@@ -389,14 +368,7 @@ export function ScoreRing({ percent, tone, size = 96 }: { percent: number; tone:
   const c = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto block">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="rgb(var(--glass-border)/.25)"
-        strokeWidth={5}
-      />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--glass-border)/.25)" strokeWidth={5} />
       <circle
         cx={size / 2}
         cy={size / 2}

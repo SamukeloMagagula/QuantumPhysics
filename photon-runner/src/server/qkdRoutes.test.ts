@@ -179,7 +179,7 @@ describe('qkd multiplayer API', () => {
     const accState = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
     // Bob is computer, so bob's accusation auto-fills; only alice needs to vote.
     const anonSeats = accState.body.seats as { codename?: string }[];
-    const codename = anonSeats.find((s) => s.codename)?.codename;
+    const codename = anonSeats.find(s => s.codename)?.codename;
     expect(codename).toBeTruthy();
 
     const accuse = await request(app)
@@ -241,7 +241,7 @@ describe('qkd multiplayer API', () => {
     const create = await request(app).post('/api/qkd/game').set('Cookie', cookie).send({ role: 'eve' });
     const code = create.body.code;
     await request(app).post(`/api/qkd/game/${code}/start`).set('Cookie', cookie);
-    let state = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
+    const state = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
     expect(state.body.phase).toBe('eve_move');
     expect(state.body.youAreUpNow).toBe(true);
     expect(state.body.sampleQBER).toBeUndefined();
@@ -281,28 +281,24 @@ describe('qkd multiplayer API', () => {
           .send({ action: { next: true } });
       }
       const accState = await request(app).get(`/api/qkd/game/${code}`).set('Cookie', cookie);
-      const codename = (accState.body.seats as { codename?: string }[]).find((s) => s.codename)?.codename;
+      const codename = (accState.body.seats as { codename?: string }[]).find(s => s.codename)?.codename;
       await request(app)
         .post(`/api/qkd/game/${code}/act`)
         .set('Cookie', cookie)
         .send({ action: { accuse: codename } });
 
       const whoami = await request(app).get('/api/whoami').set('Cookie', cookie);
-      const userId = (
-        db.prepare('SELECT id FROM users WHERE username = ?').get(whoami.body.displayName) as { id: number }
-      ).id;
-      const aliceScore = (
-        db.prepare('SELECT score FROM qkd_game_seats WHERE role = ?').get('alice') as { score: number }
-      ).score;
+      const userId = (db.prepare('SELECT id FROM users WHERE username = ?').get(whoami.body.displayName) as { id: number }).id;
+      const aliceScore = (db.prepare('SELECT score FROM qkd_game_seats WHERE role = ?').get('alice') as { score: number }).score;
       expect(aliceScore).toBe(45); // 15 points/round x 3 rounds, deterministically
 
       const scoreRow = db.prepare('SELECT COUNT(*) AS n FROM qkd_scores WHERE user_id = ?').get(userId) as {
         n: number;
       };
       expect(scoreRow.n).toBe(1);
-      const badgeRow = db
-        .prepare("SELECT COUNT(*) AS n FROM user_badges WHERE user_id = ? AND badge_id = 'qkd-operative'")
-        .get(userId) as { n: number };
+      const badgeRow = db.prepare("SELECT COUNT(*) AS n FROM user_badges WHERE user_id = ? AND badge_id = 'qkd-operative'").get(userId) as {
+        n: number;
+      };
       expect(badgeRow.n).toBe(1);
     } finally {
       randomSpy.mockRestore();

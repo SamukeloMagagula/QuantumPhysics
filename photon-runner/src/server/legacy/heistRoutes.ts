@@ -33,11 +33,17 @@ function totalTasksFor(mapId: string): number {
 
 export function mountHeistRoutes(app: Express, db: Db): void {
   app.post('/api/heist/room', (req, res) => {
-    withApiErrors(() => createRoom(db, req.user!, req.body?.mapId ?? 'relay'), (s, b) => res.status(s).json(b));
+    withApiErrors(
+      () => createRoom(db, req.user!, req.body?.mapId ?? 'relay'),
+      (s, b) => res.status(s).json(b),
+    );
   });
 
   app.post('/api/heist/room/:code/join', (req, res) => {
-    withApiErrors(() => joinRoom(db, req.params.code, req.user!), (s, b) => res.status(s).json(b));
+    withApiErrors(
+      () => joinRoom(db, req.params.code, req.user!),
+      (s, b) => res.status(s).json(b),
+    );
   });
 
   app.post('/api/heist/room/:code/map', (req, res) => {
@@ -46,7 +52,7 @@ export function mountHeistRoutes(app: Express, db: Db): void {
         setMap(db, req.params.code, req.user!, req.body?.mapId);
         return { ok: true };
       },
-      (s, b) => res.status(s).json(b)
+      (s, b) => res.status(s).json(b),
     );
   });
 
@@ -56,12 +62,15 @@ export function mountHeistRoutes(app: Express, db: Db): void {
         startRoom(db, req.params.code, req.user!);
         return getState(db, req.params.code, req.user!);
       },
-      (s, b) => res.status(s).json(b)
+      (s, b) => res.status(s).json(b),
     );
   });
 
   app.get('/api/heist/room/:code', (req, res) => {
-    withApiErrors(() => getState(db, req.params.code, req.user!), (s, b) => res.status(s).json(b));
+    withApiErrors(
+      () => getState(db, req.params.code, req.user!),
+      (s, b) => res.status(s).json(b),
+    );
   });
 
   app.post('/api/heist/room/:code/position', (req, res) => {
@@ -70,15 +79,18 @@ export function mountHeistRoutes(app: Express, db: Db): void {
         updatePosition(db, req.params.code, req.user!, req.body?.updates ?? []);
         return { ok: true };
       },
-      (s, b) => res.status(s).json(b)
+      (s, b) => res.status(s).json(b),
     );
   });
 
   app.post('/api/heist/room/:code/act', (req, res) => {
-    withApiErrors(() => {
-      const room = getState(db, req.params.code, req.user!);
-      return submitAction(db, req.params.code, req.user!, req.body?.action ?? {}, totalTasksFor(room.mapId));
-    }, (s, b) => res.status(s).json(b));
+    withApiErrors(
+      () => {
+        const room = getState(db, req.params.code, req.user!);
+        return submitAction(db, req.params.code, req.user!, req.body?.action ?? {}, totalTasksFor(room.mapId));
+      },
+      (s, b) => res.status(s).json(b),
+    );
   });
 
   // WebRTC signaling relay for proximity voice — see heistService.ts's postSignal/pullSignals.
@@ -88,14 +100,14 @@ export function mountHeistRoutes(app: Express, db: Db): void {
         postSignal(db, req.params.code, req.user!, req.body?.to, req.body?.data);
         return { ok: true };
       },
-      (s, b) => res.status(s).json(b)
+      (s, b) => res.status(s).json(b),
     );
   });
 
   app.get('/api/heist/room/:code/signal', (req, res) => {
     withApiErrors(
       () => ({ messages: pullSignals(db, req.params.code, req.user!) }),
-      (s, b) => res.status(s).json(b)
+      (s, b) => res.status(s).json(b),
     );
   });
 }

@@ -125,7 +125,7 @@ describe('each wave teaches its own lesson', () => {
 describe('the lab is completable', () => {
   it('has at least one setup that holds every wave', () => {
     for (const w of WAVES) {
-      const wins = allSetups().filter((s) => simulate(w, s).held);
+      const wins = allSetups().filter(s => simulate(w, s).held);
       expect(wins.length, `${w.id} is unwinnable`).toBeGreaterThan(0);
     }
   });
@@ -138,7 +138,7 @@ describe('the lab is completable', () => {
 
   it('does not let one setup trivially hold everything from the start', () => {
     // If the opening defaults already win, there is no lab.
-    expect(WAVES.every((w) => simulate(w, base).held)).toBe(false);
+    expect(WAVES.every(w => simulate(w, base).held)).toBe(false);
   });
 
   it('explains every wave', () => {

@@ -606,16 +606,16 @@ function scaleMapDef(map: MapDef, factor: number): MapDef {
   const sPt = (p: { x: number; z: number }) => ({ x: s(p.x), z: s(p.z) });
   return {
     ...map,
-    rooms: map.rooms.map((r) => ({ ...r, center: sPt(r.center), size: { w: s(r.size.w), d: s(r.size.d) } })),
+    rooms: map.rooms.map(r => ({ ...r, center: sPt(r.center), size: { w: s(r.size.w), d: s(r.size.d) } })),
     // Corridor *positions* scale with everything else, but width/depth stay
     // at their original, already-BODY_PAD-validated size: those margins were
     // sized to survive isWalkable's fixed (real-world, non-scaling)
     // BODY_PAD, so shrinking them by `factor` too would shrink the safety
     // margin below what a fixed body radius needs — confirmed by rerunning
     // sceneMaps.test.ts, which caught exactly this the first time.
-    corridors: map.corridors.map((c) => ({ x: s(c.x), z: s(c.z), w: c.w, d: c.d })),
-    vents: map.vents.map((v) => ({ ...v, x: s(v.x), z: s(v.z) })),
-    sensors: map.sensors.map((se) => ({ ...se, x: s(se.x), z: s(se.z) })),
+    corridors: map.corridors.map(c => ({ x: s(c.x), z: s(c.z), w: c.w, d: c.d })),
+    vents: map.vents.map(v => ({ ...v, x: s(v.x), z: s(v.z) })),
+    sensors: map.sensors.map(se => ({ ...se, x: s(se.x), z: s(se.z) })),
     playfield: {
       xMin: s(map.playfield.xMin),
       xMax: s(map.playfield.xMax),
@@ -629,7 +629,7 @@ function scaleMapDef(map: MapDef, factor: number): MapDef {
     tap: sPt(map.tap),
     crack: sPt(map.crack),
     meeting: sPt(map.meeting),
-    slots: map.slots.map((sl) => ({ ...sl, x: s(sl.x), z: s(sl.z) })),
+    slots: map.slots.map(sl => ({ ...sl, x: s(sl.x), z: s(sl.z) })),
     spawn: {
       alice: sPt(map.spawn.alice),
       bob: sPt(map.spawn.bob),
@@ -641,15 +641,12 @@ function scaleMapDef(map: MapDef, factor: number): MapDef {
 export const MAPS: MapDef[] = [RELAY, GREENHOUSE, MINE, MERIDIAN, scaleMapDef(HQ, HQ_SCALE)];
 
 export function getMap(id: string): MapDef {
-  return MAPS.find((m) => m.id === id) ?? RELAY;
+  return MAPS.find(m => m.id === id) ?? RELAY;
 }
 
 export function roomContaining(map: MapDef, x: number, z: number): RoomDef | null {
   for (const room of map.rooms) {
-    if (
-      Math.abs(x - room.center.x) <= room.size.w / 2 &&
-      Math.abs(z - room.center.z) <= room.size.d / 2
-    ) {
+    if (Math.abs(x - room.center.x) <= room.size.w / 2 && Math.abs(z - room.center.z) <= room.size.d / 2) {
       return room;
     }
   }
@@ -663,10 +660,7 @@ export function roomContaining(map: MapDef, x: number, z: number): RoomDef | nul
  */
 export function isWalkable(map: MapDef, x: number, z: number, pad = 0): boolean {
   for (const r of map.rooms) {
-    if (
-      Math.abs(x - r.center.x) <= r.size.w / 2 - pad &&
-      Math.abs(z - r.center.z) <= r.size.d / 2 - pad
-    ) {
+    if (Math.abs(x - r.center.x) <= r.size.w / 2 - pad && Math.abs(z - r.center.z) <= r.size.d / 2 - pad) {
       return true;
     }
   }

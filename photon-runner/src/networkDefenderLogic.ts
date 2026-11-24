@@ -11,12 +11,17 @@ export const SPEED = 60;
 export const REVIEWS_PER_ROUND = 12;
 export const POINTS_PER_ALLOW = 50;
 
-export function canvasPoint(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }): { x: number; y: number } | null {
+export function canvasPoint(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+): { x: number; y: number } | null {
   if (rect.width <= 0 || rect.height <= 0) return null;
-  return { x: (clientX - rect.left) * WIDTH / rect.width, y: (clientY - rect.top) * HEIGHT / rect.height };
+  return { x: ((clientX - rect.left) * WIDTH) / rect.width, y: ((clientY - rect.top) * HEIGHT) / rect.height };
 }
 
-export type ThreatKind = 'port-scan' | 'syn-flood' | 'brute-force' | 'sql-injection' | 'malware-c2' | 'https' | 'dns' | 'email' | 'ssh-admin';
+export type ThreatKind =
+  'port-scan' | 'syn-flood' | 'brute-force' | 'sql-injection' | 'malware-c2' | 'https' | 'dns' | 'email' | 'ssh-admin';
 
 export const MALICIOUS_KINDS: ThreatKind[] = ['port-scan', 'syn-flood', 'brute-force', 'sql-injection', 'malware-c2'];
 export const LEGIT_KINDS: ThreatKind[] = ['https', 'dns', 'email', 'ssh-admin'];
@@ -192,7 +197,7 @@ export function blockIp(state: DefenderState, ip: string): BlockResult {
     return { state, outcome: 'already-blocked' };
   }
   state.blockedIps.add(ip);
-  const inFlight = state.threats.find((t) => t.ip === ip && !t.dropped);
+  const inFlight = state.threats.find(t => t.ip === ip && !t.dropped);
   if (inFlight) {
     for (const packet of state.threats) if (packet.ip === ip) packet.dropped = true;
     if (inFlight.malicious) {
@@ -255,9 +260,16 @@ export function reviewThreat(state: DefenderState, id: number, choice: 'block' |
   if (correct) state.correct++;
   state.over = state.health <= 0 || state.trust <= 0 || state.reviewed >= REVIEWS_PER_ROUND;
   return {
-    correct, blockOutcome,
-    explanation: `${correct ? 'Good call.' : 'That decision hurt the shop.'} ${KIND_CLUES[threat.kind]} ${choice === 'block'
-      ? correct ? 'The firewall will stop this source next time too. +100 points.' : 'A real customer or teammate was blocked. Trust −20.'
-      : correct ? 'The request reached the shop. +50 points.' : 'The attack reached the server. Health −1.'}`,
+    correct,
+    blockOutcome,
+    explanation: `${correct ? 'Good call.' : 'That decision hurt the shop.'} ${KIND_CLUES[threat.kind]} ${
+      choice === 'block'
+        ? correct
+          ? 'The firewall will stop this source next time too. +100 points.'
+          : 'A real customer or teammate was blocked. Trust −20.'
+        : correct
+          ? 'The request reached the shop. +50 points.'
+          : 'The attack reached the server. Health −1.'
+    }`,
   };
 }

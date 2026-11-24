@@ -21,14 +21,7 @@ export type Role = 'crew' | 'eve';
 
 export type CrisisKind = 'decoherence' | 'blackout' | 'keypurge';
 
-export const CODENAMES = [
-  'Cyan',
-  'Amber',
-  'Violet',
-  'Coral',
-  'Slate',
-  'Moss',
-] as const;
+export const CODENAMES = ['Cyan', 'Amber', 'Violet', 'Coral', 'Slate', 'Moss'] as const;
 
 export const CREW_SIZE = 6;
 export const KILL_COOLDOWN = 22;
@@ -75,12 +68,7 @@ export interface MeetingState {
 
 export interface Outcome {
   winner: 'crew' | 'eve';
-  reason:
-    | 'key-established'
-    | 'eve-ejected'
-    | 'outnumbered'
-    | 'crisis-expired'
-    | 'crew-eliminated';
+  reason: 'key-established' | 'eve-ejected' | 'outnumbered' | 'crisis-expired' | 'crew-eliminated';
   eveId: string;
 }
 
@@ -151,14 +139,13 @@ export function createGame(rng: () => number = Math.random): GameState {
   };
 }
 
-export const eveOf = (s: GameState): Operative => s.operatives.find((o) => o.role === 'eve')!;
-export const aliveOf = (s: GameState): Operative[] => s.operatives.filter((o) => o.alive);
-export const aliveCrew = (s: GameState): Operative[] => aliveOf(s).filter((o) => o.role === 'crew');
-export const aliveEve = (s: GameState): Operative[] => aliveOf(s).filter((o) => o.role === 'eve');
+export const eveOf = (s: GameState): Operative => s.operatives.find(o => o.role === 'eve')!;
+export const aliveOf = (s: GameState): Operative[] => s.operatives.filter(o => o.alive);
+export const aliveCrew = (s: GameState): Operative[] => aliveOf(s).filter(o => o.role === 'crew');
+export const aliveEve = (s: GameState): Operative[] => aliveOf(s).filter(o => o.role === 'eve');
 
 /** Ghosts keep working — they just can't talk or vote. */
-export const canVote = (s: GameState, id: string): boolean =>
-  !!s.operatives.find((o) => o.id === id && o.alive);
+export const canVote = (s: GameState, id: string): boolean => !!s.operatives.find(o => o.id === id && o.alive);
 
 // ---------------------------------------------------------------- win checks
 
@@ -202,18 +189,18 @@ export function completeTask(s: GameState, totalTasks: number): GameState {
 
 export function canCompromise(s: GameState, actorId: string, targetId: string): boolean {
   if (s.phase !== 'play' || s.killCooldown > 0) return false;
-  const actor = s.operatives.find((o) => o.id === actorId);
-  const target = s.operatives.find((o) => o.id === targetId);
+  const actor = s.operatives.find(o => o.id === actorId);
+  const target = s.operatives.find(o => o.id === targetId);
   return !!actor && !!target && actor.role === 'eve' && actor.alive && target.alive && target.role === 'crew';
 }
 
 export function compromise(s: GameState, targetId: string, at: { x: number; z: number }): GameState {
-  const target = s.operatives.find((o) => o.id === targetId);
+  const target = s.operatives.find(o => o.id === targetId);
   if (!target || !target.alive) return s;
 
   const next: GameState = {
     ...s,
-    operatives: s.operatives.map((o) => (o.id === targetId ? { ...o, alive: false } : o)),
+    operatives: s.operatives.map(o => (o.id === targetId ? { ...o, alive: false } : o)),
     nodes: [...s.nodes, { id: targetId, x: at.x, z: at.z, reported: false }],
     killCooldown: KILL_COOLDOWN,
     // Burning a key share leaves a detectable scar on the channel.
@@ -226,13 +213,13 @@ export function compromise(s: GameState, targetId: string, at: { x: number; z: n
 
 export function reportBody(s: GameState, victimId: string, reporterId: string): GameState {
   if (s.phase !== 'play') return s;
-  const node = s.nodes.find((n) => n.id === victimId && !n.reported);
+  const node = s.nodes.find(n => n.id === victimId && !n.reported);
   if (!node) return s;
 
   return {
     ...s,
     phase: 'meeting',
-    nodes: s.nodes.map((n) => (n.id === victimId ? { ...n, reported: true } : n)),
+    nodes: s.nodes.map(n => (n.id === victimId ? { ...n, reported: true } : n)),
     crisis: null, // a meeting cancels any running sabotage
     meeting: {
       reason: { kind: 'body', victim: victimId, reporter: reporterId },
@@ -247,7 +234,7 @@ export function callEmergency(s: GameState, callerId: string): GameState {
   if (s.phase !== 'play' || s.crisis) return s;
   const used = s.emergenciesUsed[callerId] ?? 0;
   if (used >= EMERGENCY_PER_PLAYER) return s;
-  const caller = s.operatives.find((o) => o.id === callerId);
+  const caller = s.operatives.find(o => o.id === callerId);
   if (!caller?.alive) return s;
 
   return {
@@ -273,7 +260,7 @@ export function castVote(s: GameState, voterId: string, accused: string): GameSt
 /** True once every living operative has voted. */
 export function votingComplete(s: GameState): boolean {
   if (!s.meeting) return false;
-  return aliveOf(s).every((o) => !!s.meeting!.votes[o.id]);
+  return aliveOf(s).every(o => !!s.meeting!.votes[o.id]);
 }
 
 /**
@@ -300,11 +287,11 @@ export function resolveMeeting(s: GameState): GameState {
   }
 
   const ejected = tied || top === 'skip' || top === null ? null : top;
-  const wasEve = !!ejected && s.operatives.find((o) => o.id === ejected)?.role === 'eve';
+  const wasEve = !!ejected && s.operatives.find(o => o.id === ejected)?.role === 'eve';
 
   const afterEject: GameState = {
     ...s,
-    operatives: ejected ? s.operatives.map((o) => (o.id === ejected ? { ...o, alive: false } : o)) : s.operatives,
+    operatives: ejected ? s.operatives.map(o => (o.id === ejected ? { ...o, alive: false } : o)) : s.operatives,
     meeting: { ...s.meeting, result: { ejected, wasEve } },
   };
 
@@ -371,27 +358,22 @@ export function tickCooldown(s: GameState, dt: number): GameState {
  * the fiber); Eve votes for whoever is most suspicious *of her*, or skips to
  * keep her head down.
  */
-export function botVote(
-  s: GameState,
-  voterId: string,
-  suspicion: Record<string, number>,
-  rng: () => number = Math.random
-): string {
-  const voter = s.operatives.find((o) => o.id === voterId);
+export function botVote(s: GameState, voterId: string, suspicion: Record<string, number>, rng: () => number = Math.random): string {
+  const voter = s.operatives.find(o => o.id === voterId);
   if (!voter) return 'skip';
 
-  const candidates = aliveOf(s).filter((o) => o.id !== voterId);
+  const candidates = aliveOf(s).filter(o => o.id !== voterId);
   if (candidates.length === 0) return 'skip';
 
   if (voter.role === 'eve') {
     // Eve throws suspicion at the loudest accuser, or skips when it's quiet.
     if (rng() < 0.35) return 'skip';
-    const crew = candidates.filter((c) => c.role === 'crew');
+    const crew = candidates.filter(c => c.role === 'crew');
     if (crew.length === 0) return 'skip';
     return crew[Math.floor(rng() * crew.length)].id;
   }
 
-  const scored = candidates.map((c) => ({ id: c.id, score: (suspicion[c.id] ?? 0) + rng() * 15 }));
+  const scored = candidates.map(c => ({ id: c.id, score: (suspicion[c.id] ?? 0) + rng() * 15 }));
   scored.sort((a, b) => b.score - a.score);
   // With nothing to go on, crew abstain rather than lynch at random.
   if (scored[0].score < 12) return 'skip';

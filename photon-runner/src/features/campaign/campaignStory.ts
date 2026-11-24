@@ -42,15 +42,7 @@ export const SPEAKER_NAMES: Record<Speaker, string> = {
 };
 
 /** Where in the HQ a beat takes place. Matches the canonical map. */
-export type Area =
-  | 'entrance'
-  | 'reception'
-  | 'central-ops'
-  | 'training'
-  | 'crypto'
-  | 'communications'
-  | 'soc'
-  | 'red-team';
+export type Area = 'entrance' | 'reception' | 'central-ops' | 'training' | 'crypto' | 'communications' | 'soc' | 'red-team';
 
 export const AREA_NAMES: Record<Area, string> = {
   entrance: 'Entrance',
@@ -146,15 +138,13 @@ const PROLOGUE: Chapter = {
       area: 'entrance',
       speaker: 'system',
       objective: 'Report to Reception',
-      text:
-        'Phantom Q Headquarters. Staff move between the operations floor and the wings beyond; most of the doors past reception carry access readers. This is a working secure facility, and you are new here.',
+      text: 'Phantom Q Headquarters. Staff move between the operations floor and the wings beyond; most of the doors past reception carry access readers. This is a working secure facility, and you are new here.',
     },
     {
       id: 'registration',
       area: 'reception',
       speaker: 'reception',
-      text:
-        'Welcome to Phantom Q. I will open a trainee profile for you. These are in-world training details only — nothing here touches your real account.',
+      text: 'Welcome to Phantom Q. I will open a trainee profile for you. These are in-world training details only — nothing here touches your real account.',
       objective: 'Complete registration',
       records: ['I am a new Phantom Q trainee.'],
     },
@@ -163,8 +153,7 @@ const PROLOGUE: Chapter = {
       area: 'reception',
       speaker: 'system',
       objective: 'Create your Phantom Q training credential',
-      text:
-        'TRAINING ENVIRONMENT — Create a Phantom Q training credential. Use a fictional password. Do not enter or reuse a real password. This credential is an in-world security object; it will matter later.',
+      text: 'TRAINING ENVIRONMENT — Create a Phantom Q training credential. Use a fictional password. Do not enter or reuse a real password. This credential is an in-world security object; it will matter later.',
       evidence: {
         id: 'credential-created',
         label: 'Trainee credential created',
@@ -176,8 +165,7 @@ const PROLOGUE: Chapter = {
       id: 'eve-check',
       area: 'reception',
       speaker: 'eve',
-      text:
-        "I'm Eve — security support here. I run an authorised credential check on every new trainee: I verify your training credential works in the Phantom Q training environment. Routine, logged, and with your participation.",
+      text: "I'm Eve — security support here. I run an authorised credential check on every new trainee: I verify your training credential works in the Phantom Q training environment. Routine, logged, and with your participation.",
       objective: 'Participate in the authorised credential test',
       choices: [
         {
@@ -218,8 +206,7 @@ const PROLOGUE: Chapter = {
       id: 'clearance',
       area: 'reception',
       speaker: 'system',
-      text:
-        'CLEARANCE: TRAINEE / BASIC. Your badge is active. Reception is open and Central Operations is limited. Training, Cryptography, Red Team and the Quantum wing stay locked — you can see them, but not enter.',
+      text: 'CLEARANCE: TRAINEE / BASIC. Your badge is active. Reception is open and Central Operations is limited. Training, Cryptography, Red Team and the Quantum wing stay locked — you can see them, but not enter.',
       objective: 'Pass through the access gate',
       unlocks: ['central-ops'],
     },
@@ -227,8 +214,7 @@ const PROLOGUE: Chapter = {
       id: 'workstation',
       area: 'central-ops',
       speaker: 'workstation',
-      text:
-        'WORKSTATION 04 — USER: TRAINEE — STATUS: ACTIVE. This is your desk for the whole of your time here. Not a different machine each shift: this one.',
+      text: 'WORKSTATION 04 — USER: TRAINEE — STATUS: ACTIVE. This is your desk for the whole of your time here. Not a different machine each shift: this one.',
       objective: 'Log in to Workstation 04',
       records: ['Workstation 04 is my assigned workstation.'],
     },
@@ -236,8 +222,7 @@ const PROLOGUE: Chapter = {
       id: 'alice-arrives',
       area: 'central-ops',
       speaker: 'alice',
-      text:
-        "Morning — I'm Alice. I need two files sent across to Bob; he's working remotely today. They're on this USB. Nothing complicated, just get them to him and confirm he has them.",
+      text: "Morning — I'm Alice. I need two files sent across to Bob; he's working remotely today. They're on this USB. Nothing complicated, just get them to him and confirm he has them.",
       objective: 'Inspect the USB',
       evidence: {
         id: 'usb-source',
@@ -296,8 +281,7 @@ const PROLOGUE: Chapter = {
       id: 'alice-returns',
       area: 'central-ops',
       speaker: 'alice',
-      text:
-        "Sorry — one more. I forgot the access schedule. Same as before, straight to Bob. It's the last one, I promise.",
+      text: "Sorry — one more. I forgot the access schedule. Same as before, straight to Bob. It's the last one, I promise.",
       objective: `Accept ${F3}`,
       evidence: {
         id: 'usb-source-3',
@@ -340,7 +324,7 @@ const PROLOGUE: Chapter = {
           id: 'check-alice',
           label: 'Check with Alice that this is the correct file',
           outcome:
-            "Alice looks at the USB and confirms it: this is the access schedule she meant to send, and the copy on the USB is the one she prepared. You now have her confirmation on record before you try again.",
+            'Alice looks at the USB and confirms it: this is the access schedule she meant to send, and the copy on the USB is the one she prepared. You now have her confirmation on record before you try again.',
           advances: true,
           records: ['Alice confirmed her original file before the retry.'],
           evidence: {
@@ -383,8 +367,7 @@ const PROLOGUE: Chapter = {
       id: 'mismatch',
       area: 'central-ops',
       speaker: 'alice',
-      text:
-        "Let me see. No — that's not the version I gave you. Those aren't the details I put in the schedule. Where did that come from?",
+      text: "Let me see. No — that's not the version I gave you. Those aren't the details I put in the schedule. Where did that come from?",
       objective: 'Record the mismatch',
       evidence: {
         id: 'mismatch',
@@ -397,8 +380,7 @@ const PROLOGUE: Chapter = {
       id: 'credential-anomaly',
       area: 'central-ops',
       speaker: 'workstation',
-      text:
-        'TRAINING CREDENTIAL ACTIVITY — LOGIN EVENT: UNRECOGNISED. STATUS: REQUIRES REVIEW. The notice names no user and no origin. It records only that an event occurred which does not match expected activity.',
+      text: 'TRAINING CREDENTIAL ACTIVITY — LOGIN EVENT: UNRECOGNISED. STATUS: REQUIRES REVIEW. The notice names no user and no origin. It records only that an event occurred which does not match expected activity.',
       objective: 'Open the credential notice',
       evidence: {
         id: 'credential-anomaly',
@@ -412,15 +394,13 @@ const PROLOGUE: Chapter = {
       area: 'central-ops',
       speaker: 'workstation',
       objective: 'Deal with the message in your inbox',
-      text:
-        'A message has arrived at Workstation 04 while you were checking the transfer. It is addressed to you by name and it is asking for your training credential.',
+      text: 'A message has arrived at Workstation 04 while you were checking the transfer. It is addressed to you by name and it is asking for your training credential.',
       exercise: {
         kind: 'phish',
         prompt: 'Examine the message before you do anything with it.',
         from: 'Phantom Q Security <security@phantomq-support.co.za>',
         subject: 'URGENT: credential re-verification required within 1 hour',
-        body:
-          'Following a security event on the network we must re-verify your trainee credential immediately. Reply to this message with your Phantom Q training username and password so the check can be completed. Accounts not verified within 1 hour will be suspended and your access badge deactivated.',
+        body: 'Following a security event on the network we must re-verify your trainee credential immediately. Reply to this message with your Phantom Q training username and password so the check can be completed. Accounts not verified within 1 hour will be suspended and your access badge deactivated.',
         tells: [
           {
             id: 'domain',
@@ -488,21 +468,18 @@ const PROLOGUE: Chapter = {
         detail:
           'A message claiming to be Phantom Q Security requested the trainee credential. Lookalike sender domain, one-hour deadline. No authorised exercise explains it.',
       },
-      records: [
-        'Someone asked me for my training credential in a message that only looked like it came from security.',
-      ],
+      records: ['Someone asked me for my training credential in a message that only looked like it came from security.'],
     },
     {
       id: 'ask-eve',
       area: 'central-ops',
       speaker: 'system',
-      text:
-        'Eve ran an authorised credential test earlier today. The question worth asking is a narrow one: does her authorised activity account for this event?',
+      text: 'Eve ran an authorised credential test earlier today. The question worth asking is a narrow one: does her authorised activity account for this event?',
       objective: 'Decide what to do about the credential notice',
       choices: [
         {
           id: 'check-eve-record',
-          label: "Ask Eve to check her authorised test record",
+          label: 'Ask Eve to check her authorised test record',
           outcome:
             'Eve pulls her log without hesitation. EARLIER CREDENTIAL TEST: COMPLETE. CURRENT ACTIVITY: NOT AUTHORISED — not hers, not scheduled, not part of any active test. So security activity exists, and it is not explained by the one authorised test we know about. That is as far as the evidence goes.',
           advances: true,
@@ -513,8 +490,7 @@ const PROLOGUE: Chapter = {
           evidence: {
             id: 'eve-not-explained',
             label: 'Eve authorised test does not explain the event',
-            detail:
-              'Eve’s authorised credential test is complete and logged. The current unrecognised activity is not part of it.',
+            detail: 'Eve’s authorised credential test is complete and logged. The current unrecognised activity is not part of it.',
           },
         },
         {
@@ -538,8 +514,7 @@ const PROLOGUE: Chapter = {
       id: 'escalate',
       area: 'central-ops',
       speaker: 'system',
-      text:
-        'You have enough to escalate, and not enough to solve. That is the correct position to be in. Phantom Q gathers what you can actually support and opens a case.',
+      text: 'You have enough to escalate, and not enough to solve. That is the correct position to be in. Phantom Q gathers what you can actually support and opens a case.',
       objective: 'Submit the incident report',
       unlocks: ['training'],
       records: ['I opened PQ-001. Something failed; the cause and the actor are unknown.'],
@@ -564,15 +539,13 @@ const INCIDENT_01: Chapter = {
   id: 'incident-01',
   title: 'Incident 01',
   subtitle: 'Understand the Incident',
-  purpose:
-    'Turn what you lived through into disciplined reasoning. Not "who attacked us" — what can we actually prove happened?',
+  purpose: 'Turn what you lived through into disciplined reasoning. Not "who attacked us" — what can we actually prove happened?',
   beats: [
     {
       id: 'i1-open',
       area: 'central-ops',
       speaker: 'system',
-      text:
-        'CLEARANCE UPDATED — TRAINING & FOUNDATIONS: ACCESS GRANTED. PQ-001 is open and assigned to you. The objective is not to solve it. It is to separate what you know from what you are assuming.',
+      text: 'CLEARANCE UPDATED — TRAINING & FOUNDATIONS: ACCESS GRANTED. PQ-001 is open and assigned to you. The objective is not to solve it. It is to separate what you know from what you are assuming.',
       objective: 'Report to Training & Foundations',
       unlocks: ['training'],
     },
@@ -580,8 +553,7 @@ const INCIDENT_01: Chapter = {
       id: 'i1-reconstruct',
       area: 'training',
       speaker: 'system',
-      text:
-        'The incident table holds every event from PQ-001, unordered. Rebuild the sequence. Files 1 and 2 sit above the line as the normal baseline — the contrast is the point.',
+      text: 'The incident table holds every event from PQ-001, unordered. Rebuild the sequence. Files 1 and 2 sit above the line as the normal baseline — the contrast is the point.',
       objective: 'Stage 1 — Reconstruct the timeline',
       exercise: {
         kind: 'order',
@@ -631,8 +603,7 @@ const INCIDENT_01: Chapter = {
       id: 'i1-fact-assumption',
       area: 'training',
       speaker: 'system',
-      text:
-        'Sort each statement by what the evidence actually supports. This board stays with the case for the rest of the investigation, so it is worth getting right.',
+      text: 'Sort each statement by what the evidence actually supports. This board stays with the case for the rest of the investigation, so it is worth getting right.',
       objective: 'Stage 2 — Fact vs assumption',
       exercise: {
         kind: 'classify',
@@ -686,16 +657,14 @@ const INCIDENT_01: Chapter = {
       id: 'i1-trace',
       area: 'training',
       speaker: 'system',
-      text:
-        'Source, transfer, receiver. Alice’s original is available and internally consistent, so a source error is not currently supported. Transfer 1 did not complete as expected; transfer 2 completed but the result was wrong.',
+      text: 'Source, transfer, receiver. Alice’s original is available and internally consistent, so a source error is not currently supported. Transfer 1 did not complete as expected; transfer 2 completed but the result was wrong.',
       objective: 'Stage 3 — Trace the evidence',
     },
     {
       id: 'i1-cia',
       area: 'training',
       speaker: 'system',
-      text:
-        'Three security properties. Judge each one against the evidence you have — and only against the evidence you have. A suspicious event does not mean every property failed.',
+      text: 'Three security properties. Judge each one against the evidence you have — and only against the evidence you have. A suspicious event does not mean every property failed.',
       objective: 'Stage 4 — Identify what failed',
       exercise: {
         kind: 'classify',
@@ -731,8 +700,7 @@ const INCIDENT_01: Chapter = {
       id: 'i1-identity',
       area: 'training',
       speaker: 'system',
-      text:
-        'A credential represents authority to act. Eve’s check was expected and authorised. The later event was neither. That makes the identity activity suspicious — not conclusively compromised.',
+      text: 'A credential represents authority to act. Eve’s check was expected and authorised. The later event was neither. That makes the identity activity suspicious — not conclusively compromised.',
       objective: 'Stage 5 — Identity and access',
     },
     {
@@ -741,8 +709,7 @@ const INCIDENT_01: Chapter = {
       area: 'training',
       speaker: 'system',
       objective: 'Stage 5b — Rebuild the capture chain',
-      text:
-        'Before the identity evidence can be trusted it has to be captured properly. The training rack has been stripped; seat the modules so the chain runs in order — the line comes in, is split for monitoring, is timestamped, and only then is written to the log.',
+      text: 'Before the identity evidence can be trusted it has to be captured properly. The training rack has been stripped; seat the modules so the chain runs in order — the line comes in, is split for monitoring, is timestamped, and only then is written to the log.',
       exercise: {
         kind: 'rack',
         prompt: 'Seat each module in the bay it belongs to.',
@@ -790,8 +757,7 @@ const INCIDENT_01: Chapter = {
       id: 'i1-trust',
       area: 'training',
       speaker: 'system',
-      text:
-        'What can Phantom Q currently trust? Alice’s original, Bob’s report of what arrived, and Eve’s authorised log. What it cannot yet trust is the path between them.',
+      text: 'What can Phantom Q currently trust? Alice’s original, Bob’s report of what arrived, and Eve’s authorised log. What it cannot yet trust is the path between them.',
       objective: 'Stage 6 — Trust and verification',
       unlocks: ['crypto'],
     },
@@ -809,7 +775,7 @@ const INCIDENT_01: Chapter = {
 export const CHAPTERS: Chapter[] = [PROLOGUE, INCIDENT_01];
 
 export function getChapter(id: ChapterId): Chapter | null {
-  return CHAPTERS.find((c) => c.id === id) ?? null;
+  return CHAPTERS.find(c => c.id === id) ?? null;
 }
 
 // ------------------------------------------------------------------- state
@@ -845,21 +811,18 @@ export function currentBeat(s: CampaignState): Beat | null {
   return ch.beats[s.beatIndex] ?? null;
 }
 
-const addUnique = <T,>(list: T[], items: T[], keyOf: (t: T) => string): T[] => {
+const addUnique = <T>(list: T[], items: T[], keyOf: (t: T) => string): T[] => {
   const seen = new Set(list.map(keyOf));
-  return [...list, ...items.filter((i) => !seen.has(keyOf(i)))];
+  return [...list, ...items.filter(i => !seen.has(keyOf(i)))];
 };
 
 /** Applies whatever a beat or choice establishes. */
-function accrue(
-  s: CampaignState,
-  src: { records?: string[]; evidence?: EvidenceItem; unlocks?: Area[] }
-): CampaignState {
+function accrue(s: CampaignState, src: { records?: string[]; evidence?: EvidenceItem; unlocks?: Area[] }): CampaignState {
   return {
     ...s,
-    knownFacts: addUnique(s.knownFacts, src.records ?? [], (f) => f),
-    evidence: addUnique(s.evidence, src.evidence ? [src.evidence] : [], (e) => e.id),
-    unlocked: addUnique(s.unlocked, src.unlocks ?? [], (a) => a),
+    knownFacts: addUnique(s.knownFacts, src.records ?? [], f => f),
+    evidence: addUnique(s.evidence, src.evidence ? [src.evidence] : [], e => e.id),
+    unlocked: addUnique(s.unlocked, src.unlocks ?? [], a => a),
   };
 }
 
@@ -893,7 +856,7 @@ export function advance(s: CampaignState): CampaignState {
  */
 export function choose(s: CampaignState, choiceId: string): CampaignState {
   const beat = currentBeat(s);
-  const choice = beat?.choices?.find((c) => c.id === choiceId);
+  const choice = beat?.choices?.find(c => c.id === choiceId);
   if (!beat || !choice) return s;
 
   const logged: CampaignState = {

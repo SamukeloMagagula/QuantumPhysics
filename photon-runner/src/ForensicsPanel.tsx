@@ -1,15 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { AttackState } from './qkdAttack';
-import {
-  ForensicReport,
-  StationId,
-  STATION_LABELS,
-  Verdict,
-  buildReport,
-  judge,
-  suspicionScore,
-} from './qkdForensics';
+import { ForensicReport, StationId, STATION_LABELS, Verdict, buildReport, judge, suspicionScore } from './qkdForensics';
 
 /**
  * Bob's station: read the trail a hack left and name the eavesdropper.
@@ -49,8 +41,8 @@ export function ForensicsPanel({ session, onClose }: { session: AttackState | nu
     return (
       <Shell onClose={onClose}>
         <p style={{ color: TONE.dim, fontSize: 13, lineHeight: 1.6 }}>
-          No exchange on record. Run an attack from Eve&apos;s console first — this station reads the trail a hack
-          leaves behind, so there has to be one.
+          No exchange on record. Run an attack from Eve&apos;s console first — this station reads the trail a hack leaves behind, so there
+          has to be one.
         </p>
       </Shell>
     );
@@ -60,19 +52,17 @@ export function ForensicsPanel({ session, onClose }: { session: AttackState | nu
 
   return (
     <Shell onClose={onClose}>
-      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4, marginBottom: 4 }}>
-        POST-EXCHANGE FORENSICS
-      </div>
+      <div style={{ color: TONE.accent, fontSize: 12, letterSpacing: 1.4, marginBottom: 4 }}>POST-EXCHANGE FORENSICS</div>
       <p style={{ color: TONE.dim, fontSize: 12, lineHeight: 1.6, marginBottom: 14 }}>
-        {session.target.name} · {session.sifted} sifted bits. One of these three stations was the tap. An honest
-        station sits at the channel noise floor with a ~100% basis match.
+        {session.target.name} · {session.sifted} sifted bits. One of these three stations was the tap. An honest station sits at the channel
+        noise floor with a ~100% basis match.
       </p>
 
       <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12 }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 460 }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,.04)' }}>
-              {['station', 'QBER', 'error shape', 'basis match'].map((h) => (
+              {['station', 'QBER', 'error shape', 'basis match'].map(h => (
                 <th
                   key={h}
                   style={{
@@ -91,7 +81,7 @@ export function ForensicsPanel({ session, onClose }: { session: AttackState | nu
             </tr>
           </thead>
           <tbody>
-            {ranked.map((e) => {
+            {ranked.map(e => {
               const hotQber = e.qber > 0.03;
               const hotBasis = e.basisMatch < 0.9;
               return (
@@ -111,7 +101,7 @@ export function ForensicsPanel({ session, onClose }: { session: AttackState | nu
         <>
           <p style={{ color: TONE.dim, fontSize: 12, margin: '16px 0 8px' }}>Who was tapping the line?</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {(['alice', 'bob', 'eve'] as StationId[]).map((s) => (
+            {(['alice', 'bob', 'eve'] as StationId[]).map(s => (
               <button
                 key={s}
                 onClick={() => setVerdict(judge(report, s))}

@@ -67,28 +67,26 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
   // Open on the first section with work left, so the dashboard lands where
   // the learner actually is rather than always at the top.
-  const firstUnfinished = all.find((s) => labsRemaining(labsInSection(s), completed) > 0);
+  const firstUnfinished = all.find(s => labsRemaining(labsInSection(s), completed) > 0);
   const [active, setActive] = useState<string>(firstUnfinished ?? all[0]);
 
-  const labsHere = LABS.filter((l) => l.category === active);
+  const labsHere = LABS.filter(l => l.category === active);
   const exam = examForSection(active);
   const unlocked = exam ? examUnlocked(labsInSection(active), completed) : false;
   const left = labsRemaining(labsInSection(active), completed);
-  const nextLab = labsHere.find((l) => !store.isComplete(l.id));
+  const nextLab = labsHere.find(l => !store.isComplete(l.id));
 
-  const sectionsCleared = all.filter((s) => labsRemaining(labsInSection(s), completed) === 0).length;
-  const testsPassed = all.filter((s) => {
+  const sectionsCleared = all.filter(s => labsRemaining(labsInSection(s), completed) === 0).length;
+  const testsPassed = all.filter(s => {
     const e = examForSection(s);
     return e && examProgress[e.id]?.passed;
   }).length;
   const bestScores = all
-    .map((s) => examForSection(s))
+    .map(s => examForSection(s))
     .filter((e): e is NonNullable<typeof e> => !!e)
-    .map((e) => examProgress[e.id]?.bestPercent)
+    .map(e => examProgress[e.id]?.bestPercent)
     .filter((v): v is number => typeof v === 'number');
-  const avgBest = bestScores.length
-    ? Math.round(bestScores.reduce((a, b) => a + b, 0) / bestScores.length)
-    : 0;
+  const avgBest = bestScores.length ? Math.round(bestScores.reduce((a, b) => a + b, 0) / bestScores.length) : 0;
   const overall = LABS.length ? Math.round((completed.length / LABS.length) * 100) : 0;
 
   return (
@@ -120,7 +118,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
               trailing={`${completed.length}/${LABS.length}`}
             />
             <div className="h-px my-1.5" style={{ background: 'rgb(var(--glass-border)/.16)' }} />
-            {all.map((s) => {
+            {all.map(s => {
               const ids = labsInSection(s);
               const done = ids.length - labsRemaining(ids, completed);
               const { Icon } = metaFor(s);
@@ -140,7 +138,10 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
           <div className="panel rounded-2xl p-4 space-y-2.5">
             <div className="label-mono !text-[9px] ink-3">Training overview</div>
-            <Row label="Status" value={<Pill tone={overall === 100 ? 'var(--ok)' : 'var(--accent)'}>{overall === 100 ? 'COMPLETE' : 'IN PROGRESS'}</Pill>} />
+            <Row
+              label="Status"
+              value={<Pill tone={overall === 100 ? 'var(--ok)' : 'var(--accent)'}>{overall === 100 ? 'COMPLETE' : 'IN PROGRESS'}</Pill>}
+            />
             <Row label="Labs completed" value={`${completed.length} / ${LABS.length}`} />
             <Row label="Sections cleared" value={`${sectionsCleared} / ${all.length}`} />
             <Row label="Tests passed" value={`${testsPassed} / ${all.length}`} />
@@ -163,9 +164,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
           <PageHeader
             eyebrow="Security labs"
             title={active}
-            description={`${labsHere.length} lab${labsHere.length === 1 ? '' : 's'}${
-              exam ? ', ending in a section test' : ''
-            }.`}
+            description={`${labsHere.length} lab${labsHere.length === 1 ? '' : 's'}${exam ? ', ending in a section test' : ''}.`}
             actions={
               nextLab ? (
                 <button onClick={() => onOpenLab(nextLab.id)} className="btn btn-primary px-4 py-2 text-sm">
@@ -182,10 +181,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
                 />
                 <Meta label="Overall" value={`${overall}%`} />
                 <div className="flex-1 min-w-[160px]">
-                  <SectionRail
-                    labs={labsHere.map((l) => ({ id: l.id, done: store.isComplete(l.id) }))}
-                    glow="var(--accent)"
-                  />
+                  <SectionRail labs={labsHere.map(l => ({ id: l.id, done: store.isComplete(l.id) }))} glow="var(--accent)" />
                 </div>
               </>
             }
@@ -194,17 +190,20 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
           {/* Real readouts, not decoration. */}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Labs completed" value={`${completed.length}`} sub={`of ${LABS.length}`} tone="var(--accent)">
-              <Bars values={all.map((s) => {
-                const ids = labsInSection(s);
-                return ids.length ? (ids.length - labsRemaining(ids, completed)) / ids.length : 0;
-              })} tone="var(--accent)" />
+              <Bars
+                values={all.map(s => {
+                  const ids = labsInSection(s);
+                  return ids.length ? (ids.length - labsRemaining(ids, completed)) / ids.length : 0;
+                })}
+                tone="var(--accent)"
+              />
             </Metric>
             <Metric label="Sections cleared" value={`${sectionsCleared}`} sub={`of ${all.length}`} tone="var(--ok)">
-              <Bars values={all.map((s) => (labsRemaining(labsInSection(s), completed) === 0 ? 1 : 0))} tone="var(--ok)" />
+              <Bars values={all.map(s => (labsRemaining(labsInSection(s), completed) === 0 ? 1 : 0))} tone="var(--ok)" />
             </Metric>
             <Metric label="Tests passed" value={`${testsPassed}`} sub={`of ${all.length}`} tone="var(--accent-2)">
               <Bars
-                values={all.map((s) => {
+                values={all.map(s => {
                   const e = examForSection(s);
                   return e && examProgress[e.id]?.passed ? 1 : 0;
                 })}
@@ -213,7 +212,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
             </Metric>
             <Metric label="Best score" value={bestScores.length ? `${avgBest}%` : '—'} sub="average across tests" tone="var(--warn)">
               <Bars
-                values={all.map((s) => {
+                values={all.map(s => {
                   const e = examForSection(s);
                   return e ? (examProgress[e.id]?.bestPercent ?? 0) / 100 : 0;
                 })}
@@ -266,10 +265,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
           {/* The section test. */}
           {exam && (
-            <section
-              className="panel rounded-2xl p-5"
-              style={{ opacity: unlocked ? 1 : 0.72 }}
-            >
+            <section className="panel rounded-2xl p-5" style={{ opacity: unlocked ? 1 : 0.72 }}>
               <div className="flex items-start gap-3 flex-wrap">
                 <span
                   className="grid place-items-center w-10 h-10 rounded-xl shrink-0"
@@ -322,7 +318,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
           <div className="panel rounded-2xl p-4 space-y-2">
             <div className="label-mono !text-[9px] ink-3 mb-1">Section tests</div>
-            {all.map((s) => {
+            {all.map(s => {
               const e = examForSection(s);
               if (!e) return null;
               const rec = examProgress[e.id];
@@ -342,9 +338,7 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
                     }}
                   />
                   <span className="text-[11.5px] ink-2 flex-1 truncate">{s}</span>
-                  <span className="text-[10.5px] font-mono ink-4">
-                    {rec ? `${rec.bestPercent}%` : open ? 'open' : 'locked'}
-                  </span>
+                  <span className="text-[10.5px] font-mono ink-4">{rec ? `${rec.bestPercent}%` : open ? 'open' : 'locked'}</span>
                   {open && <ChevronRight size={11} className="ink-4 shrink-0" />}
                 </button>
               );
@@ -356,33 +350,21 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
             {nextLab ? (
               <>
                 <div className="text-[12.5px] ink-1 font-semibold">{nextLab.title}</div>
-                <p className="text-[11px] ink-3 mt-1 leading-relaxed">
-                  {stripTags(nextLab.intro()).slice(0, 150)}…
-                </p>
-                <button
-                  onClick={() => onOpenLab(nextLab.id)}
-                  className="btn btn-ghost w-full px-3 py-2 text-xs mt-3"
-                >
+                <p className="text-[11px] ink-3 mt-1 leading-relaxed">{stripTags(nextLab.intro()).slice(0, 150)}…</p>
+                <button onClick={() => onOpenLab(nextLab.id)} className="btn btn-ghost w-full px-3 py-2 text-xs mt-3">
                   Open lab <ArrowRight size={12} />
                 </button>
               </>
             ) : unlocked && exam && !examProgress[exam.id]?.passed ? (
               <>
                 <div className="text-[12.5px] ink-1 font-semibold">{exam.title}</div>
-                <p className="text-[11px] ink-3 mt-1 leading-relaxed">
-                  Every lab in this section is done. The test is open.
-                </p>
-                <button
-                  onClick={() => onOpenExam(exam.id)}
-                  className="btn btn-ghost w-full px-3 py-2 text-xs mt-3"
-                >
+                <p className="text-[11px] ink-3 mt-1 leading-relaxed">Every lab in this section is done. The test is open.</p>
+                <button onClick={() => onOpenExam(exam.id)} className="btn btn-ghost w-full px-3 py-2 text-xs mt-3">
                   Take the test <ArrowRight size={12} />
                 </button>
               </>
             ) : (
-              <p className="text-[11px] ink-3 leading-relaxed">
-                This section is finished. Pick another from the sidebar.
-              </p>
+              <p className="text-[11px] ink-3 leading-relaxed">This section is finished. Pick another from the sidebar.</p>
             )}
           </div>
         </aside>
@@ -393,7 +375,10 @@ export function LabsHub({ onOpenLab, onOpenGame, onOpenExam }: LabsHubProps) {
 
 /** Lab HTML intros are authored as markup; the rail wants plain text. */
 function stripTags(html: string): string {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ------------------------------------------------------------ small parts
@@ -420,7 +405,7 @@ function SideItem({
       style={{
         background: on ? `color-mix(in oklab, ${glow ?? 'var(--accent)'} 13%, transparent)` : 'transparent',
         color: on ? 'var(--ink-1)' : 'var(--ink-3)',
-        borderLeft: `2px solid ${on ? glow ?? 'var(--accent)' : 'transparent'}`,
+        borderLeft: `2px solid ${on ? (glow ?? 'var(--accent)') : 'transparent'}`,
       }}
     >
       <Icon size={14} />

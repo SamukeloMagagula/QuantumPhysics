@@ -26,7 +26,7 @@ describe('resolveRound', () => {
     expect(draws).toBe(5 * 7);
   });
 
-  it('when Alice and Bob pick the same basis and Eve never intercepts, Bob always reads Alice\'s bit', () => {
+  it("when Alice and Bob pick the same basis and Eve never intercepts, Bob always reads Alice's bit", () => {
     // d0=0 -> aBit=0, d1=0 -> aBasis='+', d2=0.99 -> no intercept (p=0),
     // d3 unused, d4 unused, d5=0 -> bBasis='+' (matches aBasis), d6 unused.
     const rng = seq([0, 0, 0.99, 0, 0, 0, 0]);
@@ -129,7 +129,7 @@ describe('scoreRound', () => {
     expect(scoreRound('eve', base, 'abort').delta).toBe(0);
   });
 
-  it('ABORT with a deliberately high QBER also pays Eve the sabotage bonus, on top of the defenders\' detection bonus', () => {
+  it("ABORT with a deliberately high QBER also pays Eve the sabotage bonus, on top of the defenders' detection bonus", () => {
     const r = { ...base, eveHit: true, sampleQBER: SABOTAGE_THRESHOLD };
     expect(scoreRound('eve', r, 'abort').delta).toBe(SABOTAGE_BONUS);
     expect(scoreRound('alice', r, 'abort').delta).toBe(25); // defenders still get DETECT too
@@ -176,7 +176,7 @@ describe('isSabotage', () => {
 });
 
 describe('computerStrategy', () => {
-  it("alice picks n in [16,32] and s = max(2, floor(n/6))", () => {
+  it('alice picks n in [16,32] and s = max(2, floor(n/6))', () => {
     for (const r of [0, 0.5, 0.999]) {
       const move = computerStrategy('alice', undefined, () => r);
       expect(move.n).toBeGreaterThanOrEqual(16);

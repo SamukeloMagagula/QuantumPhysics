@@ -26,13 +26,13 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
   const [solved, setSolved] = useState(false);
 
   const inRack = new Set(Object.values(seated));
-  const loose = ex.modules.filter((m) => !inRack.has(m.id));
-  const moduleOf = (id?: string) => ex.modules.find((m) => m.id === id);
+  const loose = ex.modules.filter(m => !inRack.has(m.id));
+  const moduleOf = (id?: string) => ex.modules.find(m => m.id === id);
 
   const place = (slotId: string) => {
     if (solved) return;
     if (held) {
-      setSeated((p) => {
+      setSeated(p => {
         const next = { ...p };
         for (const k of Object.keys(next)) if (next[k] === held) delete next[k];
         next[slotId] = held;
@@ -41,7 +41,7 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
       setHeld(null);
     } else if (seated[slotId]) {
       // Tapping a filled bay pulls the module back out.
-      setSeated((p) => {
+      setSeated(p => {
         const next = { ...p };
         delete next[slotId];
         return next;
@@ -63,9 +63,9 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
     <ExFrame prompt={ex.prompt}>
       <ExLabel>rack bays</ExLabel>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-        {ex.slots.map((slot) => {
+        {ex.slots.map(slot => {
           const mod = moduleOf(seated[slot.id]);
-          const bad = review?.wrong.find((w) => w.slot === slot.id);
+          const bad = review?.wrong.find(w => w.slot === slot.id);
           return (
             <div key={slot.id}>
               <button
@@ -86,16 +86,12 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
                 }}
               >
                 <Server size={13} color={mod ? TONE.accent : TONE.dim} />
-                <span style={{ color: TONE.dim, fontSize: 10.5, fontFamily: 'ui-monospace, monospace', width: 104 }}>
-                  {slot.label}
-                </span>
+                <span style={{ color: TONE.dim, fontSize: 10.5, fontFamily: 'ui-monospace, monospace', width: 104 }}>{slot.label}</span>
                 <span style={{ color: mod ? TONE.text : TONE.dim, fontSize: 11.5 }}>
                   {mod ? mod.label : held ? 'tap to seat' : 'empty'}
                 </span>
               </button>
-              {bad && (
-                <div style={{ color: TONE.warn, fontSize: 11, lineHeight: 1.5, margin: '3px 0 0 24px' }}>{bad.why}</div>
-              )}
+              {bad && <div style={{ color: TONE.warn, fontSize: 11, lineHeight: 1.5, margin: '3px 0 0 24px' }}>{bad.why}</div>}
             </div>
           );
         })}
@@ -104,7 +100,7 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
       <ExLabel>modules in hand</ExLabel>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {loose.length === 0 && <span style={{ color: TONE.dim, fontSize: 11 }}>All seated.</span>}
-        {loose.map((m) => (
+        {loose.map(m => (
           <button
             key={m.id}
             onClick={() => !solved && setHeld(held === m.id ? null : m.id)}
@@ -125,9 +121,7 @@ export function RackView({ ex, onSolved }: { ex: RackExercise; onSolved: () => v
         ))}
       </div>
 
-      {review && !review.ok && review.empty.length > 0 && (
-        <Feedback text={`${review.empty.length} bay(s) still empty.`} />
-      )}
+      {review && !review.ok && review.empty.length > 0 && <Feedback text={`${review.empty.length} bay(s) still empty.`} />}
       {!solved ? <Primary onClick={submit}>Power up the chain</Primary> : <Solved>Capture chain live</Solved>}
     </ExFrame>
   );
@@ -138,7 +132,7 @@ export function PhishView({ ex, onSolved }: { ex: PhishExercise; onSolved: () =>
   const [feedback, setFeedback] = useState<string | null>(null);
   const [solved, setSolved] = useState(false);
 
-  const flagged = examined.filter((id) => ex.tells.find((t) => t.id === id)?.suspicious);
+  const flagged = examined.filter(id => ex.tells.find(t => t.id === id)?.suspicious);
 
   const act = (id: string) => {
     const r = checkPhish(ex, examined, id);
@@ -172,12 +166,12 @@ export function PhishView({ ex, onSolved }: { ex: PhishExercise; onSolved: () =>
         examine the message — {flagged.length}/{ex.requiredTells} warning signs found
       </ExLabel>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-        {ex.tells.map((t) => {
+        {ex.tells.map(t => {
           const seen = examined.includes(t.id);
           return (
             <div key={t.id}>
               <button
-                onClick={() => !solved && !seen && setExamined((p) => [...p, t.id])}
+                onClick={() => !solved && !seen && setExamined(p => [...p, t.id])}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -223,7 +217,7 @@ export function PhishView({ ex, onSolved }: { ex: PhishExercise; onSolved: () =>
         <>
           <ExLabel>what do you do?</ExLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {ex.actions.map((a) => (
+            {ex.actions.map(a => (
               <button
                 key={a.id}
                 onClick={() => act(a.id)}

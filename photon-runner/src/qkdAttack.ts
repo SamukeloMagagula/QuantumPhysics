@@ -29,8 +29,7 @@ export type Rng = () => number;
 export const MIN_CAPTURE_PULSES = 1000;
 
 export function captureReady(s: AttackState): boolean {
-  return s.round >= Math.min(MIN_CAPTURE_PULSES, s.target.totalRounds) &&
-    s.sifted > 0 && keyFraction(s) >= s.target.keyGoal;
+  return s.round >= Math.min(MIN_CAPTURE_PULSES, s.target.totalRounds) && s.sifted > 0 && keyFraction(s) >= s.target.keyGoal;
 }
 
 export type AttackMode = 'intercept' | 'beamsplit' | 'blind' | 'trojan' | 'timeshift';
@@ -161,7 +160,7 @@ export const TARGETS: Target[] = [
 ];
 
 export function getTarget(id: string): Target | null {
-  return TARGETS.find((t) => t.id === id) ?? null;
+  return TARGETS.find(t => t.id === id) ?? null;
 }
 
 /** An attack that is currently running, at `fraction` of full strength. */
@@ -214,8 +213,7 @@ export function multiPhotonFraction(mu: number): number {
   return 1 - Math.exp(-mu) * (1 + mu);
 }
 
-const armedFraction = (armed: Armed[], mode: AttackMode): number =>
-  armed.find((a) => a.mode === mode)?.fraction ?? 0;
+const armedFraction = (armed: Armed[], mode: AttackMode): number => armed.find(a => a.mode === mode)?.fraction ?? 0;
 
 /**
  * True when the trojan probe is actually reading Alice's basis — which turns
@@ -373,12 +371,12 @@ export function extract(s: AttackState): AttackState {
  * clamped to 0..1; arming at 0 disarms. */
 export function arm(s: AttackState, mode: AttackMode, fraction: number): AttackState {
   const f = Math.max(0, Math.min(1, fraction));
-  const rest = s.armed.filter((a) => a.mode !== mode);
+  const rest = s.armed.filter(a => a.mode !== mode);
   return { ...s, armed: f === 0 ? rest : [...rest, { mode, fraction: f }] };
 }
 
 export function disarm(s: AttackState, mode: AttackMode): AttackState {
-  return { ...s, armed: s.armed.filter((a) => a.mode !== mode) };
+  return { ...s, armed: s.armed.filter(a => a.mode !== mode) };
 }
 
 /** Countermeasures the scan reveals, as console lines. */

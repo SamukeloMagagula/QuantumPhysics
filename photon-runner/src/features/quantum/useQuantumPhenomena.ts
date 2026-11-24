@@ -21,7 +21,6 @@ export function useQuantumPhenomena() {
   const [cameraPreset, setCameraPreset] = useState<'bench' | 'alice' | 'bob' | 'wave' | 'top'>('bench');
   const [showEMWave, setShowEMWave] = useState(true);
   const [eveEnabled, setEveEnabled] = useState(false);
-  const [eveIntercepted, setEveIntercepted] = useState(false);
 
   /** What Eve actually did to this photon — surfaced so her attack is visible, not implied. */
   interface EveReport {
@@ -325,7 +324,7 @@ export function useQuantumPhenomena() {
 
     const eveMast = new THREE.Mesh(
       new THREE.CylinderGeometry(0.05, 0.05, 1.6, 8),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 }),
     );
     eveMast.position.set(0, 1.4, 0);
     eveGroup.add(eveMast);
@@ -585,7 +584,6 @@ export function useQuantumPhenomena() {
     setIsFiring(true);
     setPhotonProgress(0);
     setMeasuredBit(null);
-    setEveIntercepted(false);
     capturedThisShotRef.current = false;
 
     // If Eve is enabled, she measures the photon at her tap point (X = 0) in
@@ -624,7 +622,6 @@ export function useQuantumPhenomena() {
     } else {
       setEveReport(null);
     }
-    setEveIntercepted(intercepted);
 
     const matched = checkBasisMatch(effectivePolarization, bobBasis);
     setIsMatch(matched);
@@ -636,7 +633,7 @@ export function useQuantumPhenomena() {
       const bobKeeps = (bobBasis === 'plus') === aliceIsPlus;
       const aliceBit: 0 | 1 = alicePolarization === 0 || alicePolarization === 2 ? 0 : 1;
       const bobBit = deriveBit(effectivePolarization, bobBasis);
-      setEveStats((s) => ({
+      setEveStats(s => ({
         intercepts: s.intercepts + 1,
         cleanReads: s.cleanReads + (intercepted ? 0 : 1),
         disturbed: s.disturbed + (intercepted ? 1 : 0),
@@ -711,7 +708,7 @@ export function useQuantumPhenomena() {
         if (eveMatRef.current) eveMatRef.current.emissiveIntensity = 0.6;
 
         if (activeSceneMode === 'scene3_encoding') {
-          setBatchResults((prev) => [
+          setBatchResults(prev => [
             {
               id: prev.length + 1,
               aliceBit,
@@ -760,6 +757,6 @@ export function useQuantumPhenomena() {
     mountRef,
     getPolarizationLabel,
     checkBasisMatch,
-    handleFirePhoton
+    handleFirePhoton,
   };
 }

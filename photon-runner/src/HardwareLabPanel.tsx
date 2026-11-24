@@ -64,7 +64,7 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
       {!lab ? (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            {(['optics', 'pc'] as LabTrack[]).map((t) => (
+            {(['optics', 'pc'] as LabTrack[]).map(t => (
               <button key={t} onClick={() => setTrack(t)} style={{ ...btn(track === t), width: 'auto' }}>
                 {t === 'optics' ? 'QKD optics' : 'PC hardware'}
               </button>
@@ -76,7 +76,7 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
               : 'Ordinary workstation hardware. Diagnose from the instruments before replacing anything.'}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {labsForTrack(track).map((l) => (
+            {labsForTrack(track).map(l => (
               <button
                 key={l.id}
                 onClick={() => {
@@ -112,7 +112,7 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
 
           <SectionLabel>instruments</SectionLabel>
           <div style={{ marginBottom: 16 }}>
-            {lab.readings.map((r) => (
+            {lab.readings.map(r => (
               <div
                 key={r.label}
                 style={{
@@ -135,21 +135,17 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
 
           <SectionLabel>diagnosis</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
-            {lab.faults.map((f) => (
+            {lab.faults.map(f => (
               <button key={f.id} onClick={() => !submitted && setFaultId(f.id)} style={btn(faultId === f.id)}>
                 {f.label}
-                {submitted && (
-                  <div style={{ color: TONE.dim, fontWeight: 400, marginTop: 4, fontSize: 11, lineHeight: 1.5 }}>
-                    {f.why}
-                  </div>
-                )}
+                {submitted && <div style={{ color: TONE.dim, fontWeight: 400, marginTop: 4, fontSize: 11, lineHeight: 1.5 }}>{f.why}</div>}
               </button>
             ))}
           </div>
 
           <SectionLabel>repair</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
-            {lab.fixes.map((f) => (
+            {lab.fixes.map(f => (
               <button key={f.id} onClick={() => !submitted && setFixId(f.id)} style={btn(fixId === f.id)}>
                 {f.label}
               </button>
@@ -186,11 +182,7 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
                   marginBottom: 6,
                 }}
               >
-                {result?.passed
-                  ? 'PASS'
-                  : result?.fixCorrect && !result?.faultCorrect
-                    ? 'RIGHT REPAIR, WRONG REASON'
-                    : 'FAIL'}
+                {result?.passed ? 'PASS' : result?.fixCorrect && !result?.faultCorrect ? 'RIGHT REPAIR, WRONG REASON' : 'FAIL'}
               </div>
               <p style={{ color: TONE.text, fontSize: 12.5, lineHeight: 1.65 }}>{lab.lesson}</p>
               <button onClick={reset} style={{ ...btn(false), marginTop: 12, textAlign: 'center' }}>
@@ -225,9 +217,5 @@ export function HardwareLabPanel({ onClose }: { onClose: () => void }) {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 7 }}>
-      {children}
-    </div>
-  );
+  return <div style={{ color: TONE.dim, fontSize: 9, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 7 }}>{children}</div>;
 }

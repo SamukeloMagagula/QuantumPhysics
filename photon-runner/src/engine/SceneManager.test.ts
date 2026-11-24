@@ -15,7 +15,7 @@ describe('SceneManager', () => {
     expect(onLoad).toHaveBeenCalledWith({ mapId: 'relay' });
   });
 
-  it('navigating away calls the previous scene\'s onUnload before the next onLoad', () => {
+  it("navigating away calls the previous scene's onUnload before the next onLoad", () => {
     const order: string[] = [];
     SceneManager.register({ id: 'home', onLoad: () => order.push('home:load'), onUnload: () => order.push('home:unload') });
     SceneManager.register({ id: 'labs', onLoad: () => order.push('labs:load') });

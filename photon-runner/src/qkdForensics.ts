@@ -72,8 +72,8 @@ function jitter(rng: Rng, spread: number): number {
 export function buildReport(session: AttackState, rng: Rng = Math.random): ForensicReport {
   const qber = currentQBER(session);
   const loud = qber > NOISE_FLOOR * 2.5;
-  const intercepted = session.armed.some((a) => a.mode === 'intercept' && a.fraction > 0);
-  const informed = session.armed.some((a) => a.mode === 'trojan' && a.fraction > 0);
+  const intercepted = session.armed.some(a => a.mode === 'intercept' && a.fraction > 0);
+  const informed = session.armed.some(a => a.mode === 'trojan' && a.fraction > 0);
 
   // A trojan-assisted intercept never mismatches a basis, so it leaves the
   // clean 100% signature an honest station has — the hardest case to spot.
@@ -116,7 +116,7 @@ export interface Verdict {
 
 export function judge(report: ForensicReport, accused: StationId): Verdict {
   const correct = accused === report.culprit;
-  const eve = report.evidence.find((e) => e.station === 'eve')!;
+  const eve = report.evidence.find(e => e.station === 'eve')!;
 
   let explanation: string;
   if (correct && !report.quiet) {

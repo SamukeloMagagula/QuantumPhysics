@@ -185,30 +185,23 @@ describe('shuffle', () => {
 
 describe('the authored tests', () => {
   it('covers every topic the labs teach', () => {
-    const sections = new Set(LABS.map((l) => l.category));
+    const sections = new Set(LABS.map(l => l.category));
     for (const s of sections) {
       expect(examForSection(s), `no test closes out "${s}"`).toBeTruthy();
     }
   });
 
   it('has a test for each of the named topics', () => {
-    for (const id of [
-      'exam-foundations',
-      'exam-web',
-      'exam-social',
-      'exam-wireless',
-      'exam-availability',
-      'exam-crypto',
-    ]) {
+    for (const id of ['exam-foundations', 'exam-web', 'exam-social', 'exam-wireless', 'exam-availability', 'exam-crypto']) {
       expect(getExam(id), `${id} missing`).toBeTruthy();
     }
   });
 
   it('uses unique ids throughout', () => {
-    const examIds = EXAMS.map((e) => e.id);
+    const examIds = EXAMS.map(e => e.id);
     expect(new Set(examIds).size).toBe(examIds.length);
     for (const e of EXAMS) {
-      const qIds = e.questions.map((q) => q.id);
+      const qIds = e.questions.map(q => q.id);
       expect(new Set(qIds).size, `${e.id} repeats a question id`).toBe(qIds.length);
     }
   });
@@ -216,7 +209,7 @@ describe('the authored tests', () => {
   it('gives every question a reachable answer', () => {
     for (const e of EXAMS) {
       for (const q of e.questions) {
-        const ids = new Set((q.kind === 'order' ? q.items : q.options).map((o) => o.id));
+        const ids = new Set((q.kind === 'order' ? q.items : q.options).map(o => o.id));
         const answer = q.kind === 'choose' ? [q.answer] : q.answer;
         for (const a of answer) {
           expect(ids.has(a), `${e.id}/${q.id} answers with "${a}", which is not an option`).toBe(true);

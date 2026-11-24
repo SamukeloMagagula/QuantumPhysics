@@ -7,3 +7,6 @@ venv/
 instance/
 /qkd_files/
 .worktrees/
+*.blend1
+*.blend2
+blender/renders/*.png

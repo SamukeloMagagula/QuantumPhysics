@@ -51,8 +51,7 @@ export const STAGES: StageDef[] = [
     order: 2,
     title: 'Incident 01',
     subtitle: 'Understand the Incident',
-    brief:
-      'PQ-001 is open. Separate what you can prove from what you are assuming, and name what actually failed.',
+    brief: 'PQ-001 is open. Separate what you can prove from what you are assuming, and name what actually failed.',
     parSeconds: 180,
     built: true,
   },
@@ -81,8 +80,7 @@ export const STAGES: StageDef[] = [
     order: 5,
     title: 'Incident 04',
     subtitle: 'The Payment That Never Arrived',
-    brief:
-      'The process worked. Bob followed it correctly. The payment completed. And Alice never received it.',
+    brief: 'The process worked. Bob followed it correctly. The payment completed. And Alice never received it.',
     parSeconds: 300,
     built: false,
   },
@@ -91,8 +89,7 @@ export const STAGES: StageDef[] = [
     order: 6,
     title: 'Incident 05',
     subtitle: 'Asymmetric Construction',
-    brief:
-      'Network evidence sends you back to the laboratory. Public and private keys, signatures, and a Red Team placed on standby.',
+    brief: 'Network evidence sends you back to the laboratory. Public and private keys, signatures, and a Red Team placed on standby.',
     parSeconds: 300,
     built: false,
     sourceNote: 'Source deck is image-only; title taken from the campaign bible.',
@@ -109,7 +106,7 @@ export const STAGES: StageDef[] = [
 ];
 
 export function getStage(id: ChapterId): StageDef | null {
-  return STAGES.find((s) => s.id === id) ?? null;
+  return STAGES.find(s => s.id === id) ?? null;
 }
 
 // --------------------------------------------------------------- progress
@@ -163,7 +160,7 @@ export function isCompleted(p: StageProgress, id: ChapterId): boolean {
 export function isUnlocked(p: StageProgress, id: ChapterId): boolean {
   const stage = getStage(id);
   if (!stage) return false;
-  return STAGES.filter((s) => s.order < stage.order).every((s) => isCompleted(p, s.id));
+  return STAGES.filter(s => s.order < stage.order).every(s => isCompleted(p, s.id));
 }
 
 /** Whether the stage can actually be entered: unlocked *and* implemented. */
@@ -174,7 +171,7 @@ export function isPlayable(p: StageProgress, id: ChapterId): boolean {
 
 /** The next stage the player should attempt, or null when all are cleared. */
 export function nextStage(p: StageProgress): StageDef | null {
-  return STAGES.find((s) => s.built && !isCompleted(p, s.id) && isUnlocked(p, s.id)) ?? null;
+  return STAGES.find(s => s.built && !isCompleted(p, s.id) && isUnlocked(p, s.id)) ?? null;
 }
 
 /**
@@ -209,7 +206,7 @@ export function mergeCase(prev: CarriedCase, add: CarriedCase): CarriedCase {
   const facts = [...prev.knownFacts];
   for (const f of add.knownFacts) if (!facts.includes(f)) facts.push(f);
   const evidence = [...prev.evidence];
-  for (const e of add.evidence) if (!evidence.some((x) => x.id === e.id)) evidence.push(e);
+  for (const e of add.evidence) if (!evidence.some(x => x.id === e.id)) evidence.push(e);
   return { knownFacts: facts, evidence };
 }
 

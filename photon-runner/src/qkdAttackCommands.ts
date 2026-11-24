@@ -58,7 +58,7 @@ export function parseFraction(args: string[]): number | null {
       return Number.isFinite(n) ? n : null;
     }
   }
-  const bare = args.find((a) => !a.startsWith('-') && Number.isFinite(Number(a)));
+  const bare = args.find(a => !a.startsWith('-') && Number.isFinite(Number(a)));
   if (bare !== undefined) {
     const n = Number(bare);
     // Accept a percentage as well as a 0..1 fraction — "50" clearly means half.
@@ -91,11 +91,9 @@ function statusLines(s: AttackState): Line[] {
     plain(`round   ${s.round} / ${t.totalRounds}    sifted ${s.sifted}`),
     dim(`capture ${Math.min(s.round, MIN_CAPTURE_PULSES)} / ${MIN_CAPTURE_PULSES} pulses needed before a mission can succeed`),
     (qber >= t.abortQBER * 0.8 ? warn : plain)(
-      `QBER    ${(qber * 100).toFixed(2)}%  ${bar(qber, t.abortQBER)}  abort ${(t.abortQBER * 100).toFixed(0)}%`
+      `QBER    ${(qber * 100).toFixed(2)}%  ${bar(qber, t.abortQBER)}  abort ${(t.abortQBER * 100).toFixed(0)}%`,
     ),
-    (key >= t.keyGoal ? good : plain)(
-      `KEY     ${(key * 100).toFixed(1)}%  ${bar(key, 1)}  goal ${(t.keyGoal * 100).toFixed(0)}%`
-    ),
+    (key >= t.keyGoal ? good : plain)(`KEY     ${(key * 100).toFixed(1)}%  ${bar(key, 1)}  goal ${(t.keyGoal * 100).toFixed(0)}%`),
     (s.alarm > 0.4 ? warn : plain)(`ALARM   ${(s.alarm * 100).toFixed(1)}%  ${bar(s.alarm, 1)}`),
   ];
   if (s.armed.length) {
@@ -117,7 +115,7 @@ const HELP: Line[] = [
   accent('commands'),
   plain('  targets                 list links you can reach'),
   plain('  connect <id>            open a session against a target'),
-  plain('  scan                    read the target\'s hardware and countermeasures'),
+  plain("  scan                    read the target's hardware and countermeasures"),
   plain('  attacks                 list the attack toolkit'),
   plain('  arm <attack> <frac>     run an attack at 0..1 (or a percentage)'),
   plain('  disarm <attack>         stop one attack'),
@@ -164,20 +162,22 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
     case 'targets':
       return push(
         accent('reachable links'),
-        ...TARGETS.map((t) =>
-          plain(`  ${t.id.padEnd(12)} ${t.name.padEnd(22)} goal ${(t.keyGoal * 100).toFixed(0)}%  abort ${(t.abortQBER * 100).toFixed(0)}%`)
+        ...TARGETS.map(t =>
+          plain(
+            `  ${t.id.padEnd(12)} ${t.name.padEnd(22)} goal ${(t.keyGoal * 100).toFixed(0)}%  abort ${(t.abortQBER * 100).toFixed(0)}%`,
+          ),
         ),
-        dim('  connect <id> to begin')
+        dim('  connect <id> to begin'),
       );
 
     case 'attacks':
       return push(
         accent('attack toolkit'),
-        ...MODES.flatMap((m) => [
+        ...MODES.flatMap(m => [
           plain(`  ${m.padEnd(11)} ${ATTACKS[m].label}`),
           dim(`              ${ATTACKS[m].blurb}`),
           dim(`              countered by: ${ATTACKS[m].counteredBy}`),
-        ])
+        ]),
       );
 
     case 'connect': {
@@ -188,7 +188,7 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
         createSession(target),
         good(`connected to ${target.name}`),
         dim(target.blurb),
-        dim('run "scan" before you touch anything.')
+        dim('run "scan" before you touch anything.'),
       );
     }
 
@@ -234,8 +234,8 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
       if (s.status !== 'active') return push(bad('session is over — "connect <id>" to start another'));
       const n = args[0] && Number.isFinite(Number(args[0])) ? Math.max(1, Math.floor(Number(args[0]))) : 500;
       const { state: next, events } = stepExchange(s, n, rng);
-      const lines: Line[] = events.map((e) =>
-        e.kind === 'caught' ? bad(`  ${e.text}`) : e.kind === 'complete' ? accent(`  ${e.text}`) : dim(`  ${e.text}`)
+      const lines: Line[] = events.map(e =>
+        e.kind === 'caught' ? bad(`  ${e.text}`) : e.kind === 'complete' ? accent(`  ${e.text}`) : dim(`  ${e.text}`),
       );
       lines.push(...statusLines(next));
       if (next.status === 'caught') {
@@ -245,8 +245,10 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
         lines.push(
           plain(''),
           won
-            ? good(`DONE — you took ${(keyFraction(next) * 100).toFixed(1)}% of the key, goal was ${(next.target.keyGoal * 100).toFixed(0)}%.`)
-            : warn(`SHORT — ${(keyFraction(next) * 100).toFixed(1)}% of the key, needed ${(next.target.keyGoal * 100).toFixed(0)}%.`)
+            ? good(
+                `DONE — you took ${(keyFraction(next) * 100).toFixed(1)}% of the key, goal was ${(next.target.keyGoal * 100).toFixed(0)}%.`,
+              )
+            : warn(`SHORT — ${(keyFraction(next) * 100).toFixed(1)}% of the key, needed ${(next.target.keyGoal * 100).toFixed(0)}%.`),
         );
       }
       return pushWith(next, ...lines);
@@ -266,9 +268,11 @@ export function runCommand(state: ConsoleState, input: string, rng: Rng = Math.r
         accent(next.ending ?? ''),
         won
           ? good(`Clean exit, goal met — ${(keyFraction(next) * 100).toFixed(1)}% of the key.`)
-          : warn(next.round < MIN_CAPTURE_PULSES
-            ? `Clean exit, but the capture was too short. Stay for at least ${MIN_CAPTURE_PULSES} pulses, then meet the key goal.`
-            : `Clean exit, but short of the ${(next.target.keyGoal * 100).toFixed(0)}% goal.`)
+          : warn(
+              next.round < MIN_CAPTURE_PULSES
+                ? `Clean exit, but the capture was too short. Stay for at least ${MIN_CAPTURE_PULSES} pulses, then meet the key goal.`
+                : `Clean exit, but short of the ${(next.target.keyGoal * 100).toFixed(0)}% goal.`,
+            ),
       );
     }
 

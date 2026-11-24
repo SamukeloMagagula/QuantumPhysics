@@ -91,13 +91,7 @@ export function isoNorm(v: IsoView, x: number, y: number, z = 0): Vec2 {
  * from the same place: a big room simply draws smaller, exactly as it would
  * if the camera were fixed.
  */
-export function fitIso(
-  w: number,
-  d: number,
-  h: number,
-  frame: IsoFrame = DEFAULT_FRAME,
-  mode: IsoMode = 'iso',
-): IsoView {
+export function fitIso(w: number, d: number, h: number, frame: IsoFrame = DEFAULT_FRAME, mode: IsoMode = 'iso'): IsoView {
   const fw = frame.x1 - frame.x0;
   const fh = frame.y1 - frame.y0;
   if (mode === 'plan') {

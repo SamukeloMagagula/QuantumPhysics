@@ -68,7 +68,7 @@ const lab: Lab = {
       const secs = estimateCrackSeconds(pw);
       meter.replaceChildren(
         el('div', {}, `Strength: ${STRENGTH_LABELS[score]}`),
-        el('div', {}, `Simulated crack time: ${formatDuration(secs)}`)
+        el('div', {}, `Simulated crack time: ${formatDuration(secs)}`),
       );
       if (score >= 4 && !done.hit) {
         done.hit = true;

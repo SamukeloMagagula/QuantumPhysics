@@ -48,15 +48,15 @@ export function simulateBB84({
     const bBit = bBasis === stateBasis ? stateBit : coin();
     rows.push({ aBit, aBasis, eBasis, eBit, bBasis, bBit });
   }
-  const sifted = rows.filter((r) => r.aBasis === r.bBasis);
-  const errors = sifted.filter((r) => r.aBit !== r.bBit).length;
+  const sifted = rows.filter(r => r.aBasis === r.bBasis);
+  const errors = sifted.filter(r => r.aBit !== r.bBit).length;
   const qber = sifted.length ? errors / sifted.length : 0;
   return {
     rows,
     siftedLength: sifted.length,
     qber,
-    aliceKey: sifted.map((r) => r.aBit),
-    bobKey: sifted.map((r) => r.bBit),
+    aliceKey: sifted.map(r => r.aBit),
+    bobKey: sifted.map(r => r.bBit),
     eve,
     detected: qber > 0.11,
   };
@@ -99,15 +99,15 @@ const lab: Lab = {
             'div',
             { class: 'relative h-[18px] bg-[var(--bg-sunken)] border border-slate-800 rounded my-1' },
             el('div', { class: `h-full ${barColorClass} rounded`, style: `width:${fillPct}%` }),
-            el('div', { class: 'absolute top-[-2px] h-[22px] border-l-2 border-dashed border-slate-400', style: 'left:27.5%' })
+            el('div', { class: 'absolute top-[-2px] h-[22px] border-l-2 border-dashed border-slate-400', style: 'left:27.5%' }),
           ),
           el('div', { class: MUTED }, 'Dashed line = 11% abort threshold'),
           el(
             'div',
             { class: `font-bold mt-1 ${textColorClass}` },
-            r.detected ? 'Eavesdropper detected — abort and rekey.' : 'Channel clean — safe to keep the key.'
-          )
-        )
+            r.detected ? 'Eavesdropper detected — abort and rekey.' : 'Channel clean — safe to keep the key.',
+          ),
+        ),
       );
       if (r.detected) seen.caught = true;
       else seen.clean = true;
@@ -119,7 +119,7 @@ const lab: Lab = {
       el('label', { class: 'block' }, eveToggle, ' Enable Eve (eavesdropper)'),
       el('p', { class: MUTED }, 'Run once with Eve OFF (clean), then once with Eve ON, and watch the error rate.'),
       runBtn,
-      out
+      out,
     );
   },
   explain() {

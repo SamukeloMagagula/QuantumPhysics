@@ -1,14 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, KeyRound, Lock, RotateCcw, ShieldAlert, Unlock } from 'lucide-react';
 import { BOB_KEYS, EVE_KEYS, SCENE2_MESSAGE, SCENE2_MESSAGE_LABEL, simulateMitm } from './campaignScene2Logic';
-import {
-  SCENE2_STEPS,
-  Scene2Step,
-  advanceScene2,
-  currentScene2Step,
-  initialScene2,
-  isScene2Finished,
-} from './campaignScene2Tutorial';
+import { SCENE2_STEPS, Scene2Step, advanceScene2, currentScene2Step, initialScene2, isScene2Finished } from './campaignScene2Tutorial';
 import { markSceneComplete } from './campaignProgress';
 
 interface CampaignScene2Props {
@@ -40,8 +33,8 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
     if (finished) markSceneComplete('scene2');
   }, [finished]);
 
-  const reveal = (id: string) => setRevealed((r) => ({ ...r, [id]: true }));
-  const advance = (event: Parameters<typeof advanceScene2>[1]) => setTutorial((t) => advanceScene2(t, event));
+  const reveal = (id: string) => setRevealed(r => ({ ...r, [id]: true }));
+  const advance = (event: Parameters<typeof advanceScene2>[1]) => setTutorial(t => advanceScene2(t, event));
   const restart = () => {
     setTutorial(initialScene2());
     setRevealed({});
@@ -96,7 +89,9 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
                 ) : (
                   <>
                     <div className="text-sm font-mono ink-1 space-y-1">
-                      <div>Public key (n, e) = ({BOB_KEYS.n}, {BOB_KEYS.e}) — published</div>
+                      <div>
+                        Public key (n, e) = ({BOB_KEYS.n}, {BOB_KEYS.e}) — published
+                      </div>
                       <div>Private key d = {BOB_KEYS.d} — kept secret</div>
                     </div>
                     <button onClick={() => advance('keypair-generated')} className="btn btn-primary px-5 py-2.5 text-sm">
@@ -109,7 +104,9 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
 
             {step.id === 'alice-encrypts' && (
               <div className="panel rounded-xl p-4 space-y-3">
-                <div className="text-xs ink-3">Bob's public key: (n, e) = ({BOB_KEYS.n}, {BOB_KEYS.e})</div>
+                <div className="text-xs ink-3">
+                  Bob's public key: (n, e) = ({BOB_KEYS.n}, {BOB_KEYS.e})
+                </div>
                 <div className="text-sm font-mono ink-1">Message: "{SCENE2_MESSAGE_LABEL}"</div>
                 {!revealed['alice-encrypts'] ? (
                   <button onClick={() => reveal('alice-encrypts')} className="btn btn-primary px-5 py-2.5 text-sm">
@@ -171,10 +168,17 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
 
             {step.id === 'mitm-alice-encrypts' && (
               <div className="panel rounded-xl p-4 space-y-3">
-                {!revealed['mitm-alice-encrypts'] && <div className="space-y-3">
-                  <p className="text-sm ink-2">The directory has supplied a new key claiming to be Bob’s. Send immediately, or compare it with Bob through a separate trusted channel?</p>
-                  <button className="btn btn-ghost px-4 py-3 text-sm" onClick={() => setVerifiedKey(true)}>Verify the key with Bob first</button>
-                </div>}
+                {!revealed['mitm-alice-encrypts'] && (
+                  <div className="space-y-3">
+                    <p className="text-sm ink-2">
+                      The directory has supplied a new key claiming to be Bob’s. Send immediately, or compare it with Bob through a separate
+                      trusted channel?
+                    </p>
+                    <button className="btn btn-ghost px-4 py-3 text-sm" onClick={() => setVerifiedKey(true)}>
+                      Verify the key with Bob first
+                    </button>
+                  </div>
+                )}
                 <div className="text-xs ink-3">
                   "Bob's public key": (n, e) = ({EVE_KEYS.n}, {EVE_KEYS.e})
                 </div>
@@ -223,8 +227,8 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
                 ) : (
                   <>
                     <div className="text-sm ink-1">
-                      Forwarded ciphertext: <span className="font-mono">{clean.eveInterceptedCiphertext}</span> — identical
-                      to a clean message. Nothing on the wire gives Eve away.
+                      Forwarded ciphertext: <span className="font-mono">{clean.eveInterceptedCiphertext}</span> — identical to a clean
+                      message. Nothing on the wire gives Eve away.
                     </div>
                     <button onClick={() => advance('mitm-forwarded')} className="btn btn-primary px-5 py-2.5 text-sm">
                       Continue <ArrowRight size={14} />
@@ -243,8 +247,11 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
                 ) : (
                   <>
                     <div className="text-sm ink-1">
-                      Recovered: <span className="font-mono" style={{ color: 'var(--ok)' }}>"{SCENE2_MESSAGE_LABEL}"</span> —
-                      reads perfectly normal. Bob has no idea Eve read it first.
+                      Recovered:{' '}
+                      <span className="font-mono" style={{ color: 'var(--ok)' }}>
+                        "{SCENE2_MESSAGE_LABEL}"
+                      </span>{' '}
+                      — reads perfectly normal. Bob has no idea Eve read it first.
                     </div>
                     <button onClick={() => advance('bob-decrypted')} className="btn btn-primary px-5 py-2.5 text-sm">
                       Continue <ArrowRight size={14} />
@@ -266,7 +273,9 @@ export function CampaignScene2({ onNext, onExit }: CampaignScene2Props) {
           <div className="a-pop card sheen glass rounded-[22px] p-6 space-y-4 text-center" style={{ ['--glow' as string]: '#818cf8' }}>
             <h2 className="h-section text-xl ink-1">{verifiedKey ? 'You caught the swapped key.' : 'You saw how the key swap works.'}</h2>
             <p className="text-sm ink-2 leading-relaxed">
-              {verifiedKey ? 'Bob confirmed that the supplied key was not his. You stopped before sending the secret, so Eve got no message to read. Authentication changed the outcome.' : 'Eve read the message because Alice trusted an unverified key. Replay and verify it first to stop her, or try a quantum exchange with another player or computer opponents.'}
+              {verifiedKey
+                ? 'Bob confirmed that the supplied key was not his. You stopped before sending the secret, so Eve got no message to read. Authentication changed the outcome.'
+                : 'Eve read the message because Alice trusted an unverified key. Replay and verify it first to stop her, or try a quantum exchange with another player or computer opponents.'}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button onClick={restart} className="btn btn-ghost px-5 py-2.5 text-sm">

@@ -85,8 +85,8 @@ const lab: Lab = {
           el('button', { class: BUTTON_SECONDARY, onClick: () => mark(true) }, 'Phishing'),
           ' ',
           el('button', { class: BUTTON_SECONDARY, onClick: () => mark(false) }, 'Legit'),
-          verdict
-        )
+          verdict,
+        ),
       );
     }
 
@@ -105,10 +105,7 @@ const lab: Lab = {
   explain() {
     return (
       '<ul>' +
-      SAMPLES.map(
-        (s) =>
-          `<li><code>${s.from}</code> — <strong>${s.phishing ? 'phishing' : 'legit'}</strong>: ${s.tell}</li>`
-      ).join('') +
+      SAMPLES.map(s => `<li><code>${s.from}</code> — <strong>${s.phishing ? 'phishing' : 'legit'}</strong>: ${s.tell}</li>`).join('') +
       '</ul><p><strong>Defense:</strong> check the real domain, distrust urgency, ' +
       'and never enter credentials from an emailed link.</p>'
     );

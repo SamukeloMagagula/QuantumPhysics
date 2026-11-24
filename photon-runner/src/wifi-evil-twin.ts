@@ -21,9 +21,9 @@ const normSsid = (s: string) => s.toLowerCase().replace(/[\s_]+/g, '');
 
 // The evil twin is an OPEN network whose SSID matches a secured (non-OPEN) one.
 export function evilTwinId(scan: WifiNetwork[]): string | null {
-  const secured = scan.filter((n) => n.security !== 'OPEN');
+  const secured = scan.filter(n => n.security !== 'OPEN');
   for (const n of scan) {
-    if (n.security === 'OPEN' && secured.some((s) => s.id !== n.id && normSsid(s.ssid) === normSsid(n.ssid))) {
+    if (n.security === 'OPEN' && secured.some(s => s.id !== n.id && normSsid(s.ssid) === normSsid(n.ssid))) {
       return n.id;
     }
   }
@@ -50,7 +50,7 @@ const lab: Lab = {
     const status = el('p', { class: 'text-[var(--ok)]' });
     container.append(
       el('h3', { class: 'text-base font-bold ink-1' }, 'WiFi scan — pick the evil twin'),
-      el('p', { class: MUTED }, 'One of these is a rogue AP impersonating a real network. Flag it.')
+      el('p', { class: MUTED }, 'One of these is a rogue AP impersonating a real network. Flag it.'),
     );
     for (const n of SCAN) {
       const bars = '▂▄▆█'.slice(0, n.signal) || '▂';
@@ -66,16 +66,16 @@ const lab: Lab = {
               class: BUTTON_SECONDARY,
               onClick: () => {
                 if (checkPick(n.id, SCAN)) {
-                  status.textContent = "Correct — that is the evil twin.";
+                  status.textContent = 'Correct — that is the evil twin.';
                   ctx.complete();
                 } else {
                   status.textContent = 'That one looks legitimate. Find an OPEN network cloning a secured SSID.';
                 }
               },
             },
-            'Flag as rogue'
-          )
-        )
+            'Flag as rogue',
+          ),
+        ),
       );
     }
     container.append(status);

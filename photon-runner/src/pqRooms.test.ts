@@ -74,7 +74,7 @@ describe('doors', () => {
   it('pairs every door with one leading back', () => {
     for (const room of ROOMS) {
       for (const door of room.doors) {
-        const back = getRoom(door.to).doors.find((d) => d.to === room.id);
+        const back = getRoom(door.to).doors.find(d => d.to === room.id);
         expect(back, `${room.id} -> ${door.to} has no way back`).toBeTruthy();
       }
     }
@@ -83,7 +83,7 @@ describe('doors', () => {
   it('arrives at the far side of the door you walked through', () => {
     for (const room of ROOMS) {
       for (const door of room.doors) {
-        const back = getRoom(door.to).doors.find((d) => d.to === room.id)!;
+        const back = getRoom(door.to).doors.find(d => d.to === room.id)!;
         expect(arrivalFrom(room.id, door.to)).toEqual(back.approach);
       }
     }
@@ -92,10 +92,7 @@ describe('doors', () => {
   it('puts every door approach on standable floor', () => {
     for (const room of ROOMS) {
       for (const door of room.doors) {
-        expect(
-          canStandOn(room.floor, door.approach.x, door.approach.y),
-          `${door.id} approach is not standable`,
-        ).toBe(true);
+        expect(canStandOn(room.floor, door.approach.x, door.approach.y), `${door.id} approach is not standable`).toBe(true);
       }
     }
   });
@@ -157,7 +154,7 @@ describe('doors', () => {
 });
 
 describe('staff', () => {
-  const roomsWithPeople = ROOMS.filter((r) => r.npcs.length > 0);
+  const roomsWithPeople = ROOMS.filter(r => r.npcs.length > 0);
 
   it('puts somebody in every room', () => {
     expect(roomsWithPeople.length).toBe(ROOMS.length);
@@ -165,8 +162,14 @@ describe('staff', () => {
 
   it('has people both sitting and moving', () => {
     for (const r of ROOMS) {
-      expect(r.npcs.some((n) => n.seat), `nobody sits in ${r.id}`).toBe(true);
-      expect(r.npcs.some((n) => n.path.length > 1), `nobody moves in ${r.id}`).toBe(true);
+      expect(
+        r.npcs.some(n => n.seat),
+        `nobody sits in ${r.id}`,
+      ).toBe(true);
+      expect(
+        r.npcs.some(n => n.path.length > 1),
+        `nobody moves in ${r.id}`,
+      ).toBe(true);
     }
   });
 
@@ -191,10 +194,9 @@ describe('staff', () => {
     for (const room of ROOMS) {
       for (const npc of room.npcs) {
         if (!npc.seat || npc.path.length === 0) continue;
-        expect(
-          canStandOn(room.floor, npc.seat.pos.x, npc.seat.pos.y),
-          `${room.id}/${npc.id} cannot stand up from their own chair`,
-        ).toBe(true);
+        expect(canStandOn(room.floor, npc.seat.pos.x, npc.seat.pos.y), `${room.id}/${npc.id} cannot stand up from their own chair`).toBe(
+          true,
+        );
         const hit = segmentClear(room.floor, npc.seat.pos, npc.path[0]);
         expect(hit, `${room.id}/${npc.id} walks through furniture leaving the desk, at ${hit}`).toBeNull();
       }
@@ -209,7 +211,7 @@ describe('staff', () => {
       const room = getRoom(spec.id);
       for (const person of spec.people) {
         if (!person.seat?.behind) continue;
-        const npc = room.npcs.find((n) => n.id === person.id)!;
+        const npc = room.npcs.find(n => n.id === person.id)!;
         expect(npc.seat!.clipY, `${spec.id}/${person.id} names "${person.seat.behind}" but gets no clip`).not.toBeNull();
       }
     }
@@ -235,7 +237,7 @@ describe('staff', () => {
 
   it('never lets a walker leave the room they work in', () => {
     for (const room of ROOMS) {
-      const walkers = room.npcs.filter((n) => n.path.length > 1).map(createNpc);
+      const walkers = room.npcs.filter(n => n.path.length > 1).map(createNpc);
       for (let i = 0; i < 4000; i++) {
         for (const n of walkers) updateNpc(n, 1 / 30);
       }
@@ -249,8 +251,8 @@ describe('staff', () => {
   });
 
   it('gets everybody who has a desk back to it', () => {
-    const room = ROOMS.find((r) => r.npcs.some((n) => n.seat && n.path.length))!;
-    const npc = createNpc(room.npcs.find((n) => n.seat && n.path.length)!);
+    const room = ROOMS.find(r => r.npcs.some(n => n.seat && n.path.length))!;
+    const npc = createNpc(room.npcs.find(n => n.seat && n.path.length)!);
     let sat = 0;
     let walked = 0;
     for (let i = 0; i < 20000; i++) {
